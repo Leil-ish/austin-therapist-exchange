@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { memberGroups } from "@/lib/data/mock-data";
+import { getGroupBySlug } from "@/lib/data/live-data";
 
 export default async function MemberGroupDetailPage({
   params
@@ -10,7 +10,7 @@ export default async function MemberGroupDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const group = memberGroups.find((item) => item.slug === slug);
+  const group = await getGroupBySlug(slug);
 
   if (!group) {
     notFound();

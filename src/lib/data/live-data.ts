@@ -7,8 +7,10 @@ import type {
   EndorsementSummary,
   FeedItem,
   FollowedClinicianSummary,
+  GroupSummary,
   JoinRequestSummary,
   MembershipTier,
+  ModerationReportSummary,
   PaymentModel,
   PublicTherapistSummary,
   ReferralLinkSummary,
@@ -1143,4 +1145,134 @@ export async function getCuratedListsForMember(ownerProfileId?: string) {
     createdAtLabel: formatCreatedAtLabel(list.created_at as string | null),
     items: itemsByList.get(String(list.id)) ?? []
   })) satisfies CuratedListSummary[];
+}
+
+export async function getPublicGroups() {
+  const admin = createSupabaseAdminClient();
+
+  const { data: rawGroups } = await admin
+    .from("groups")
+    .select("id, slug, name, description, visibility, market_slug")
+    .eq("visibility", "public")
+    .order("created_at", { ascending: true });
+
+  const groups = (rawGroups ?? []) as Array<Record<string, unknown>>;
+  const groupIds = groups.map((g) => String(g.id));
+
+  const { data: rawCounts } = groupIds.length
+    ? await admin.from("group_memberships").select("group_id").in("group_id", groupIds)
+    : { data: [] as unknown[] };
+
+  const countsByGroup = new Map<string, number>();
+  for (const row of (rawCounts ?? []) as Array<Record<string, unknown>>) {
+    const gid = String(row.group_id);
+    countsByGroup.set(gid, (countsByGroup.get(gid) ?? 0) + 1);
+  }
+
+  return groups.map((group) => ({
+    id: String(group.id),
+    slug: String(group.slug),
+    name: String(group.name ?? "Untitled group"),
+    description: String(group.description ?? ""),
+    visibility: "public" as GroupSummary["visibility"],
+    memberCount: countsByGroup.get(String(group.id)) ?? 0,
+    marketName: String(group.market_slug) === "austin-tx" ? "Austin" : String(group.market_slug ?? "Austin")
+  })) satisfies GroupSummary[];
+}
+
+export async function getMemberGroups(profileId: string) {
+  const admin = createSupabaseAdminClient();
+
+  const { data: memberGroupIds } = await admin
+    .from("group_memberships")
+    .select("group_id")
+    .eq("profile_id", profileId);
+
+  const memberIds = (memberGroupIds ?? []).map((row) => String((row as Record<string, unknown>).group_id));
+
+  const { data: rawGroups } = await admin
+    .from("groups")
+    .select("id, slug, name, description, visibility, market_slug")
+    .or(`visibility.eq.public${memberIds.length ? `,id.in.(${memberIds.join(",")})` : ""}`);
+
+  const groups = (rawGroups ?? []) as Array<Record<string, unknown>>;
+  const groupIds = groups.map((g) => String(g.id));
+
+  const { data: rawCounts } = groupIds.length
+    ? await admin.from("group_memberships").select("group_id").in("group_id", groupIds)
+    : { data: [] as unknown[] };
+
+  const countsByGroup = new Map<string, number>();
+  for (const row of (rawCounts ?? []) as Array<Record<string, unknown>>) {
+    const gid = String(row.group_id);
+    countsByGroup.set(gid, (countsByGroup.get(gid) ?? 0) + 1);
+  }
+
+  return groups.map((group) => ({
+    id: String(group.id),
+    slug: String(group.slug),
+    name: String(group.name ?? "Untitled group"),
+    description: String(group.description ?? ""),
+    visibility: (group.visibility === "public" ? "public" : "private_member_only") as GroupSummary["visibility"],
+    memberCount: countsByGroup.get(String(group.id)) ?? 0,
+    marketName: String(group.market_slug) === "austin-tx" ? "Austin" : String(group.market_slug ?? "Austin")
+  })) satisfies GroupSummary[];
+}
+
+export async function getGroupBySlug(slug: string) {
+  const admin = createSupabaseAdminClient();
+
+  const { data: rawGroup } = await admin
+    .from("groups")
+    .select("id, slug, name, description, visibility, market_slug")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (!rawGroup) return null;
+
+  const group = rawGroup as Record<string, unknown>;
+
+  const { data: rawCount } = await admin
+    .from("group_memberships")
+    .select("id")
+    .eq("group_id", String(group.id));
+
+  return {
+    id: String(group.id),
+    slug: String(group.slug),
+    name: String(group.name ?? "Untitled group"),
+    description: String(group.description ?? ""),
+    visibility: (group.visibility === "public" ? "public" : "private_member_only") as GroupSummary["visibility"],
+    memberCount: (rawCount ?? []).length,
+    marketName: String(group.market_slug) === "austin-tx" ? "Austin" : String(group.market_slug ?? "Austin")
+  } satisfies GroupSummary;
+}
+
+export async function getAdminModerationReports() {
+  const admin = createSupabaseAdminClient();
+
+  const { data: rawReports } = await admin
+    .from("moderation_reports")
+    .select("id, reporter_profile_id, target_type, reason, status, created_at")
+    .order("created_at", { ascending: false });
+
+  const reports = (rawReports ?? []) as Array<Record<string, unknown>>;
+  const reporterIds = [...new Set(reports.map((r) => String(r.reporter_profile_id)).filter(Boolean))];
+
+  const { data: rawReporters } = reporterIds.length
+    ? await admin.from("profiles").select("id, full_name").in("id", reporterIds)
+    : { data: [] as unknown[] };
+
+  const reporters = new Map(
+    ((rawReporters ?? []) as Array<Record<string, unknown>>).map((p) => [String(p.id), String(p.full_name ?? "Member")])
+  );
+
+  return reports.map((report) => ({
+    id: String(report.id),
+    targetType: String(report.target_type ?? "post") as ModerationReportSummary["targetType"],
+    reason: String(report.reason ?? ""),
+    reporterName: reporters.get(String(report.reporter_profile_id)) ?? "Anonymous",
+    createdAtLabel: formatCreatedAtLabel(report.created_at as string | null),
+    status: (report.status ?? "open") as ModerationReportSummary["status"]
+  })) satisfies ModerationReportSummary[];
 }

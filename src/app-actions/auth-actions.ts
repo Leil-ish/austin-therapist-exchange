@@ -113,6 +113,7 @@ export async function sendPasswordResetEmail(formData: FormData) {
 export async function signInWithPassword(formData: FormData) {
   const email = normalizeEmailInput(String(formData.get("email") ?? ""));
   const password = getPasswordValue(formData);
+  const returnTo = String(formData.get("returnTo") ?? "").trim() || "/member";
 
   if (!email) {
     redirect("/login?error=missing-email&mode=password");
@@ -136,7 +137,7 @@ export async function signInWithPassword(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}&mode=password`);
   }
 
-  redirect("/member");
+  redirect(returnTo as never);
 }
 
 export async function updatePassword(formData: FormData) {

@@ -2,6 +2,7 @@ import { saveMemberProfile } from "@/app-actions/member-actions";
 import { updatePassword } from "@/app-actions/auth-actions";
 import { EmptyState } from "@/components/state/empty-state";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
 import { getMemberProfileForUser } from "@/lib/data/live-data";
@@ -198,7 +199,7 @@ export default async function MemberProfilePage({
               Show this profile in the public directory
             </label>
             <div className="md:col-span-2">
-              <Button type="submit">Save profile</Button>
+              <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
             </div>
           </form>
         </CardContent>
@@ -224,7 +225,7 @@ export default async function MemberProfilePage({
               placeholder="Confirm new password"
               type="password"
             />
-            <Button type="submit" variant="outline">Save password</Button>
+            <SubmitButton pendingLabel="Saving…" variant="outline">Save password</SubmitButton>
           </form>
         </CardContent>
       </Card>

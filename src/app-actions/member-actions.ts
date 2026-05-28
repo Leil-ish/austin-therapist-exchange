@@ -584,3 +584,28 @@ export async function saveCuratedList(formData: FormData) {
   revalidatePath("/directory");
   redirect("/member/lists?saved=1" as never);
 }
+
+export async function respondToDirectReferral(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const referralId = String(formData.get("referralId") ?? "");
+  const decision = formData.get("decision");
+
+  if (!referralId || (decision !== "accepted" && decision !== "declined")) {
+    redirect("/member/referrals?referralError=1" as never);
+  }
+
+  const { error } = await admin
+    .from("direct_referrals")
+    .update({ status: decision })
+    .eq("id", referralId)
+    .eq("receiver_profile_id", session.userId);
+
+  if (error) {
+    redirect("/member/referrals?referralError=1" as never);
+  }
+
+  revalidatePath("/member/referrals");
+  redirect("/member/referrals?referralResponded=1" as never);
+}

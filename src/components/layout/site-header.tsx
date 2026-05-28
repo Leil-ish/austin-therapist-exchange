@@ -3,6 +3,7 @@ import Link from "next/link";
 import { signOut } from "@/app-actions/auth-actions";
 import { getSession } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
+import { MobileNav } from "./mobile-nav";
 
 const publicNav = [
   { href: "/directory", label: "Directory" },
@@ -46,22 +47,25 @@ export async function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
-          {session ? (
-            <form action={signOut}>
-              <Button type="submit" variant="outline">
-                Sign out
-              </Button>
-            </form>
-          ) : (
-            <>
-              <Button asChild variant="ghost">
-                <Link href="/login">Sign in</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/join/apply">Request access</Link>
-              </Button>
-            </>
-          )}
+          <div className="hidden items-center gap-3 md:flex">
+            {session ? (
+              <form action={signOut}>
+                <Button type="submit" variant="outline">
+                  Sign out
+                </Button>
+              </form>
+            ) : (
+              <>
+                <Button asChild variant="ghost">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/join/apply">Request access</Link>
+                </Button>
+              </>
+            )}
+          </div>
+          <MobileNav isSignedIn={!!session} navItems={navItems} />
         </div>
       </div>
     </header>

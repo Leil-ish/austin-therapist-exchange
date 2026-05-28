@@ -6,6 +6,7 @@ import { useState } from "react";
 import { sendDirectReferral } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calculateMatchConfidence,
@@ -438,9 +439,9 @@ function TherapistMatchCard({
             <input name="location" type="hidden" value={criteria.location} />
             <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
 
-            <Button type="submit" className="w-full">
+            <SubmitButton className="w-full" pendingLabel="Sending…">
               Send referral
-            </Button>
+            </SubmitButton>
           </form>
 
           <Button variant="outline" asChild className="w-full">

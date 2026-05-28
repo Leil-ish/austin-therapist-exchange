@@ -33,9 +33,10 @@ function getErrorCopy(error?: string, mode?: string) {
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams?: Promise<{ sent?: string; resetSent?: string; recovered?: string; error?: string; mode?: string }>;
+  searchParams?: Promise<{ sent?: string; resetSent?: string; recovered?: string; error?: string; mode?: string; returnTo?: string }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
+  const returnTo = params?.returnTo ?? "";
   const errorCopy = getErrorCopy(params?.error, params?.mode);
 
   return (
@@ -68,6 +69,7 @@ export default async function LoginPage({
               </div>
             ) : null}
             <form action={signInWithPassword} className="space-y-4">
+              {returnTo ? <input name="returnTo" type="hidden" value={returnTo} /> : null}
               <input
                 autoCapitalize="none"
                 autoCorrect="off"
