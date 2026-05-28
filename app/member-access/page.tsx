@@ -13,29 +13,29 @@ function getStateCopy(state: MembershipState, rejectionReason?: string | null) {
   if (state === "active") {
     return {
       title: "Membership active",
-      body: "Your membership is active. Continue into the member workspace."
+      body: "Your membership is active. Welcome to the community! You now have access to the directory, referral tools, network features, and member profiles."
     };
   }
 
   if (state === "rejected") {
     return {
-      title: "Membership not approved",
+      title: "Application not approved",
       body:
         rejectionReason?.trim() ||
-        "Your application is not currently approved. If this seems incorrect, reach out to an Austin Therapist Exchange admin."
+        "Your application was not approved at this time. If you'd like to discuss this, please reach out to an Austin Therapist Exchange admin."
     };
   }
 
   if (state === "suspended") {
     return {
       title: "Membership paused",
-      body: "Your member access is currently paused. Reach out to an Austin Therapist Exchange admin if you need clarification."
+      body: "Your member access is currently paused. Reach out to an Austin Therapist Exchange admin for more information."
     };
   }
 
   return {
     title: "Application under review",
-    body: "You are signed in, but access is still pending review."
+    body: "Your application is being reviewed. We usually process submissions within a few business days. Once approved, sign in to finish your profile and access the member workspace."
   };
 }
 

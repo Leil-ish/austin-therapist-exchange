@@ -49,18 +49,14 @@ export default async function MemberReferralsPage({
 
   return (
     <div className="space-y-8">
-      <section className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border bg-white/90 p-6">
-        <div className="space-y-2">
-          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Referrals</p>
-          <h2 className="font-serif text-3xl text-foreground">Find a trusted match and send the referral</h2>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Enter the core referral needs, review the best matches, send to one therapist, and track what happens next.
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/directory">Open directory</Link>
-        </Button>
-      </section>
+      <Card className="bg-white/90">
+        <CardHeader>
+          <CardTitle>Send referral</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <ReferralComposeForm senderEmail={session?.email} statusCopy={statusCopy} therapists={therapists} />
+        </CardContent>
+      </Card>
 
       <section className="grid gap-4 md:grid-cols-3">
         <Card className="bg-white/90">
@@ -82,15 +78,6 @@ export default async function MemberReferralsPage({
           <CardContent className="text-sm text-muted-foreground">Two-way referral relationships</CardContent>
         </Card>
       </section>
-
-      <Card className="bg-white/90">
-        <CardHeader>
-          <CardTitle>Send referral</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <ReferralComposeForm senderEmail={session?.email} statusCopy={statusCopy} therapists={therapists} />
-        </CardContent>
-      </Card>
 
       <section className="grid gap-6 lg:grid-cols-2">
         <Card className="bg-white/90">

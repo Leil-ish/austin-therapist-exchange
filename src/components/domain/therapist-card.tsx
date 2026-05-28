@@ -19,22 +19,26 @@ function getCareFormatLabel(therapist: PublicTherapistSummary) {
   return "In person";
 }
 
-function getTrustContext(therapist: PublicTherapistSummary) {
+function getTrustContext(therapist: PublicTherapistSummary, isSignedIn: boolean = false) {
   if (therapist.trustedByViewer) {
     return "You would refer here";
   }
 
   if (therapist.trustedBy.length === 1) {
-    return `${therapist.trustedBy[0]?.name} would refer here`;
+    return isSignedIn 
+      ? `${therapist.trustedBy[0]?.name} would refer here`
+      : `A trusted colleague would refer here`;
   }
 
   if (therapist.trustedBy.length > 1) {
-    return `${therapist.trustedBy[0]?.name} and ${therapist.trustedBy.length - 1} other colleagues would refer here`;
+    return isSignedIn
+      ? `${therapist.trustedBy[0]?.name} and ${therapist.trustedBy.length - 1} other colleagues would refer here`
+      : `Colleague referrals on record (${therapist.trustedBy.length})`;
   }
 
   return therapist.endorsementCount > 0
     ? `${therapist.endorsementCount} colleague referral${therapist.endorsementCount === 1 ? "" : "s"} on record`
-    : "No colleague referrals listed yet";
+    : "New to Austin Therapist Exchange";
 }
 
 export function TherapistCard({
@@ -47,7 +51,7 @@ export function TherapistCard({
   returnTo?: string;
 }) {
   const canFollow = currentProfileId && currentProfileId !== therapist.profileId;
-  const trustContext = getTrustContext(therapist);
+  const trustContext = getTrustContext(therapist, !!currentProfileId);
 
   return (
     <Card className="h-full bg-white/90">

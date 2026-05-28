@@ -41,9 +41,20 @@ export default async function JoinApplyPage({
       <section className="mx-auto max-w-3xl space-y-8 px-6 py-16">
         <SectionHeading
           eyebrow="Join"
-          title="Apply through a trusted referral path"
-          description="Access is sponsor-backed. The rest of the profile comes after sign-in."
+          title="Request access with a referral code"
+          description="Austin Therapist Exchange is invite-only. We review applications to keep the network professional and trustworthy."
         />
+
+        <Card className="bg-white/90">
+          <CardHeader>
+            <CardTitle>About this application</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
+            <p><strong>How it works:</strong> Austin Therapist Exchange is referral-based for now. If a current member invited you, enter their referral code below.</p>
+            <p><strong>Your application:</strong> We review submissions before granting member access. This usually takes a few business days.</p>
+            <p><strong>After approval:</strong> Sign in and finish your profile. Then you'll have full access to the directory, referral tools, and member network.</p>
+          </CardContent>
+        </Card>
 
         <Card className="bg-white/90">
           <CardHeader>
@@ -111,6 +122,16 @@ export default async function JoinApplyPage({
               />
               <Button type="submit">Submit application</Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/90">
+          <CardHeader>
+            <CardTitle>Don't have a referral code?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
+            <p>Referral code access is currently required. Check if any colleagues you know are members and ask them to share a code.</p>
+            <p>We're working on expanding access pathways. Questions? <a href="mailto:hello@austintherapistexchange.com" className="text-primary hover:underline">Get in touch</a>.</p>
           </CardContent>
         </Card>
       </section>

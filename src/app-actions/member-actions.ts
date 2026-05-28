@@ -44,7 +44,14 @@ function buildStructuredReferralSummary(formData: FormData) {
     buildStructuredLine("Payment model", formData.get("paymentWanted"), formData.get("paymentPreference")),
     buildStructuredLine("Care format", formData.get("formatWanted"), formData.get("formatPreference")),
     buildSimpleLine("Level of care", formData.get("levelOfCare")),
-    buildSimpleLine("Urgency", formData.get("urgencyLevel"))
+    buildSimpleLine("Urgency", formData.get("urgencyLevel")),
+    // New structured fields
+    buildSimpleLine("Structured Level of Care", formData.get("levelOfCare")),
+    buildSimpleLine("Structured Client Type", formData.get("clientType")),
+    buildSimpleLine("Structured Presenting Issue", formData.get("presentingIssue")),
+    buildSimpleLine("Structured Payment", formData.get("payment")),
+    buildSimpleLine("Structured Location", formData.get("location")),
+    buildSimpleLine("Additional Notes", formData.get("additionalNotes"))
   ].filter(Boolean);
 
   return lines.join("\n");
@@ -63,7 +70,14 @@ function parseClientDetailsFromFormData(formData: FormData) {
     paymentWanted: String(formData.get("paymentWanted") ?? "").trim(),
     formatWanted: String(formData.get("formatWanted") ?? "").trim(),
     levelOfCare: String(formData.get("levelOfCare") ?? "").trim(),
-    urgencyLevel: String(formData.get("urgencyLevel") ?? "").trim()
+    urgencyLevel: String(formData.get("urgencyLevel") ?? "").trim(),
+    // New structured fields
+    structuredLevelOfCare: String(formData.get("levelOfCare") ?? "").trim(),
+    structuredClientType: String(formData.get("clientType") ?? "").trim(),
+    structuredPresentingIssue: String(formData.get("presentingIssue") ?? "").trim(),
+    structuredPayment: String(formData.get("payment") ?? "").trim(),
+    structuredLocation: String(formData.get("location") ?? "").trim(),
+    structuredAdditionalNotes: String(formData.get("additionalNotes") ?? "").trim()
   };
 }
 

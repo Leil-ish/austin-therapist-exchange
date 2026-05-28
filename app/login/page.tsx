@@ -43,8 +43,8 @@ export default async function LoginPage({
       <section className="mx-auto max-w-3xl space-y-8 px-6 py-16">
         <SectionHeading
           eyebrow="Member access"
-          title="Therapist sign-in"
-          description="Password sign-in is the default. Magic links remain available as fallback."
+          title="Sign in to your account"
+          description="For approved members and applicants with access. New therapists can request access with a referral code."
         />
 
         <Card className="bg-white/90">
@@ -118,6 +118,20 @@ export default async function LoginPage({
 
         <Card className="bg-white/90">
           <CardHeader>
+            <CardTitle>Need access?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
+            <p>If you don't have access yet, you can request it with a referral code from a current member.</p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button asChild>
+                <Link href="/join/apply">Request access with referral code</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/90">
+          <CardHeader>
             <CardTitle>Magic link fallback</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
@@ -135,11 +149,6 @@ export default async function LoginPage({
               />
               <Button type="submit" variant="outline">Send magic link</Button>
             </form>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button asChild variant="ghost">
-                <Link href="/join/apply">Apply with referral code</Link>
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </section>
