@@ -51,6 +51,7 @@ function buildStructuredReferralSummary(formData: FormData) {
     buildSimpleLine("Structured Presenting Issue", formData.get("presentingIssue")),
     buildSimpleLine("Structured Payment", formData.get("payment")),
     buildSimpleLine("Structured Location", formData.get("location")),
+    buildSimpleLine("Private pay max", formData.get("privatePayMax")),
     buildSimpleLine("Additional Notes", formData.get("additionalNotes"))
   ].filter(Boolean);
 
@@ -77,6 +78,7 @@ function parseClientDetailsFromFormData(formData: FormData) {
     structuredPresentingIssue: String(formData.get("presentingIssue") ?? "").trim(),
     structuredPayment: String(formData.get("payment") ?? "").trim(),
     structuredLocation: String(formData.get("location") ?? "").trim(),
+    structuredPrivatePayMax: String(formData.get("privatePayMax") ?? "").trim(),
     structuredAdditionalNotes: String(formData.get("additionalNotes") ?? "").trim()
   };
 }
@@ -323,6 +325,7 @@ export async function sendDirectReferralInline(
   const presentingIssue = String(formData.get("presentingIssue") ?? "").trim();
   const payment = String(formData.get("payment") ?? "").trim();
   const additionalNotes = String(formData.get("additionalNotes") ?? "").trim();
+  const clientDetails = parseClientDetailsFromFormData(formData);
 
   const { data: message, error: messageError } = await admin
     .from("referral_messages")
@@ -335,7 +338,7 @@ export async function sendDirectReferralInline(
   const { error: referralError } = await admin.from("direct_referrals").insert({
     sender_profile_id: session.userId,
     receiver_profile_id: receiverProfileId,
-    client_details: { title, structuredLevelOfCare: levelOfCare, structuredClientType: clientType, structuredPresentingIssue: presentingIssue, structuredPayment: payment, structuredAdditionalNotes: additionalNotes },
+    client_details: { ...clientDetails, title },
     status: "open",
     message_id: message.id
   });
