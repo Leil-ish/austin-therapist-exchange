@@ -14,7 +14,7 @@ export default function AboutPage() {
         <div className="space-y-6">
           <Card className="bg-white/90">
             <CardHeader>
-              <CardTitle>Who it's for</CardTitle>
+              <CardTitle>Who it&apos;s for</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
               <p>Austin Therapist Exchange is for licensed mental health clinicians practicing in the Austin metro area who want to give and receive referrals within a trusted professional network.</p>
@@ -56,7 +56,7 @@ export default function AboutPage() {
               <p><strong>Step 2:</strong> Use that code to submit an application with your basic info.</p>
               <p><strong>Step 3:</strong> Our team reviews applications quickly.</p>
               <p><strong>Step 4:</strong> After approval, sign in and finish setting up your profile.</p>
-              <p className="text-xs italic">If you don't know anyone on the platform yet, reach out to a practice you'd like to connect with—they can sponsor you or point you to an existing member.</p>
+              <p className="text-xs italic">If you don&apos;t know anyone on the platform yet, reach out to a practice you&apos;d like to connect with—they can sponsor you or point you to an existing member.</p>
             </CardContent>
           </Card>
 
@@ -65,7 +65,7 @@ export default function AboutPage() {
               <CardTitle>What happens after approval</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-              <p>Once approved, you'll have full member access. Complete your profile with your specialties, availability, insurance, and practice details. Then you can search the directory, send referrals, and connect with colleagues.</p>
+              <p>Once approved, you&apos;ll have full member access. Complete your profile with your specialties, availability, insurance, and practice details. Then you can search the directory, send referrals, and connect with colleagues.</p>
               <p>Your profile helps other therapists understand who you are and what you offer, so they know when to reach out.</p>
             </CardContent>
           </Card>

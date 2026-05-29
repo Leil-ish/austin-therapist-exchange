@@ -2,11 +2,12 @@
 
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import type { Route } from "next";
 import { useState } from "react";
 
 import { signOut } from "@/app-actions/auth-actions";
 
-type NavItem = { href: string; label: string };
+type NavItem = { href: Route; label: string };
 
 export function MobileNav({ navItems, isSignedIn }: { navItems: readonly NavItem[]; isSignedIn: boolean }) {
   const [open, setOpen] = useState(false);

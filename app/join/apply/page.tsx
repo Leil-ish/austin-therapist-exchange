@@ -52,7 +52,7 @@ export default async function JoinApplyPage({
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
             <p><strong>How it works:</strong> Austin Therapist Exchange is referral-based for now. If a current member invited you, enter their referral code below.</p>
             <p><strong>Your application:</strong> We review submissions before granting member access. This usually takes a few business days.</p>
-            <p><strong>After approval:</strong> Sign in and finish your profile. Then you'll have full access to the directory, referral tools, and member network.</p>
+            <p><strong>After approval:</strong> Sign in and finish your profile. Then you&apos;ll have full access to the directory, referral tools, and member network.</p>
           </CardContent>
         </Card>
 
@@ -127,11 +127,11 @@ export default async function JoinApplyPage({
 
         <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle>Don't have a referral code?</CardTitle>
+            <CardTitle>Don&apos;t have a referral code?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
             <p>Referral code access is currently required. Check if any colleagues you know are members and ask them to share a code.</p>
-            <p>We're working on expanding access pathways. Questions? <a href="mailto:hello@austintherapistexchange.com" className="text-primary hover:underline">Get in touch</a>.</p>
+            <p>We&apos;re working on expanding access pathways. Questions? <a href="mailto:hello@austintherapistexchange.com" className="text-primary hover:underline">Get in touch</a>.</p>
           </CardContent>
         </Card>
       </section>

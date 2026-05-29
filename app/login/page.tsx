@@ -27,6 +27,10 @@ function getErrorCopy(error?: string, mode?: string) {
     return "That reset session is no longer active. Request a fresh reset link.";
   }
 
+  if (error === "magic-link-cooldown") {
+    return "A magic link was already sent to that address recently. Please wait a minute before requesting another one.";
+  }
+
   return error ? `Sign-in error: ${error}` : null;
 }
 
@@ -123,7 +127,7 @@ export default async function LoginPage({
             <CardTitle>Need access?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-            <p>If you don't have access yet, you can request it with a referral code from a current member.</p>
+            <p>If you don&apos;t have access yet, you can request it with a referral code from a current member.</p>
             <div className="flex flex-wrap gap-3 pt-2">
               <Button asChild>
                 <Link href="/join/apply">Request access with referral code</Link>

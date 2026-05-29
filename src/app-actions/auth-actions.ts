@@ -78,6 +78,10 @@ export async function signInWithMagicLink(formData: FormData) {
       redirect("/login?error=invalid-email");
     }
 
+    if (error.message?.includes("security purposes")) {
+      redirect("/login?error=magic-link-cooldown");
+    }
+
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
