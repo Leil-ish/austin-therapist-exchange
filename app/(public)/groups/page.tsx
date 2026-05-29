@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { GroupCard } from "@/components/domain/group-card";
 import { PageShell } from "@/components/layout/page-shell";
 import { SectionHeading } from "@/components/layout/section-heading";
