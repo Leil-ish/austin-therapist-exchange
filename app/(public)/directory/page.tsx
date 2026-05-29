@@ -1,10 +1,11 @@
 import { PageShell } from "@/components/layout/page-shell";
 import Link from "next/link";
 import { EmptyState } from "@/components/state/empty-state";
+import { DirectoryFilters } from "@/components/domain/directory-filters";
 import { TherapistCard } from "@/components/domain/therapist-card";
 import { getSession } from "@/lib/auth/session";
 import { getPublicTherapists } from "@/lib/data/live-data";
-import { AUSTIN_METRO_AREAS, regionMatches } from "@/lib/referral-matching";
+import { regionMatches } from "@/lib/referral-matching";
 
 export default async function DirectoryPage({
   searchParams
@@ -52,114 +53,13 @@ export default async function DirectoryPage({
           <h1 className="font-serif text-5xl leading-tight text-foreground">Find a therapist for a referral</h1>
           <p className="text-base text-muted-foreground">See openings, insurance, neighborhood, and who your colleagues know.</p>
         </div>
-        <form className="space-y-4">
-          {/* Filter inputs grid */}
-          <div className="grid gap-4 rounded-[28px] border bg-white/90 p-5 md:grid-cols-[1.6fr_repeat(4,1fr)]">
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={query}
-              name="q"
-              placeholder="Search by name, specialty, neighborhood, or referral need"
-            />
-            <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue={region} name="region">
-              <option value="">All Austin metro areas</option>
-              {AUSTIN_METRO_AREAS.map((area) => (
-                <option key={area} value={area}>
-                  {area}
-                </option>
-              ))}
-            </select>
-            <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue={availability} name="availability">
-              <option value="">Any availability</option>
-              <option value="accepting">Accepting new clients</option>
-              <option value="waitlist">Limited openings</option>
-              <option value="full">Not accepting referrals</option>
-            </select>
-            <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue={payment} name="payment">
-              <option value="">Any payment model</option>
-              <option value="private_pay">Private pay</option>
-              <option value="insurance">Insurance</option>
-              <option value="both">Private pay + insurance</option>
-            </select>
-            <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue={format} name="format">
-              <option value="">Any care format</option>
-              <option value="telehealth">Telehealth</option>
-              <option value="in_person">In person</option>
-              <option value="both">Both</option>
-            </select>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="submit"
-              className="rounded-xl border border-foreground bg-foreground px-6 py-3 text-sm font-medium text-background hover:bg-foreground/90"
-            >
-              Apply filters
-            </button>
-            <Link
-              href="/directory"
-              className="rounded-xl border border-foreground px-6 py-3 text-sm font-medium text-foreground hover:bg-background/50"
-            >
-              Clear filters
-            </Link>
-          </div>
-
-          {/* Active filters summary */}
-          {(query || region || availability || payment || format) && (
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.1em] text-muted-foreground">Active filters</p>
-              <div className="flex flex-wrap gap-2">
-                {query && (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-muted-foreground bg-background px-3 py-1 text-sm">
-                    Search: <span className="font-medium">{query}</span>
-                  </span>
-                )}
-                {region && (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-muted-foreground bg-background px-3 py-1 text-sm">
-                    Region: <span className="font-medium">{region}</span>
-                  </span>
-                )}
-                {availability && (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-muted-foreground bg-background px-3 py-1 text-sm">
-                    Availability:{" "}
-                    <span className="font-medium">
-                      {availability === "accepting"
-                        ? "Accepting new"
-                        : availability === "waitlist"
-                          ? "Limited openings"
-                          : "Not accepting"}
-                    </span>
-                  </span>
-                )}
-                {payment && (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-muted-foreground bg-background px-3 py-1 text-sm">
-                    Payment:{" "}
-                    <span className="font-medium">
-                      {payment === "private_pay"
-                        ? "Private pay"
-                        : payment === "insurance"
-                          ? "Insurance"
-                          : "Both"}
-                    </span>
-                  </span>
-                )}
-                {format && (
-                  <span className="inline-flex items-center gap-2 rounded-full border border-muted-foreground bg-background px-3 py-1 text-sm">
-                    Format:{" "}
-                    <span className="font-medium">
-                      {format === "telehealth"
-                        ? "Telehealth"
-                        : format === "in_person"
-                          ? "In person"
-                          : "Both"}
-                    </span>
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </form>
+        <DirectoryFilters
+          query={query}
+          region={region}
+          availability={availability}
+          payment={payment}
+          format={format}
+        />
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <p>
             Showing {pagedTherapists.length} therapist{pagedTherapists.length === 1 ? "" : "s"}
