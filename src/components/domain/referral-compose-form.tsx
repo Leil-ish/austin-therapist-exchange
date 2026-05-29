@@ -13,7 +13,7 @@ import {
   calculateMatchConfidence,
   CLIENT_TYPES,
   clientTypeMatches,
-  generateMatchExplanation,
+  getMatchDimensions,
   levelOfCareMatches,
   LEVELS_OF_CARE,
   LOCATION_OPTIONS,
@@ -23,6 +23,7 @@ import {
   presentingIssueMatches,
   PRESENTING_ISSUES
 } from "@/lib/referral-matching";
+import type { MatchDimension } from "@/lib/referral-matching";
 import type { PublicTherapistSummary } from "@/types";
 
 function getPaymentModelLabel(value: string) {
@@ -69,44 +70,85 @@ function getAvailabilityRank(status: PublicTherapistSummary["availabilityStatus"
   return 1;
 }
 
-function ConfidenceIndicator({ confidence }: { confidence: "high" | "medium" | "low" }) {
-  const dots = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
-  const color = confidence === "high" ? "bg-green-500" : confidence === "medium" ? "bg-yellow-500" : "bg-red-500";
+function MatchBreakdown({
+  dimensions,
+  confidence,
+  availabilityStatus
+}: {
+  dimensions: MatchDimension[];
+  confidence: "high" | "medium" | "low";
+  availabilityStatus: "accepting" | "waitlist" | "full";
+}) {
+  if (dimensions.length === 0) return null;
+
+  const matchCount = dimensions.filter((d) => d.status === "match").length;
+  const scoreColor =
+    confidence === "high"
+      ? "text-green-700"
+      : confidence === "medium"
+        ? "text-yellow-600"
+        : "text-red-500";
 
   return (
-    <div className="flex items-center gap-1">
-      <span className="text-sm font-medium capitalize">{confidence}</span>
-      <div className="flex gap-0.5">
-        {Array.from({ length: 3 }, (_, i) => (
-          <div
-            key={i}
-            className={`h-1.5 w-1.5 rounded-full ${i < dots ? color : "bg-gray-300"}`}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MatchExplanation({ explanations }: { explanations: string[] }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  return (
-    <div className="mt-3">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="text-sm text-primary hover:text-primary/80 underline"
-        type="button"
-      >
-        Why this match? {isExpanded ? "▼" : "▶"}
-      </button>
-      {isExpanded && (
-        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-          {explanations.map((explanation, index) => (
-            <li key={index}>• {explanation}</li>
+    <div className="space-y-2 rounded-xl bg-muted/40 px-3 py-2.5">
+      {/* Score row + segmented bar */}
+      <div className="flex items-center gap-2">
+        <span className={`text-sm font-semibold tabular-nums ${scoreColor}`}>
+          {matchCount}/{dimensions.length}
+        </span>
+        <span className="text-xs text-muted-foreground">criteria matched</span>
+        <div className="ml-1 flex gap-0.5">
+          {dimensions.map((d) => (
+            <div
+              key={d.label}
+              className={`h-1.5 w-5 rounded-full ${d.status === "match" ? "bg-green-500" : "bg-red-300"}`}
+            />
           ))}
-        </ul>
-      )}
+          {/* Availability as extra segment */}
+          <div
+            className={`h-1.5 w-5 rounded-full ${
+              availabilityStatus === "accepting"
+                ? "bg-green-500"
+                : availabilityStatus === "waitlist"
+                  ? "bg-yellow-400"
+                  : "bg-gray-300"
+            }`}
+          />
+        </div>
+      </div>
+
+      {/* Per-dimension chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {dimensions.map((d) => (
+          <span
+            key={d.label}
+            className={
+              d.status === "match"
+                ? "inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700"
+                : "inline-flex items-center gap-1 rounded-full border border-red-100 bg-red-50/70 px-2.5 py-0.5 text-xs font-medium text-red-500"
+            }
+          >
+            <span aria-hidden>{d.status === "match" ? "✓" : "✗"}</span>
+            {d.value}
+          </span>
+        ))}
+        {/* Availability chip */}
+        <span
+          className={
+            availabilityStatus === "accepting"
+              ? "inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700"
+              : availabilityStatus === "waitlist"
+                ? "inline-flex items-center gap-1 rounded-full border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-xs font-medium text-yellow-700"
+                : "inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+          }
+        >
+          {availabilityStatus === "accepting"
+            ? "✓ Available"
+            : availabilityStatus === "waitlist"
+              ? "~ Waitlist"
+              : "✗ Full"}
+        </span>
+      </div>
     </div>
   );
 }
@@ -140,7 +182,7 @@ export function ReferralComposeForm({
   const rankedTherapists = filteredTherapists
     .map(therapist => {
       const confidence = calculateMatchConfidence(levelOfCare, clientType, presentingIssue, payment, location, therapist);
-      const explanations = generateMatchExplanation(levelOfCare, clientType, presentingIssue, payment, location, therapist);
+      const dimensions = getMatchDimensions(levelOfCare, clientType, presentingIssue, payment, location, therapist);
 
       const trustScore =
         Number(Boolean(therapist.trustedByViewer)) * 8 +
@@ -150,7 +192,7 @@ export function ReferralComposeForm({
       const availabilityScore = getAvailabilityRank(therapist.availabilityStatus);
       const confidenceScore = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
 
-      return { therapist, confidence, explanations, score: trustScore + availabilityScore + confidenceScore };
+      return { therapist, confidence, dimensions, score: trustScore + availabilityScore + confidenceScore };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -311,12 +353,12 @@ export function ReferralComposeForm({
               <>
                 {highMediumMatches.length > 0 && (
                   <div className="space-y-4">
-                    {highMediumMatches.map(({ therapist, confidence, explanations }) => (
+                    {highMediumMatches.map(({ therapist, confidence, dimensions }) => (
                       <TherapistMatchCard
                         key={therapist.profileId}
                         therapist={therapist}
                         confidence={confidence}
-                        explanations={explanations}
+                        dimensions={dimensions}
                         criteria={criteria}
                         senderEmail={senderEmail}
                       />
@@ -327,12 +369,12 @@ export function ReferralComposeForm({
                 {lowMatches.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-sm font-medium text-muted-foreground">Other possible matches</h3>
-                    {lowMatches.map(({ therapist, confidence, explanations }) => (
+                    {lowMatches.map(({ therapist, confidence, dimensions }) => (
                       <TherapistMatchCard
                         key={therapist.profileId}
                         therapist={therapist}
                         confidence={confidence}
-                        explanations={explanations}
+                        dimensions={dimensions}
                         criteria={criteria}
                         senderEmail={senderEmail}
                       />
@@ -353,13 +395,13 @@ export function ReferralComposeForm({
 function TherapistMatchCard({
   therapist,
   confidence,
-  explanations,
+  dimensions,
   criteria,
   senderEmail
 }: {
   therapist: PublicTherapistSummary;
   confidence: "high" | "medium" | "low";
-  explanations: string[];
+  dimensions: MatchDimension[];
   criteria: {
     levelOfCare: string;
     clientType: string;
@@ -396,38 +438,32 @@ function TherapistMatchCard({
     <div className="rounded-2xl border bg-background p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex-1 space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="font-medium text-foreground">{therapist.displayName}</h3>
-              <p className="text-sm text-muted-foreground">{therapist.title}</p>
-            </div>
-            <ConfidenceIndicator confidence={confidence} />
+          <div>
+            <h3 className="font-medium text-foreground">{therapist.displayName}</h3>
+            <p className="text-sm text-muted-foreground">{therapist.title}</p>
+            <p className="text-xs text-muted-foreground">{therapist.neighborhoods[0] ?? therapist.city}</p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Badge>
-              {therapist.availabilityStatus === "accepting"
-                ? "Accepting referrals"
-                : therapist.availabilityStatus === "waitlist"
-                  ? "Limited openings"
-                  : "Not accepting referrals"}
-            </Badge>
-            <Badge variant="outline">{therapist.neighborhoods[0] ?? therapist.city}</Badge>
-          </div>
-
-          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+          <div className="grid gap-1.5 text-sm text-muted-foreground md:grid-cols-2">
             <p>{getCareFormatLabel(therapist)}</p>
             <p>{getPaymentModelLabel(therapist.paymentModel)}</p>
             <p className="md:col-span-2">{getTrustContext(therapist)}</p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {therapist.specialties.slice(0, 3).map((specialty) => (
               <Badge key={specialty} variant="muted">{specialty}</Badge>
             ))}
+            {therapist.communities.slice(0, 2).map((community) => (
+              <Badge key={community} variant="outline" className="border-primary/30 text-xs text-primary">{community}</Badge>
+            ))}
           </div>
 
-          <MatchExplanation explanations={explanations} />
+          <MatchBreakdown
+            dimensions={dimensions}
+            confidence={confidence}
+            availabilityStatus={therapist.availabilityStatus}
+          />
         </div>
 
         <div className="flex flex-col gap-2 md:min-w-32">
