@@ -182,18 +182,77 @@ export async function createMemberPost(formData: FormData) {
   redirect("/member/feed?created=1");
 }
 
+async function sendReferralNotificationEmail({
+  receiverProfileId,
+  senderName,
+  criteria
+}: {
+  receiverProfileId: string;
+  senderName: string;
+  criteria: { levelOfCare: string; clientType: string; presentingIssue: string; payment: string; additionalNotes: string };
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const admin = createSupabaseAdminClient();
+  const { data } = await admin.auth.admin.getUserById(receiverProfileId);
+  const receiverEmail = data.user?.email;
+  if (!receiverEmail) return;
+
+  const criteriaLines = [
+    criteria.levelOfCare && `Level of care: ${criteria.levelOfCare}`,
+    criteria.clientType && `Client type: ${criteria.clientType}`,
+    criteria.presentingIssue && `Presenting issue: ${criteria.presentingIssue}`,
+    criteria.payment && `Payment: ${criteria.payment}`,
+    criteria.additionalNotes && `Notes: ${criteria.additionalNotes}`
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "Austin Therapist Exchange <referrals@austintherapistexchange.com>",
+      to: receiverEmail,
+      subject: `New referral from ${senderName}`,
+      text: [
+        `${senderName} sent you a referral on Austin Therapist Exchange.`,
+        "",
+        criteriaLines,
+        "",
+        "Log in to view and respond:",
+        "https://austintherapistexchange.com/member/referrals"
+      ].join("\n")
+    })
+  }).catch(() => {
+    // notification is best-effort — never crash the referral send
+  });
+}
+
+function autoGenerateReferralTitle(formData: FormData) {
+  const presentingIssue = String(formData.get("presentingIssue") ?? "").trim();
+  const levelOfCare = String(formData.get("levelOfCare") ?? "").trim();
+  const clientType = String(formData.get("clientType") ?? "").trim();
+  const first = presentingIssue || levelOfCare || clientType;
+  return first ? `${first} referral` : "Client referral";
+}
+
 export async function sendDirectReferral(formData: FormData) {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
 
   const receiverProfileId = String(formData.get("receiverProfileId") ?? "").trim();
-  const title = String(formData.get("title") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
   const returnTo = String(formData.get("returnTo") ?? "/member").trim();
   const clientDetails = parseClientDetailsFromFormData(formData);
-  const messageBody = [buildStructuredReferralSummary(formData), "", "Details:", body].filter(Boolean).join("\n");
 
-  if (!receiverProfileId || !title || !body || receiverProfileId === session.userId) {
+  // Auto-generate title from structured criteria; body is optional
+  const title = String(formData.get("title") ?? "").trim() || autoGenerateReferralTitle(formData);
+  const body = String(formData.get("body") ?? "").trim();
+  const structured = buildStructuredReferralSummary(formData);
+  const messageBody = [structured, body ? `\nNotes:\n${body}` : ""].filter(Boolean).join("") || title;
+
+  if (!receiverProfileId || receiverProfileId === session.userId) {
     redirect(`${returnTo}?directReferralError=1` as never);
   }
 
@@ -214,7 +273,7 @@ export async function sendDirectReferral(formData: FormData) {
   const { error: referralError } = await admin.from("direct_referrals").insert({
     sender_profile_id: session.userId,
     receiver_profile_id: receiverProfileId,
-    client_details: clientDetails,
+    client_details: { ...clientDetails, title },
     status: "open",
     message_id: message.id
   });
@@ -224,10 +283,88 @@ export async function sendDirectReferral(formData: FormData) {
     redirect(`${returnTo}?directReferralError=1` as never);
   }
 
+  void sendReferralNotificationEmail({
+    receiverProfileId,
+    senderName: session.fullName ?? "A colleague",
+    criteria: {
+      levelOfCare: String(formData.get("levelOfCare") ?? ""),
+      clientType: String(formData.get("clientType") ?? ""),
+      presentingIssue: String(formData.get("presentingIssue") ?? ""),
+      payment: String(formData.get("payment") ?? ""),
+      additionalNotes: String(formData.get("additionalNotes") ?? "")
+    }
+  });
+
   revalidatePath("/member");
   revalidatePath("/member/feed");
-  revalidatePath("/member/posts/new");
+  revalidatePath("/member/referrals");
   redirect(`${returnTo}?directReferralSent=1` as never);
+}
+
+export type ReferralSendState = { status: "idle" } | { status: "success" } | { status: "error" };
+
+export async function sendDirectReferralInline(
+  _prevState: ReferralSendState,
+  formData: FormData
+): Promise<ReferralSendState> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const receiverProfileId = String(formData.get("receiverProfileId") ?? "").trim();
+  if (!receiverProfileId || receiverProfileId === session.userId) {
+    return { status: "error" };
+  }
+
+  const title = autoGenerateReferralTitle(formData);
+  const structured = buildStructuredReferralSummary(formData);
+  const messageBody = structured || title;
+  const levelOfCare = String(formData.get("levelOfCare") ?? "").trim();
+  const clientType = String(formData.get("clientType") ?? "").trim();
+  const presentingIssue = String(formData.get("presentingIssue") ?? "").trim();
+  const payment = String(formData.get("payment") ?? "").trim();
+  const additionalNotes = String(formData.get("additionalNotes") ?? "").trim();
+
+  const { data: message, error: messageError } = await admin
+    .from("referral_messages")
+    .insert({ sender_profile_id: session.userId, receiver_profile_id: receiverProfileId, body: messageBody })
+    .select("id")
+    .single();
+
+  if (messageError || !message) return { status: "error" };
+
+  const { error: referralError } = await admin.from("direct_referrals").insert({
+    sender_profile_id: session.userId,
+    receiver_profile_id: receiverProfileId,
+    client_details: { title, structuredLevelOfCare: levelOfCare, structuredClientType: clientType, structuredPresentingIssue: presentingIssue, structuredPayment: payment, structuredAdditionalNotes: additionalNotes },
+    status: "open",
+    message_id: message.id
+  });
+
+  if (referralError) {
+    await admin.from("referral_messages").delete().eq("id", message.id);
+    return { status: "error" };
+  }
+
+  void sendReferralNotificationEmail({
+    receiverProfileId,
+    senderName: session.fullName ?? "A colleague",
+    criteria: { levelOfCare, clientType, presentingIssue, payment, additionalNotes }
+  });
+
+  revalidatePath("/member/referrals");
+  return { status: "success" };
+}
+
+export async function markReferralsRead(messageIds: string[]) {
+  if (!messageIds.length) return;
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+  await admin
+    .from("referral_messages")
+    .update({ read_at: new Date().toISOString() })
+    .in("id", messageIds)
+    .eq("receiver_profile_id", session.userId)
+    .is("read_at", null);
 }
 
 export async function submitJoinApplication(formData: FormData) {

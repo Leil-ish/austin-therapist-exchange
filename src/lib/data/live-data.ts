@@ -790,6 +790,7 @@ export async function getDirectReferralActivity(profileId: string): Promise<Dire
       const counterpart = profiles.get(String(referral.sender_profile_id));
       return {
         id: String(referral.id),
+        messageId: typeof referral.message_id === "string" ? referral.message_id : undefined,
         direction: "incoming" as const,
         counterpartName: counterpart?.name ?? "Clinician",
         counterpartSlug: counterpart?.slug,

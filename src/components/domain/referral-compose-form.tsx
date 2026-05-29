@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useActionState, useState } from "react";
 
-import { sendDirectReferral } from "@/app-actions/member-actions";
+import { sendDirectReferralInline } from "@/app-actions/member-actions";
+import type { ReferralSendState } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -95,6 +96,7 @@ function MatchExplanation({ explanations }: { explanations: string[] }) {
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="text-sm text-primary hover:text-primary/80 underline"
+        type="button"
       >
         Why this match? {isExpanded ? "▼" : "▶"}
       </button>
@@ -126,13 +128,11 @@ export function ReferralComposeForm({
   const [privatePayMax, setPrivatePayMax] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
 
-  // Filter therapists based on criteria
+  // Filter therapists based on hard criteria
   const filteredTherapists = therapists.filter(therapist => {
-    // Hard excludes
     if (levelOfCare && !levelOfCareMatches(levelOfCare, therapist.offerings, therapist.bio)) return false;
     if (payment && !paymentModelMatchesFilter(therapist.paymentModel, payment.toLowerCase().replace(" ", "_"))) return false;
     if (location && !locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) return false;
-
     return true;
   });
 
@@ -148,23 +148,19 @@ export function ReferralComposeForm({
         Math.min(therapist.trustedBy.length, 3) * 2;
 
       const availabilityScore = getAvailabilityRank(therapist.availabilityStatus);
-
-      // Confidence score: high=3, medium=2, low=1
       const confidenceScore = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
 
-      return {
-        therapist,
-        confidence,
-        explanations,
-        score: trustScore + availabilityScore + confidenceScore
-      };
+      return { therapist, confidence, explanations, score: trustScore + availabilityScore + confidenceScore };
     })
     .sort((a, b) => b.score - a.score);
 
-  const hasRequiredFields = levelOfCare && clientType && presentingIssue && payment;
+  // Show matches as soon as any criterion is set
+  const hasCriteria = levelOfCare || clientType || presentingIssue || payment || location;
 
   const highMediumMatches = rankedTherapists.filter(match => match.confidence === "high" || match.confidence === "medium");
   const lowMatches = rankedTherapists.filter(match => match.confidence === "low");
+
+  const criteria = { levelOfCare, clientType, presentingIssue, payment, location, additionalNotes };
 
   return (
     <div className="space-y-6">
@@ -183,80 +179,68 @@ export function ReferralComposeForm({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="levelOfCare">
-                Level of Care <span className="text-red-500">*</span>
+                Level of Care
               </label>
               <select
                 className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                 id="levelOfCare"
                 value={levelOfCare}
                 onChange={(e) => setLevelOfCare(e.target.value)}
-                required
               >
-                <option value="">Select level of care</option>
+                <option value="">Any level of care</option>
                 {LEVELS_OF_CARE.map((level) => (
-                  <option key={level} value={level}>
-                    {level}
-                  </option>
+                  <option key={level} value={level}>{level}</option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="clientType">
-                Client Type <span className="text-red-500">*</span>
+                Client Type
               </label>
               <select
                 className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                 id="clientType"
                 value={clientType}
                 onChange={(e) => setClientType(e.target.value)}
-                required
               >
-                <option value="">Select client type</option>
+                <option value="">Any client type</option>
                 {CLIENT_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
+                  <option key={type} value={type}>{type}</option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="presentingIssue">
-                Presenting Issue <span className="text-red-500">*</span>
+                Presenting Issue
               </label>
               <select
                 className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                 id="presentingIssue"
                 value={presentingIssue}
                 onChange={(e) => setPresentingIssue(e.target.value)}
-                required
               >
-                <option value="">Select presenting issue</option>
+                <option value="">Any presenting issue</option>
                 {PRESENTING_ISSUES.map((issue) => (
-                  <option key={issue} value={issue}>
-                    {issue}
-                  </option>
+                  <option key={issue} value={issue}>{issue}</option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="payment">
-                Payment <span className="text-red-500">*</span>
+                Payment
               </label>
               <select
                 className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                 id="payment"
                 value={payment}
                 onChange={(e) => setPayment(e.target.value)}
-                required
               >
-                <option value="">Select payment type</option>
+                <option value="">Any payment type</option>
                 {PAYMENT_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
+                  <option key={option} value={option}>{option}</option>
                 ))}
               </select>
             </div>
@@ -273,9 +257,7 @@ export function ReferralComposeForm({
               >
                 <option value="">Any location</option>
                 {LOCATION_OPTIONS.map((loc) => (
-                  <option key={loc} value={loc}>
-                    {loc}
-                  </option>
+                  <option key={loc} value={loc}>{loc}</option>
                 ))}
               </select>
             </div>
@@ -311,8 +293,8 @@ export function ReferralComposeForm({
         </CardContent>
       </Card>
 
-      {/* Therapist Matches */}
-      {hasRequiredFields && (
+      {/* Therapist Matches — shown as soon as any criterion is set */}
+      {hasCriteria ? (
         <Card className="bg-white/90">
           <CardHeader>
             <CardTitle>Therapist Matches</CardTitle>
@@ -320,11 +302,10 @@ export function ReferralComposeForm({
           <CardContent className="space-y-6">
             {rankedTherapists.length === 0 ? (
               <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
-                No therapists match these criteria yet. Try adjusting your filters.
+                No therapists match these criteria. Try adjusting your filters.
               </div>
             ) : (
               <>
-                {/* High and Medium Confidence Matches */}
                 {highMediumMatches.length > 0 && (
                   <div className="space-y-4">
                     {highMediumMatches.map(({ therapist, confidence, explanations }) => (
@@ -333,24 +314,23 @@ export function ReferralComposeForm({
                         therapist={therapist}
                         confidence={confidence}
                         explanations={explanations}
-                        criteria={{ levelOfCare, clientType, presentingIssue, payment, location, additionalNotes }}
+                        criteria={criteria}
                         senderEmail={senderEmail}
                       />
                     ))}
                   </div>
                 )}
 
-                {/* Low Confidence Matches */}
                 {lowMatches.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-muted-foreground">Other possible matches</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">Other possible matches</h3>
                     {lowMatches.map(({ therapist, confidence, explanations }) => (
                       <TherapistMatchCard
                         key={therapist.profileId}
                         therapist={therapist}
                         confidence={confidence}
                         explanations={explanations}
-                        criteria={{ levelOfCare, clientType, presentingIssue, payment, location, additionalNotes }}
+                        criteria={criteria}
                         senderEmail={senderEmail}
                       />
                     ))}
@@ -360,6 +340,8 @@ export function ReferralComposeForm({
             )}
           </CardContent>
         </Card>
+      ) : (
+        <p className="text-sm text-muted-foreground">Set at least one criterion above to see matching therapists.</p>
       )}
     </div>
   );
@@ -385,6 +367,28 @@ function TherapistMatchCard({
   };
   senderEmail?: string;
 }) {
+  const [state, formAction] = useActionState<ReferralSendState, FormData>(
+    sendDirectReferralInline,
+    { status: "idle" }
+  );
+
+  if (state.status === "success") {
+    return (
+      <div className="rounded-2xl border bg-background p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-medium text-foreground">{therapist.displayName}</p>
+            <p className="text-sm text-muted-foreground">{therapist.title}</p>
+          </div>
+          <span className="text-sm font-medium text-green-600">✓ Referral sent</span>
+        </div>
+        <Button asChild className="mt-3 w-full" variant="outline" size="sm">
+          <Link href={`/directory/${therapist.slug}`}>View profile</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border bg-background p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -416,9 +420,7 @@ function TherapistMatchCard({
 
           <div className="flex flex-wrap gap-2">
             {therapist.specialties.slice(0, 3).map((specialty) => (
-              <Badge key={specialty} variant="muted">
-                {specialty}
-              </Badge>
+              <Badge key={specialty} variant="muted">{specialty}</Badge>
             ))}
           </div>
 
@@ -426,9 +428,7 @@ function TherapistMatchCard({
         </div>
 
         <div className="flex flex-col gap-2 md:min-w-32">
-          <form action={sendDirectReferral}>
-            <input name="returnTo" type="hidden" value="/member/referrals" />
-            <input name="type" type="hidden" value="referral_request" />
+          <form action={formAction}>
             <input name="receiverProfileId" type="hidden" value={therapist.profileId} />
             <input name="levelOfCare" type="hidden" value={criteria.levelOfCare} />
             <input name="clientType" type="hidden" value={criteria.clientType} />
@@ -436,20 +436,18 @@ function TherapistMatchCard({
             <input name="payment" type="hidden" value={criteria.payment} />
             <input name="location" type="hidden" value={criteria.location} />
             <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
-
             <SubmitButton className="w-full" pendingLabel="Sending…">
               Send referral
             </SubmitButton>
           </form>
-
+          {state.status === "error" && (
+            <p className="text-xs text-red-600">Couldn&apos;t send. Try again.</p>
+          )}
           <Button variant="outline" asChild className="w-full">
-            <Link href={`/directory/${therapist.slug}`}>
-              View profile
-            </Link>
+            <Link href={`/directory/${therapist.slug}`}>View profile</Link>
           </Button>
         </div>
       </div>
     </div>
   );
 }
-

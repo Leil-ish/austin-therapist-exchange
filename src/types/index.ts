@@ -180,6 +180,7 @@ export interface DirectReferral {
 
 export interface DirectReferralActivityItem {
   id: string;
+  messageId?: string;
   direction: "incoming" | "outgoing";
   counterpartName: string;
   counterpartSlug?: string;

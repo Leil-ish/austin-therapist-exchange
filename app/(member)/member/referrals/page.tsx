@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { respondToDirectReferral } from "@/app-actions/member-actions";
+import { MarkReferralsRead } from "@/components/domain/mark-referrals-read";
 import { ReferralComposeForm } from "@/components/domain/referral-compose-form";
 import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -53,8 +54,13 @@ export default async function MemberReferralsPage({
       : Promise.resolve({ sentCount: 0, receivedCount: 0, exchangedCount: 0, incoming: [], outgoing: [] })
   ]);
 
+  const unreadMessageIds = directReferrals.incoming
+    .filter(item => item.messageId && !item.readAt)
+    .map(item => item.messageId as string);
+
   return (
     <div className="space-y-8">
+      <MarkReferralsRead messageIds={unreadMessageIds} />
       <Card className="bg-white/90">
         <CardHeader>
           <CardTitle>Send referral</CardTitle>
