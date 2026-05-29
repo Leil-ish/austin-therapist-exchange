@@ -484,6 +484,7 @@ export async function saveMemberProfile(formData: FormData) {
   const publicPhone = String(formData.get("publicPhone") ?? "").trim();
   const specialties = parseCommaSeparatedList(formData.get("specialties"), 5);
   const neighborhoods = parseCommaSeparatedList(formData.get("neighborhoods"), 3);
+  const communities = (formData.getAll("communities") as string[]).filter(Boolean);
   const insuranceAccepted = parseCommaSeparatedList(formData.get("insuranceAccepted"), 5);
   const featuredLinks = parseLineSeparatedList(formData.get("featuredLinks"), session.membershipTier === "premium" ? 5 : 2);
   const offerings = parseLineSeparatedList(formData.get("offerings"), session.membershipTier === "premium" ? 8 : 0);
@@ -511,6 +512,7 @@ export async function saveMemberProfile(formData: FormData) {
       public_phone: publicPhone || null,
       specialties,
       neighborhoods,
+      communities,
       insurance_accepted: insuranceAccepted,
       featured_links: featuredLinks,
       offerings: session.membershipTier === "premium" ? offerings : [],

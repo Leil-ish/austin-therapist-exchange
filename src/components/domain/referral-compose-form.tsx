@@ -177,21 +177,24 @@ export function ReferralComposeForm({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="levelOfCare">
-                Level of Care
-              </label>
-              <select
-                className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                id="levelOfCare"
-                value={levelOfCare}
-                onChange={(e) => setLevelOfCare(e.target.value)}
-              >
-                <option value="">Any level of care</option>
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium text-foreground">Level of Care</label>
+              <div className="flex flex-wrap gap-2">
                 {LEVELS_OF_CARE.map((level) => (
-                  <option key={level} value={level}>{level}</option>
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setLevelOfCare(levelOfCare === level ? "" : level)}
+                    className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                      levelOfCare === level
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-muted-foreground/30 bg-white text-foreground hover:border-foreground/60"
+                    }`}
+                  >
+                    {level}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             <div className="space-y-2">

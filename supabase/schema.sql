@@ -48,6 +48,7 @@ create table public.therapist_profiles (
   modalities text[] not null default '{}',
   therapy_style_tags text[] not null default '{}',
   populations text[] not null default '{}',
+  communities text[] not null default '{}',
   neighborhoods text[] not null default '{}',
   approach_summary text,
   featured_links text[] not null default '{}',

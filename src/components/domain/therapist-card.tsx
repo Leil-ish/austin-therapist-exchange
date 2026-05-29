@@ -79,11 +79,16 @@ export function TherapistCard({
         ) : null}
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
-        {therapist.specialties.length > 0 ? (
+        {(therapist.specialties.length > 0 || therapist.communities.length > 0) ? (
           <div className="flex flex-wrap gap-1.5">
             {therapist.specialties.slice(0, 3).map((specialty) => (
               <Badge key={specialty} variant="muted" className="text-xs">
                 {specialty}
+              </Badge>
+            ))}
+            {therapist.communities.slice(0, 2).map((community) => (
+              <Badge key={community} variant="outline" className="border-primary/30 text-xs text-primary">
+                {community}
               </Badge>
             ))}
           </div>

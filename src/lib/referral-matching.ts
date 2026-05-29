@@ -143,6 +143,18 @@ export const LOCATION_OPTIONS = [
   "Telehealth Only"
 ] as const;
 
+export const COMMUNITIES = [
+  "LGBTQ+",
+  "BIPOC",
+  "Veterans",
+  "Faith-Based",
+  "Neurodivergent",
+  "Spanish-Speaking",
+  "Latinx",
+  "Asian / Pacific Islander",
+  "Deaf / Hard of Hearing"
+] as const;
+
 export const MODALITIES = [
   "ACT",
   "CBT",
