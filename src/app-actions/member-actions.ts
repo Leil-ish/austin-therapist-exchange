@@ -810,6 +810,29 @@ export async function saveCuratedList(formData: FormData) {
   redirect("/member/lists?saved=1" as never);
 }
 
+export async function updateAvatarUrl(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+  const avatarUrl = String(formData.get("avatarUrl") ?? "").trim();
+
+  if (!avatarUrl) {
+    return { error: "Missing avatar URL" };
+  }
+
+  const { error } = await admin
+    .from("profiles")
+    .update({ avatar_url: avatarUrl })
+    .eq("id", session.userId);
+
+  if (error) {
+    return { error: "Failed to save avatar" };
+  }
+
+  revalidatePath("/member/profile");
+  revalidatePath("/directory");
+  return { success: true };
+}
+
 export async function respondToDirectReferral(formData: FormData) {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();

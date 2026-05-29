@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
 import { getSession } from "@/lib/auth/session";
@@ -31,13 +32,26 @@ export default async function TherapistProfilePage({
       <section className="mx-auto grid max-w-5xl gap-8 px-6 py-16 md:grid-cols-[1.2fr_0.8fr]">
         <Card className="bg-white/90">
           <CardHeader className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
-              <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
+            <div className="flex items-start gap-5">
+              {therapist.avatarUrl ? (
+                <Image
+                  alt={therapist.displayName}
+                  className="rounded-full object-cover"
+                  height={80}
+                  src={therapist.avatarUrl}
+                  width={80}
+                />
+              ) : null}
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
+                  <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
+                </div>
+                <CardTitle className="text-4xl">{therapist.displayName}</CardTitle>
+                {therapist.headline ? <p className="text-base uppercase tracking-[0.18em] text-muted-foreground">{therapist.headline}</p> : null}
+                <p className="text-lg text-muted-foreground">{therapist.title}</p>
+              </div>
             </div>
-            <CardTitle className="text-4xl">{therapist.displayName}</CardTitle>
-            {therapist.headline ? <p className="text-base uppercase tracking-[0.18em] text-muted-foreground">{therapist.headline}</p> : null}
-            <p className="text-lg text-muted-foreground">{therapist.title}</p>
           </CardHeader>
           <CardContent className="space-y-6">
             {session?.userId && session.userId !== therapist.profileId ? (

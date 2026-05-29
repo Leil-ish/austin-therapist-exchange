@@ -254,7 +254,7 @@ async function getSupplementalTherapistFields(
     profileIds.length
       ? admin
           .from("profiles")
-          .select("id, membership_tier")
+          .select("id, membership_tier, avatar_url")
           .in("id", profileIds)
       : Promise.resolve({ data: [] as unknown[], error: null })
   ]);
@@ -318,6 +318,7 @@ function mapTherapistSummary(
     curatedListTitles: curatedListTitles.get(therapistProfileId) ?? [],
     publicEmail: typeof row.public_email === "string" ? row.public_email : undefined,
     publicPhone: typeof row.public_phone === "string" ? row.public_phone : undefined,
+    avatarUrl: typeof row.avatar_url === "string" && row.avatar_url ? row.avatar_url : undefined,
     isFollowed: followedProfileIds.has(profileId),
     trustedByViewer: viewerProfileId ? trustedConnections.some((connection) => connection.id === viewerProfileId) : false,
     membershipTier: (row.membership_tier as MembershipTier | null) ?? "free",
@@ -998,10 +999,11 @@ export async function getMemberProfileForUser(profileId: string) {
     return null;
   }
 
-  const { therapistFields } = await getSupplementalTherapistFields([String(data.id)], [profileId]);
+  const { therapistFields, profileFields } = await getSupplementalTherapistFields([String(data.id)], [profileId]);
   return {
     ...(data as Record<string, unknown>),
-    ...therapistFields.get(String(data.id))
+    ...therapistFields.get(String(data.id)),
+    ...profileFields.get(profileId)
   } as Record<string, unknown>;
 }
 

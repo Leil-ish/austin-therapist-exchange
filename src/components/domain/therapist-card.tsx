@@ -3,15 +3,23 @@ import Link from "next/link";
 import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getAvailabilityLabel, getPaymentModelLabelForUi } from "@/lib/data/live-data";
 import type { PublicTherapistSummary } from "@/types";
+
+export function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
 
 function getCompactMeta(therapist: PublicTherapistSummary) {
   const parts: string[] = [];
 
   if (therapist.neighborhoods.length > 0) {
-    parts.push(therapist.neighborhoods[0]);
+    parts.push(therapist.neighborhoods[0]!);
   } else if (therapist.city) {
     parts.push(therapist.city);
   }
@@ -51,6 +59,38 @@ function getTrustContext(therapist: PublicTherapistSummary, isSignedIn: boolean 
     : "New to Austin Therapist Exchange";
 }
 
+function TherapistAvatar({
+  name,
+  avatarUrl,
+  size = "md"
+}: {
+  name: string;
+  avatarUrl?: string;
+  size?: "sm" | "md";
+}) {
+  const dim = size === "sm" ? "h-10 w-10 text-sm" : "h-12 w-12 text-base";
+
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        alt={name}
+        className={`${dim} shrink-0 rounded-full object-cover`}
+        src={avatarUrl}
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className={`${dim} flex shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary`}
+    >
+      {getInitials(name)}
+    </span>
+  );
+}
+
 export function TherapistCard({
   therapist,
   currentProfileId,
@@ -63,41 +103,55 @@ export function TherapistCard({
   const canFollow = currentProfileId && currentProfileId !== therapist.profileId;
   const trustContext = getTrustContext(therapist, !!currentProfileId);
   const meta = getCompactMeta(therapist);
+  const tags = [
+    ...therapist.specialties.slice(0, 2),
+  ];
 
   return (
     <Card className="h-full bg-white/90">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <CardTitle className="text-base leading-snug">{therapist.displayName}</CardTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">{therapist.title}</p>
+        {/* Name + avatar row */}
+        <div className="flex items-start gap-3">
+          <TherapistAvatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-lg font-semibold leading-tight">{therapist.displayName}</p>
+              <Badge className="shrink-0 text-xs">{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">{therapist.title}</p>
           </div>
-          <Badge className="shrink-0 text-xs">{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
         </div>
+
         {therapist.headline ? (
           <p className="mt-1 text-sm italic text-primary/80">&ldquo;{therapist.headline}&rdquo;</p>
         ) : null}
       </CardHeader>
+
       <CardContent className="space-y-3 pt-0">
-        {(therapist.specialties.length > 0 || therapist.communities.length > 0) ? (
+        {/* Specialty + community tags */}
+        {tags.length > 0 || therapist.communities.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
-            {therapist.specialties.slice(0, 3).map((specialty) => (
-              <Badge key={specialty} variant="muted" className="text-xs">
-                {specialty}
+            {tags.map((tag) => (
+              <Badge key={tag} variant="muted" className="text-xs">
+                {tag}
               </Badge>
             ))}
-            {therapist.communities.slice(0, 2).map((community) => (
+            {therapist.communities.slice(0, 1).map((community) => (
               <Badge key={community} variant="outline" className="border-primary/30 text-xs text-primary">
                 {community}
               </Badge>
             ))}
           </div>
         ) : null}
-        <div className="space-y-1 text-xs text-muted-foreground">
+
+        {/* Meta + trust */}
+        <div className="space-y-0.5 text-xs text-muted-foreground">
           <p>{meta}</p>
           <p>{trustContext}</p>
         </div>
-        <div className="flex items-center gap-3 pt-1 text-sm">
+
+        {/* Actions */}
+        <div className="flex items-center gap-3 pt-1">
           {canFollow ? (
             <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
               <input name="followedProfileId" type="hidden" value={therapist.profileId} />

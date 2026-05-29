@@ -1,6 +1,7 @@
 import { saveMemberProfile } from "@/app-actions/member-actions";
 import { updatePassword } from "@/app-actions/auth-actions";
 import { COMMUNITIES } from "@/lib/referral-matching";
+import { AvatarUpload } from "@/components/domain/avatar-upload";
 import { EmptyState } from "@/components/state/empty-state";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -81,6 +82,13 @@ export default async function MemberProfilePage({
           <CardTitle>Edit public profile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="border-b pb-6">
+            <AvatarUpload
+              currentAvatarUrl={typeof profile.avatar_url === "string" && profile.avatar_url ? profile.avatar_url : undefined}
+              displayName={String(profile.public_display_name ?? session.fullName)}
+              userId={session.userId}
+            />
+          </div>
           <form action={saveMemberProfile} className="grid gap-4 md:grid-cols-2">
             <input
               className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
