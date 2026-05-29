@@ -51,9 +51,12 @@ export default async function MemberReferralsPage({
     <div className="space-y-8">
       <Card className="bg-white/90">
         <CardHeader>
-          <CardTitle>Send referral</CardTitle>
+          <CardTitle>Referral search</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Start with structured referral criteria and see therapist matches before reviewing referral activity.
+          </p>
           <ReferralComposeForm senderEmail={session?.email} statusCopy={statusCopy} therapists={therapists} />
         </CardContent>
       </Card>

@@ -167,14 +167,11 @@ export const INSURANCE_CARRIERS = [
   "Cigna",
   "UnitedHealthcare",
   "Oscar",
-  "Oxford",
-  "UMR",
-  "Magellan",
-  "Scott & White",
-  "Tricare",
-  "Medicare",
+  "Sendero",
   "Medicaid",
-  "Out of network"
+  "Medicare",
+  "Out of network",
+  "Not sure"
 ] as const;
 
 export const URGENCY_LEVELS = ["Low", "Medium", "High", "Urgent"] as const;
@@ -229,6 +226,30 @@ export function paymentModelMatchesFilter(
   }
 
   return therapistPaymentModel === requestedPaymentModel;
+}
+
+export function insuranceMatches(
+  insurance: string,
+  therapistInsuranceAccepted: string[],
+  therapistPaymentModel: "private_pay" | "insurance" | "both"
+) {
+  if (!insurance) {
+    return true;
+  }
+
+  const normalizedInsurance = normalizeForMatch(insurance);
+
+  if (normalizedInsurance === "not sure") {
+    return true;
+  }
+
+  const normalizedAccepted = therapistInsuranceAccepted.map(normalizeForMatch);
+
+  if (normalizedInsurance === "out of network") {
+    return therapistPaymentModel !== "insurance" || normalizedAccepted.includes("out of network");
+  }
+
+  return normalizedAccepted.some((item) => item.includes(normalizedInsurance));
 }
 
 // New structured matching functions
@@ -345,6 +366,7 @@ export function calculateMatchConfidence(
   presentingIssue: string,
   payment: string,
   location: string,
+  insurance: string,
   therapist: PublicTherapistSummary
 ): "high" | "medium" | "low" {
   let matches = 0;
@@ -390,6 +412,14 @@ export function calculateMatchConfidence(
     }
   }
 
+  // Insurance
+  if (insurance) {
+    total++;
+    if (insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)) {
+      matches++;
+    }
+  }
+
   const matchRatio = total > 0 ? matches / total : 0;
 
   if (matchRatio >= 0.8) return "high";
@@ -403,6 +433,7 @@ export function generateMatchExplanation(
   presentingIssue: string,
   payment: string,
   location: string,
+  insurance: string,
   therapist: PublicTherapistSummary
 ): string[] {
   const explanations: string[] = [];
@@ -453,6 +484,15 @@ export function generateMatchExplanation(
     }
   }
 
+  // Insurance
+  if (insurance) {
+    if (insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)) {
+      explanations.push(`Accepts ${insurance.toLowerCase()}`);
+    } else if (normalizeForMatch(insurance) !== "not sure") {
+      explanations.push(`Insurance compatibility unclear for ${insurance.toLowerCase()}`);
+    }
+  }
+
   // Availability
   if (therapist.availabilityStatus === "accepting") {
     explanations.push("Strong availability signal: accepting new referrals");
@@ -472,99 +512,13 @@ export function generateMatchExplanation(
   return explanations;
 }
 
-export function getDynamicDropdownOptions(therapists: PublicTherapistSummary[]) {
-  const locations = new Set<string>();
-  const presentingIssues = new Set<string>();
-  const clientTypes = new Set<string>();
-  const levelsOfCare = new Set<string>();
-  const paymentOptions = new Set<string>();
-
-  therapists.forEach(therapist => {
-    // Locations
-    therapist.neighborhoods.forEach(neigh => {
-      const normalized = normalizeForMatch(neigh);
-      // Map to our canonical options
-      if (normalized.includes("central") || normalized.includes("downtown")) {
-        locations.add("Central Austin");
-      } else if (normalized.includes("north")) {
-        locations.add("North Austin");
-      } else if (normalized.includes("south")) {
-        locations.add("South Austin");
-      } else if (normalized.includes("east")) {
-        locations.add("East Austin");
-      } else if (normalized.includes("west")) {
-        locations.add("West Austin");
-      }
-    });
-
-    if (therapist.city) {
-      const normalizedCity = normalizeForMatch(therapist.city);
-      if (normalizedCity.includes("round rock")) locations.add("Round Rock");
-      if (normalizedCity.includes("cedar park")) locations.add("Cedar Park");
-    }
-
-    if (therapist.telehealth) {
-      locations.add("Telehealth Only");
-    }
-
-    // Presenting Issues - map specialties to our canonical issues
-    therapist.specialties.forEach(specialty => {
-      const normalized = normalizeForMatch(specialty);
-      if (normalized.includes("anxiety")) presentingIssues.add("Anxiety");
-      if (normalized.includes("depression")) presentingIssues.add("Depression");
-      if (normalized.includes("trauma") || normalized.includes("ptsd")) {
-        presentingIssues.add("Trauma");
-        presentingIssues.add("PTSD");
-      }
-      if (normalized.includes("ocd")) presentingIssues.add("OCD");
-      if (normalized.includes("addiction") || normalized.includes("substance")) presentingIssues.add("SUD");
-      if (normalized.includes("eating")) presentingIssues.add("Eating Disorder");
-      if (normalized.includes("infidelity") || normalized.includes("affair")) presentingIssues.add("Infidelity");
-      if (normalized.includes("parenting")) presentingIssues.add("Parenting");
-      if (normalized.includes("self") && normalized.includes("esteem")) presentingIssues.add("Self Esteem");
-      if (normalized.includes("grief")) presentingIssues.add("Grief Loss");
-      if (normalized.includes("burnout")) presentingIssues.add("Burnout");
-      if (normalized.includes("sleep") || normalized.includes("insomnia")) presentingIssues.add("Sleep");
-      if (normalized.includes("bipolar")) presentingIssues.add("Bipolar Disorder");
-      if (normalized.includes("anger")) presentingIssues.add("Anger");
-    });
-
-    // Client Types - map populations to our canonical types
-    therapist.populations.forEach(population => {
-      const normalized = normalizeForMatch(population);
-      if (normalized.includes("adult") && !normalized.includes("child") && !normalized.includes("teen")) {
-        clientTypes.add("Adult Individual");
-      }
-      if (normalized.includes("child")) clientTypes.add("Child Individual");
-      if (normalized.includes("adolescent") || normalized.includes("teen")) clientTypes.add("Adolescent Individual");
-      if (normalized.includes("couples")) clientTypes.add("Couples");
-      if (normalized.includes("families") || normalized.includes("family")) clientTypes.add("Families");
-    });
-
-    // Levels of Care - check offerings and bio
-    const combinedText = [...therapist.offerings, therapist.bio].join(" ").toLowerCase();
-    if (combinedText.includes("group")) levelsOfCare.add("Group");
-    if (combinedText.includes("intensive outpatient") || combinedText.includes("iop")) levelsOfCare.add("IOP");
-    if (combinedText.includes("partial") || combinedText.includes("php")) levelsOfCare.add("PHP");
-    if (combinedText.includes("residential")) levelsOfCare.add("Residential");
-    // Always include Outpatient as default
-    levelsOfCare.add("Outpatient");
-
-    // Payment Options
-    if (therapist.paymentModel === "private_pay") paymentOptions.add("Private Pay");
-    if (therapist.paymentModel === "insurance") paymentOptions.add("Insurance");
-    if (therapist.paymentModel === "both") {
-      paymentOptions.add("Private Pay");
-      paymentOptions.add("Insurance");
-      paymentOptions.add("Both");
-    }
-  });
-
+export function getDynamicDropdownOptions() {
   return {
-    locations: Array.from(locations).sort(),
-    presentingIssues: Array.from(presentingIssues).sort(),
-    clientTypes: Array.from(clientTypes).sort(),
-    levelsOfCare: Array.from(levelsOfCare).sort(),
-    paymentOptions: Array.from(paymentOptions).sort()
+    locations: Array.from(LOCATION_OPTIONS).sort(),
+    presentingIssues: Array.from(PRESENTING_ISSUES).sort(),
+    clientTypes: Array.from(CLIENT_TYPES).sort(),
+    levelsOfCare: Array.from(LEVELS_OF_CARE).sort(),
+    paymentOptions: Array.from(PAYMENT_OPTIONS).sort(),
+    insuranceOptions: Array.from(INSURANCE_CARRIERS).sort()
   };
 }

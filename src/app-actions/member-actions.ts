@@ -51,6 +51,7 @@ function buildStructuredReferralSummary(formData: FormData) {
     buildSimpleLine("Structured Presenting Issue", formData.get("presentingIssue")),
     buildSimpleLine("Structured Payment", formData.get("payment")),
     buildSimpleLine("Structured Location", formData.get("location")),
+    buildSimpleLine("Private pay max", formData.get("privatePayMax")),
     buildSimpleLine("Additional Notes", formData.get("additionalNotes"))
   ].filter(Boolean);
 
@@ -77,6 +78,7 @@ function parseClientDetailsFromFormData(formData: FormData) {
     structuredPresentingIssue: String(formData.get("presentingIssue") ?? "").trim(),
     structuredPayment: String(formData.get("payment") ?? "").trim(),
     structuredLocation: String(formData.get("location") ?? "").trim(),
+    structuredPrivatePayMax: String(formData.get("privatePayMax") ?? "").trim(),
     structuredAdditionalNotes: String(formData.get("additionalNotes") ?? "").trim()
   };
 }
