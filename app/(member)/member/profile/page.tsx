@@ -97,7 +97,7 @@ export default async function MemberProfilePage({
               className="w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
               defaultValue={String(profile.headline ?? "")}
               name="headline"
-              placeholder={session.membershipTier === "premium" ? "Short headline for your profile" : "Premium members can add a profile headline"}
+              placeholder={session.membershipTier === "premium" ? "Your tagline — something personal (e.g. \"I help people find calm after chaos\")" : "Premium members can add a tagline"}
             />
             <input
               className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
