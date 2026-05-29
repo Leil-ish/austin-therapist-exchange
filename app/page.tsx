@@ -35,10 +35,10 @@ export default async function HomePage({
           <div className="space-y-4">
             <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">For Austin therapists</p>
             <h1 className="max-w-4xl font-serif text-5xl leading-[0.95] text-foreground md:text-6xl">
-              Find a therapist for a referral.
+              Know exactly who to trust with your referrals, before you reach out
             </h1>
             <p className="max-w-2xl text-base leading-7 text-muted-foreground">
-              See who has openings, who takes insurance, and who people you know would refer to.
+              See who your colleagues trust, find the right fit instantly, and send referrals with confidence. All in one place.
             </p>
           </div>
 

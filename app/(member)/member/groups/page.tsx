@@ -1,12 +1,22 @@
 import { GroupCard } from "@/components/domain/group-card";
-import { memberGroups } from "@/lib/data/mock-data";
+import { EmptyState } from "@/components/state/empty-state";
+import { requireMember } from "@/lib/auth/guards";
+import { getMemberGroups } from "@/lib/data/live-data";
 
-export default function MemberGroupsPage() {
+export default async function MemberGroupsPage() {
+  const session = await requireMember();
+  const groups = await getMemberGroups(session.userId);
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      {memberGroups.map((group) => (
-        <GroupCard group={group} key={group.id} memberView />
-      ))}
+      {groups.length > 0 ? (
+        groups.map((group) => <GroupCard group={group} key={group.id} memberView />)
+      ) : (
+        <EmptyState
+          description="Groups you join or public groups will appear here."
+          title="No groups yet"
+        />
+      )}
     </div>
   );
 }

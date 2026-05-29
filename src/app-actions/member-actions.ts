@@ -184,18 +184,77 @@ export async function createMemberPost(formData: FormData) {
   redirect("/member/feed?created=1");
 }
 
+async function sendReferralNotificationEmail({
+  receiverProfileId,
+  senderName,
+  criteria
+}: {
+  receiverProfileId: string;
+  senderName: string;
+  criteria: { levelOfCare: string; clientType: string; presentingIssue: string; payment: string; additionalNotes: string };
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const admin = createSupabaseAdminClient();
+  const { data } = await admin.auth.admin.getUserById(receiverProfileId);
+  const receiverEmail = data.user?.email;
+  if (!receiverEmail) return;
+
+  const criteriaLines = [
+    criteria.levelOfCare && `Level of care: ${criteria.levelOfCare}`,
+    criteria.clientType && `Client type: ${criteria.clientType}`,
+    criteria.presentingIssue && `Presenting issue: ${criteria.presentingIssue}`,
+    criteria.payment && `Payment: ${criteria.payment}`,
+    criteria.additionalNotes && `Notes: ${criteria.additionalNotes}`
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "Austin Therapist Exchange <mail@austintherapistexchange.com>",
+      to: receiverEmail,
+      subject: `New referral from ${senderName}`,
+      text: [
+        `${senderName} sent you a referral on Austin Therapist Exchange.`,
+        "",
+        criteriaLines,
+        "",
+        "Log in to view and respond:",
+        "https://austintherapistexchange.com/member/referrals"
+      ].join("\n")
+    })
+  }).catch(() => {
+    // notification is best-effort — never crash the referral send
+  });
+}
+
+function autoGenerateReferralTitle(formData: FormData) {
+  const presentingIssue = String(formData.get("presentingIssue") ?? "").trim();
+  const levelOfCare = String(formData.get("levelOfCare") ?? "").trim();
+  const clientType = String(formData.get("clientType") ?? "").trim();
+  const first = presentingIssue || levelOfCare || clientType;
+  return first ? `${first} referral` : "Client referral";
+}
+
 export async function sendDirectReferral(formData: FormData) {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
 
   const receiverProfileId = String(formData.get("receiverProfileId") ?? "").trim();
-  const title = String(formData.get("title") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
   const returnTo = String(formData.get("returnTo") ?? "/member").trim();
   const clientDetails = parseClientDetailsFromFormData(formData);
-  const messageBody = [buildStructuredReferralSummary(formData), "", "Details:", body].filter(Boolean).join("\n");
 
-  if (!receiverProfileId || !title || !body || receiverProfileId === session.userId) {
+  // Auto-generate title from structured criteria; body is optional
+  const title = String(formData.get("title") ?? "").trim() || autoGenerateReferralTitle(formData);
+  const body = String(formData.get("body") ?? "").trim();
+  const structured = buildStructuredReferralSummary(formData);
+  const messageBody = [structured, body ? `\nNotes:\n${body}` : ""].filter(Boolean).join("") || title;
+
+  if (!receiverProfileId || receiverProfileId === session.userId) {
     redirect(`${returnTo}?directReferralError=1` as never);
   }
 
@@ -216,7 +275,7 @@ export async function sendDirectReferral(formData: FormData) {
   const { error: referralError } = await admin.from("direct_referrals").insert({
     sender_profile_id: session.userId,
     receiver_profile_id: receiverProfileId,
-    client_details: clientDetails,
+    client_details: { ...clientDetails, title },
     status: "open",
     message_id: message.id
   });
@@ -226,10 +285,172 @@ export async function sendDirectReferral(formData: FormData) {
     redirect(`${returnTo}?directReferralError=1` as never);
   }
 
+  void sendReferralNotificationEmail({
+    receiverProfileId,
+    senderName: session.fullName ?? "A colleague",
+    criteria: {
+      levelOfCare: String(formData.get("levelOfCare") ?? ""),
+      clientType: String(formData.get("clientType") ?? ""),
+      presentingIssue: String(formData.get("presentingIssue") ?? ""),
+      payment: String(formData.get("payment") ?? ""),
+      additionalNotes: String(formData.get("additionalNotes") ?? "")
+    }
+  });
+
   revalidatePath("/member");
   revalidatePath("/member/feed");
-  revalidatePath("/member/posts/new");
+  revalidatePath("/member/referrals");
   redirect(`${returnTo}?directReferralSent=1` as never);
+}
+
+export type ReferralSendState = { status: "idle" } | { status: "success" } | { status: "error" };
+
+export async function sendDirectReferralInline(
+  _prevState: ReferralSendState,
+  formData: FormData
+): Promise<ReferralSendState> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const receiverProfileId = String(formData.get("receiverProfileId") ?? "").trim();
+  if (!receiverProfileId || receiverProfileId === session.userId) {
+    return { status: "error" };
+  }
+
+  const title = autoGenerateReferralTitle(formData);
+  const structured = buildStructuredReferralSummary(formData);
+  const messageBody = structured || title;
+  const levelOfCare = String(formData.get("levelOfCare") ?? "").trim();
+  const clientType = String(formData.get("clientType") ?? "").trim();
+  const presentingIssue = String(formData.get("presentingIssue") ?? "").trim();
+  const payment = String(formData.get("payment") ?? "").trim();
+  const additionalNotes = String(formData.get("additionalNotes") ?? "").trim();
+  const clientDetails = parseClientDetailsFromFormData(formData);
+
+  const { data: message, error: messageError } = await admin
+    .from("referral_messages")
+    .insert({ sender_profile_id: session.userId, receiver_profile_id: receiverProfileId, body: messageBody })
+    .select("id")
+    .single();
+
+  if (messageError || !message) return { status: "error" };
+
+  const { error: referralError } = await admin.from("direct_referrals").insert({
+    sender_profile_id: session.userId,
+    receiver_profile_id: receiverProfileId,
+    client_details: { ...clientDetails, title },
+    status: "open",
+    message_id: message.id
+  });
+
+  if (referralError) {
+    await admin.from("referral_messages").delete().eq("id", message.id);
+    return { status: "error" };
+  }
+
+  void sendReferralNotificationEmail({
+    receiverProfileId,
+    senderName: session.fullName ?? "A colleague",
+    criteria: { levelOfCare, clientType, presentingIssue, payment, additionalNotes }
+  });
+
+  revalidatePath("/member/referrals");
+  return { status: "success" };
+}
+
+export async function markReferralsRead(messageIds: string[]) {
+  if (!messageIds.length) return;
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+  await admin
+    .from("referral_messages")
+    .update({ read_at: new Date().toISOString() })
+    .in("id", messageIds)
+    .eq("receiver_profile_id", session.userId)
+    .is("read_at", null);
+}
+
+export type JoinApplicationState =
+  | { status: "idle" }
+  | { status: "error"; code: string; message: string }
+  | { status: "success" };
+
+export async function submitJoinApplicationInline(
+  _prevState: JoinApplicationState,
+  formData: FormData
+): Promise<JoinApplicationState> {
+  const admin = createSupabaseAdminClient();
+
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  const credentials = String(formData.get("credentials") ?? "").trim();
+  const licenseNumber = String(formData.get("licenseNumber") ?? "").trim();
+  const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
+  const referralCode = String(formData.get("referralCode") ?? "").trim().toUpperCase();
+  const note = String(formData.get("note") ?? "").trim();
+
+  if (!fullName || !email || !credentials) {
+    return { status: "error", code: "missing-fields", message: "Please fill in your name, email, and credentials." };
+  }
+
+  if (!referralCode) {
+    return { status: "error", code: "missing-code", message: "A referral code is required to apply. Ask a current member for their code." };
+  }
+
+  const { data: invitation } = await admin
+    .from("invitations")
+    .select("id, code, invited_by, invited_email, is_active, use_count, max_uses, expires_at")
+    .eq("code", referralCode)
+    .maybeSingle();
+
+  if (!invitation) {
+    return { status: "error", code: "invalid-code", message: "That referral code could not be found. Check the code and try again." };
+  }
+
+  const isExpired =
+    typeof invitation.expires_at === "string" && new Date(invitation.expires_at).getTime() < Date.now();
+
+  if (!invitation.is_active || invitation.use_count >= invitation.max_uses || isExpired) {
+    return { status: "error", code: "expired-code", message: "That referral code is no longer active. Ask the member for a fresh one." };
+  }
+
+  if (invitation.invited_email && normalizeEmail(invitation.invited_email) !== email) {
+    return { status: "error", code: "email-mismatch", message: "This code was reserved for a different email address." };
+  }
+
+  const { data: existingRequest } = await admin
+    .from("join_requests")
+    .select("id, status")
+    .ilike("email", email)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingRequest?.status === "pending" || existingRequest?.status === "active") {
+    return { status: "error", code: "already-submitted", message: "An active or pending application already exists for this email." };
+  }
+
+  const { error } = await admin.from("join_requests").insert({
+    email,
+    full_name: fullName,
+    city: "Austin",
+    state_region: "TX",
+    market_slug: "austin-tx",
+    credentials,
+    license_number: licenseNumber || null,
+    website_url: websiteUrl || null,
+    note: note || null,
+    endorsement_from_profile_id: invitation.invited_by,
+    invitation_id: invitation.id,
+    status: "pending"
+  });
+
+  if (error) {
+    return { status: "error", code: "submit-failed", message: "We couldn't submit your application. Please try again." };
+  }
+
+  revalidatePath("/admin/join-requests");
+  return { status: "success" };
 }
 
 export async function submitJoinApplication(formData: FormData) {
@@ -349,6 +570,7 @@ export async function saveMemberProfile(formData: FormData) {
   const publicPhone = String(formData.get("publicPhone") ?? "").trim();
   const specialties = parseCommaSeparatedList(formData.get("specialties"), 5);
   const neighborhoods = parseCommaSeparatedList(formData.get("neighborhoods"), 3);
+  const communities = (formData.getAll("communities") as string[]).filter(Boolean);
   const insuranceAccepted = parseCommaSeparatedList(formData.get("insuranceAccepted"), 5);
   const featuredLinks = parseLineSeparatedList(formData.get("featuredLinks"), session.membershipTier === "premium" ? 5 : 2);
   const offerings = parseLineSeparatedList(formData.get("offerings"), session.membershipTier === "premium" ? 8 : 0);
@@ -376,6 +598,7 @@ export async function saveMemberProfile(formData: FormData) {
       public_phone: publicPhone || null,
       specialties,
       neighborhoods,
+      communities,
       insurance_accepted: insuranceAccepted,
       featured_links: featuredLinks,
       offerings: session.membershipTier === "premium" ? offerings : [],
@@ -585,4 +808,29 @@ export async function saveCuratedList(formData: FormData) {
   revalidatePath("/member/lists");
   revalidatePath("/directory");
   redirect("/member/lists?saved=1" as never);
+}
+
+export async function respondToDirectReferral(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const referralId = String(formData.get("referralId") ?? "");
+  const decision = formData.get("decision");
+
+  if (!referralId || (decision !== "accepted" && decision !== "declined")) {
+    redirect("/member/referrals?referralError=1" as never);
+  }
+
+  const { error } = await admin
+    .from("direct_referrals")
+    .update({ status: decision })
+    .eq("id", referralId)
+    .eq("receiver_profile_id", session.userId);
+
+  if (error) {
+    redirect("/member/referrals?referralError=1" as never);
+  }
+
+  revalidatePath("/member/referrals");
+  redirect("/member/referrals?referralResponded=1" as never);
 }

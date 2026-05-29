@@ -1,16 +1,23 @@
 import Link from "next/link";
 
+import { respondToDirectReferral } from "@/app-actions/member-actions";
+import { MarkReferralsRead } from "@/components/domain/mark-referrals-read";
 import { ReferralComposeForm } from "@/components/domain/referral-compose-form";
 import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
 import { getDirectReferralActivity, getReferralCandidateTherapists } from "@/lib/data/live-data";
 
-function getStatusCopy(sent?: string, error?: string) {
+function getStatusCopy(sent?: string, error?: string, responded?: string) {
   if (sent === "1") {
     return "Referral sent.";
+  }
+
+  if (responded === "1") {
+    return "Response recorded.";
   }
 
   if (error === "1") {
@@ -35,11 +42,11 @@ function getReferralStage(status: string, readAt?: string) {
 export default async function MemberReferralsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ directReferralSent?: string; directReferralError?: string }>;
+  searchParams?: Promise<{ directReferralSent?: string; directReferralError?: string; referralResponded?: string }>;
 }) {
   const session = await getSession();
   const params = searchParams ? await searchParams : undefined;
-  const statusCopy = getStatusCopy(params?.directReferralSent, params?.directReferralError);
+  const statusCopy = getStatusCopy(params?.directReferralSent, params?.directReferralError, params?.referralResponded);
   const [therapists, directReferrals] = await Promise.all([
     getReferralCandidateTherapists(session?.userId),
     session
@@ -47,8 +54,13 @@ export default async function MemberReferralsPage({
       : Promise.resolve({ sentCount: 0, receivedCount: 0, exchangedCount: 0, incoming: [], outgoing: [] })
   ]);
 
+  const unreadMessageIds = directReferrals.incoming
+    .filter(item => item.messageId && !item.readAt)
+    .map(item => item.messageId as string);
+
   return (
     <div className="space-y-8">
+      <MarkReferralsRead messageIds={unreadMessageIds} />
       <Card className="bg-white/90">
         <CardHeader>
           <CardTitle>Referral search</CardTitle>
@@ -152,6 +164,20 @@ export default async function MemberReferralsPage({
                     {item.paymentModel ? <span>{item.paymentModel}</span> : null}
                     <span>{item.createdAtLabel}</span>
                   </div>
+                  {item.status === "open" && (
+                    <div className="mt-3 flex gap-2">
+                      <form action={respondToDirectReferral}>
+                        <input name="referralId" type="hidden" value={item.id} />
+                        <input name="decision" type="hidden" value="accepted" />
+                        <SubmitButton pendingLabel="Accepting…" size="sm">Accept</SubmitButton>
+                      </form>
+                      <form action={respondToDirectReferral}>
+                        <input name="referralId" type="hidden" value={item.id} />
+                        <input name="decision" type="hidden" value="declined" />
+                        <SubmitButton pendingLabel="Declining…" size="sm" variant="outline">Decline</SubmitButton>
+                      </form>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (

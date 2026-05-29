@@ -1,26 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useActionState, useState } from "react";
 
-import { sendDirectReferral } from "@/app-actions/member-actions";
+import { sendDirectReferralInline } from "@/app-actions/member-actions";
+import type { ReferralSendState } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SubmitButton } from "@/components/ui/submit-button";
 import {
   calculateMatchConfidence,
-  generateMatchExplanation,
+  CLIENT_TYPES,
+  getMatchDimensions,
   insuranceMatches,
+  INSURANCE_CARRIERS,
   levelOfCareMatches,
   LEVELS_OF_CARE,
   LOCATION_OPTIONS,
   locationMatches,
   PAYMENT_OPTIONS,
   paymentModelMatchesFilter,
-  PRESENTING_ISSUES,
-  CLIENT_TYPES,
-  INSURANCE_CARRIERS
+  PRESENTING_ISSUES
 } from "@/lib/referral-matching";
+import type { MatchDimension } from "@/lib/referral-matching";
 import type { PublicTherapistSummary } from "@/types";
 
 const URGENCY_OPTIONS = [
@@ -76,43 +79,87 @@ function getTrustContext(therapist: PublicTherapistSummary) {
   return "No direct trust context yet";
 }
 
-function ConfidenceIndicator({ confidence }: { confidence: "high" | "medium" | "low" }) {
-  const dots = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
-  const color = confidence === "high" ? "bg-green-500" : confidence === "medium" ? "bg-yellow-500" : "bg-red-500";
-
-  return (
-    <div className="flex items-center gap-1">
-      <span className="text-sm font-medium capitalize">{confidence}</span>
-      <div className="flex gap-0.5">
-        {Array.from({ length: 3 }, (_, i) => (
-          <div
-            key={i}
-            className={`h-1.5 w-1.5 rounded-full ${i < dots ? color : "bg-gray-300"}`}
-          />
-        ))}
-      </div>
-    </div>
-  );
+function getAvailabilityRank(status: PublicTherapistSummary["availabilityStatus"]) {
+  if (status === "accepting") return 3;
+  if (status === "waitlist") return 2;
+  return 1;
 }
 
-function MatchExplanation({ explanations }: { explanations: string[] }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+function MatchBreakdown({
+  dimensions,
+  confidence,
+  availabilityStatus
+}: {
+  dimensions: MatchDimension[];
+  confidence: "high" | "medium" | "low";
+  availabilityStatus: "accepting" | "waitlist" | "full";
+}) {
+  if (dimensions.length === 0) return null;
+
+  const matchCount = dimensions.filter((d) => d.status === "match").length;
+  const scoreColor =
+    confidence === "high"
+      ? "text-green-700"
+      : confidence === "medium"
+        ? "text-yellow-600"
+        : "text-red-500";
 
   return (
-    <div className="mt-3">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="text-sm text-primary hover:text-primary/80 underline"
-      >
-        Why this match? {isExpanded ? "▼" : "▶"}
-      </button>
-      {isExpanded && (
-        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-          {explanations.map((explanation, index) => (
-            <li key={index}>• {explanation}</li>
+    <div className="space-y-2 rounded-xl bg-muted/40 px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <span className={`text-sm font-semibold tabular-nums ${scoreColor}`}>
+          {matchCount}/{dimensions.length}
+        </span>
+        <span className="text-xs text-muted-foreground">criteria matched</span>
+        <div className="ml-1 flex gap-0.5">
+          {dimensions.map((dimension) => (
+            <div
+              key={dimension.label}
+              className={`h-1.5 w-5 rounded-full ${dimension.status === "match" ? "bg-green-500" : "bg-red-300"}`}
+            />
           ))}
-        </ul>
-      )}
+          <div
+            className={`h-1.5 w-5 rounded-full ${
+              availabilityStatus === "accepting"
+                ? "bg-green-500"
+                : availabilityStatus === "waitlist"
+                  ? "bg-yellow-400"
+                  : "bg-gray-300"
+            }`}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {dimensions.map((dimension) => (
+          <span
+            key={dimension.label}
+            className={
+              dimension.status === "match"
+                ? "inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700"
+                : "inline-flex items-center gap-1 rounded-full border border-red-100 bg-red-50/70 px-2.5 py-0.5 text-xs font-medium text-red-500"
+            }
+          >
+            <span aria-hidden>{dimension.status === "match" ? "✓" : "✗"}</span>
+            {dimension.value}
+          </span>
+        ))}
+        <span
+          className={
+            availabilityStatus === "accepting"
+              ? "inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700"
+              : availabilityStatus === "waitlist"
+                ? "inline-flex items-center gap-1 rounded-full border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-xs font-medium text-yellow-700"
+                : "inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+          }
+        >
+          {availabilityStatus === "accepting"
+            ? "✓ Available"
+            : availabilityStatus === "waitlist"
+              ? "~ Waitlist"
+              : "✗ Full"}
+        </span>
+      </div>
     </div>
   );
 }
@@ -139,9 +186,6 @@ export function ReferralComposeForm({
   const [ageRange, setAgeRange] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
 
-  const insuranceOptions = INSURANCE_CARRIERS;
-
-  // Determine required fields based on level of care
   const getRequiredFields = () => {
     switch (levelOfCare) {
       case "Group":
@@ -158,11 +202,22 @@ export function ReferralComposeForm({
   };
 
   const requiredFieldsObj = getRequiredFields();
-  const hasRequiredFields = levelOfCare && Object.values(requiredFieldsObj).every(val => val);
+  const hasRequiredFields = Boolean(levelOfCare) && Object.values(requiredFieldsObj).every(Boolean);
   const selectedPresentingIssue = levelOfCare === "Group" ? groupFocus : presentingIssue;
+  const criteria = {
+    levelOfCare,
+    urgency,
+    clientType,
+    presentingIssue: selectedPresentingIssue,
+    payment,
+    location,
+    insurance,
+    privatePayMax,
+    format,
+    additionalNotes
+  };
 
-  // Filter therapists based on level of care
-  const filteredTherapists = therapists.filter(therapist => {
+  const filteredTherapists = therapists.filter((therapist) => {
     if (levelOfCare && !levelOfCareMatches(levelOfCare, therapist.offerings, therapist.bio)) return false;
     if (payment && !paymentModelMatchesFilter(therapist.paymentModel, payment.toLowerCase().replace(" ", "_"))) return false;
     if (location && !locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) return false;
@@ -170,47 +225,43 @@ export function ReferralComposeForm({
       insurance &&
       (payment === "Insurance" || payment === "Both" || levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential") &&
       !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)
-    ) return false;
+    ) {
+      return false;
+    }
+
     return true;
   });
 
-  // Rank therapists with urgency consideration
   const rankedTherapists = filteredTherapists
-    .map(therapist => {
+    .map((therapist) => {
       const confidence = calculateMatchConfidence(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
-      const explanations = generateMatchExplanation(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
+      const dimensions = getMatchDimensions(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
 
-      // Boost score for urgent referrals if therapist is accepting
       let urgencyBoost = 0;
       if (urgency.includes("Urgent") && !urgency.includes("Moderately") && therapist.availabilityStatus === "accepting") {
         urgencyBoost = 5;
-        explanations.push("Urgent referral: this therapist is currently accepting new clients.");
       } else if (urgency.includes("Moderately") && therapist.availabilityStatus !== "full") {
         urgencyBoost = 2;
-        explanations.push("Moderately urgent: this therapist has limited openings but may still be a fit.");
-      } else if (urgency.includes("Low Urgency")) {
-        explanations.push("Low urgency: clinical fit and trust signals are weighted more heavily than immediate availability.");
       }
 
       const trustScore =
         Number(Boolean(therapist.trustedByViewer)) * 8 +
         Number(Boolean(therapist.isFollowed)) * 5 +
         Math.min(therapist.trustedBy.length, 3) * 2;
-
-      const availabilityScore = therapist.availabilityStatus === "accepting" ? 3 : therapist.availabilityStatus === "waitlist" ? 2 : 1;
+      const availabilityScore = getAvailabilityRank(therapist.availabilityStatus);
       const confidenceScore = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
 
       return {
         therapist,
         confidence,
-        explanations,
+        dimensions,
         score: trustScore + availabilityScore + confidenceScore + urgencyBoost
       };
     })
     .sort((a, b) => b.score - a.score);
 
-  const highMediumMatches = rankedTherapists.filter(match => match.confidence === "high" || match.confidence === "medium");
-  const lowMatches = rankedTherapists.filter(match => match.confidence === "low");
+  const highMediumMatches = rankedTherapists.filter((match) => match.confidence === "high" || match.confidence === "medium");
+  const lowMatches = rankedTherapists.filter((match) => match.confidence === "low");
 
   const handleLevelOfCareChange = (level: string) => {
     setLevelOfCare(level);
@@ -226,7 +277,6 @@ export function ReferralComposeForm({
 
   const handlePaymentChange = (newPayment: string) => {
     setPayment(newPayment);
-    // Clear conditional fields
     if (newPayment !== "Insurance" && newPayment !== "Both") setInsurance("");
     if (newPayment !== "Private Pay" && newPayment !== "Both") setPrivatePayMax("");
   };
@@ -239,13 +289,11 @@ export function ReferralComposeForm({
         </div>
       )}
 
-      {/* Referral Criteria Card */}
       <Card className="bg-white/90">
         <CardHeader>
           <CardTitle>Referral search</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Level of Care Segmented Control - Primary */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">
               Level of Care <span className="text-red-500">*</span>
@@ -255,7 +303,8 @@ export function ReferralComposeForm({
                 {LEVELS_OF_CARE.map((level) => (
                   <button
                     key={level}
-                    onClick={() => handleLevelOfCareChange(level)}
+                    type="button"
+                    onClick={() => handleLevelOfCareChange(levelOfCare === level ? "" : level)}
                     className={`rounded-full px-5 py-3 text-sm font-semibold transition ${
                       levelOfCare === level
                         ? "bg-primary text-white shadow"
@@ -271,7 +320,6 @@ export function ReferralComposeForm({
 
           {levelOfCare && (
             <>
-              {/* Urgency Dropdown - Required */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="urgency">
                   Urgency <span className="text-red-500">*</span>
@@ -292,9 +340,7 @@ export function ReferralComposeForm({
                 </select>
               </div>
 
-              {/* Conditional Fields */}
               <div className="grid gap-4 md:grid-cols-2">
-                {/* Client Type - Always shown when level selected */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground" htmlFor="clientType">
                     Client Type <span className="text-red-500">*</span>
@@ -315,7 +361,6 @@ export function ReferralComposeForm({
                   </select>
                 </div>
 
-                {/* Presenting Issue / Primary Need */}
                 {levelOfCare !== "Group" && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="presentingIssue">
@@ -339,97 +384,69 @@ export function ReferralComposeForm({
                   </div>
                 )}
 
-                {/* Group Focus - Only for Group */}
                 {levelOfCare === "Group" && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="groupFocus">
-                      Group Focus <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="groupFocus"
-                      value={groupFocus}
-                      onChange={(e) => setGroupFocus(e.target.value)}
-                      required
-                    >
-                      <option value="">Select focus</option>
-                      {PRESENTING_ISSUES.map((issue) => (
-                        <option key={issue} value={issue}>
-                          {issue}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground" htmlFor="groupFocus">
+                        Group Focus <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                        id="groupFocus"
+                        value={groupFocus}
+                        onChange={(e) => setGroupFocus(e.target.value)}
+                        required
+                      >
+                        <option value="">Select focus</option>
+                        {PRESENTING_ISSUES.map((issue) => (
+                          <option key={issue} value={issue}>
+                            {issue}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground" htmlFor="format">
+                        Format <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                        id="format"
+                        value={format}
+                        onChange={(e) => setFormat(e.target.value)}
+                        required
+                      >
+                        <option value="">Select format</option>
+                        {FORMAT_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
                 )}
 
-                {/* Format - Only for Group */}
-                {levelOfCare === "Group" && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="format">
-                      Format <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="format"
-                      value={format}
-                      onChange={(e) => setFormat(e.target.value)}
-                      required
-                    >
-                      <option value="">Select format</option>
-                      {FORMAT_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground" htmlFor="location">
+                    Location
+                  </label>
+                  <select
+                    className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                    id="location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                  >
+                    <option value="">Any location</option>
+                    {LOCATION_OPTIONS.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                {/* Location - For Outpatient and Group */}
-                {(levelOfCare === "Outpatient" || levelOfCare === "Group") && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="location">
-                      Location
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    >
-                      <option value="">Any location</option>
-                      {LOCATION_OPTIONS.map((loc) => (
-                        <option key={loc} value={loc}>
-                          {loc}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Location - For IOP, PHP, Residential */}
-                {(levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential") && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="location">
-                      Location
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    >
-                      <option value="">Any location</option>
-                      {LOCATION_OPTIONS.map((loc) => (
-                        <option key={loc} value={loc}>
-                          {loc}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Payment - For Outpatient and Group */}
                 {(levelOfCare === "Outpatient" || levelOfCare === "Group") && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="payment">
@@ -452,7 +469,6 @@ export function ReferralComposeForm({
                   </div>
                 )}
 
-                {/* Insurance - Conditional on Payment or Required for IOP/PHP/Residential */}
                 {((levelOfCare === "Outpatient" || levelOfCare === "Group") && (payment === "Insurance" || payment === "Both")) ||
                 levelOfCare === "IOP" ||
                 levelOfCare === "PHP" ||
@@ -469,7 +485,7 @@ export function ReferralComposeForm({
                       required={levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential"}
                     >
                       <option value="">Select insurance</option>
-                      {insuranceOptions.map((option) => (
+                      {INSURANCE_CARRIERS.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>
@@ -478,7 +494,6 @@ export function ReferralComposeForm({
                   </div>
                 ) : null}
 
-                {/* Private Pay Max - Conditional on Payment */}
                 {(levelOfCare === "Outpatient" || levelOfCare === "Group") && (payment === "Private Pay" || payment === "Both") && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="privatePayMax">
@@ -494,7 +509,6 @@ export function ReferralComposeForm({
                   </div>
                 )}
 
-                {/* Age Range - Only for Residential */}
                 {levelOfCare === "Residential" && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="ageRange">
@@ -508,18 +522,16 @@ export function ReferralComposeForm({
                       required
                     >
                       <option value="">Select age range</option>
-                      {AGE_RANGE_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
+                      {AGE_RANGE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
                         </option>
                       ))}
                     </select>
                   </div>
                 )}
-
               </div>
 
-              {/* Additional Notes - Always shown when level selected */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="additionalNotes">
                   Additional Notes
@@ -537,8 +549,7 @@ export function ReferralComposeForm({
         </CardContent>
       </Card>
 
-      {/* Therapist Matches */}
-      {hasRequiredFields && (
+      {hasRequiredFields ? (
         <Card className="bg-white/90">
           <CardHeader>
             <CardTitle>Therapist Matches</CardTitle>
@@ -550,33 +561,31 @@ export function ReferralComposeForm({
               </div>
             ) : (
               <>
-                {/* High and Medium Confidence Matches */}
                 {highMediumMatches.length > 0 && (
                   <div className="space-y-4">
-                    {highMediumMatches.map(({ therapist, confidence, explanations }) => (
+                    {highMediumMatches.map(({ therapist, confidence, dimensions }) => (
                       <TherapistMatchCard
                         key={therapist.profileId}
                         therapist={therapist}
                         confidence={confidence}
-                        explanations={explanations}
-                        criteria={{ levelOfCare, urgency, clientType, presentingIssue: selectedPresentingIssue, payment, location, insurance, privatePayMax, format, additionalNotes }}
+                        dimensions={dimensions}
+                        criteria={criteria}
                         senderEmail={senderEmail}
                       />
                     ))}
                   </div>
                 )}
 
-                {/* Low Confidence Matches */}
                 {lowMatches.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-muted-foreground">Other possible matches</h3>
-                    {lowMatches.map(({ therapist, confidence, explanations }) => (
+                    <h3 className="text-sm font-medium text-muted-foreground">Other possible matches</h3>
+                    {lowMatches.map(({ therapist, confidence, dimensions }) => (
                       <TherapistMatchCard
                         key={therapist.profileId}
                         therapist={therapist}
                         confidence={confidence}
-                        explanations={explanations}
-                        criteria={{ levelOfCare, urgency, clientType, presentingIssue: selectedPresentingIssue, payment, location, insurance, privatePayMax, format, additionalNotes }}
+                        dimensions={dimensions}
+                        criteria={criteria}
                         senderEmail={senderEmail}
                       />
                     ))}
@@ -586,6 +595,8 @@ export function ReferralComposeForm({
             )}
           </CardContent>
         </Card>
+      ) : (
+        <p className="text-sm text-muted-foreground">Complete the required criteria above to see matching therapists.</p>
       )}
     </div>
   );
@@ -594,13 +605,13 @@ export function ReferralComposeForm({
 function TherapistMatchCard({
   therapist,
   confidence,
-  explanations,
+  dimensions,
   criteria,
   senderEmail
 }: {
   therapist: PublicTherapistSummary;
   confidence: "high" | "medium" | "low";
-  explanations: string[];
+  dimensions: MatchDimension[];
   criteria: {
     levelOfCare: string;
     urgency: string;
@@ -615,6 +626,10 @@ function TherapistMatchCard({
   };
   senderEmail?: string;
 }) {
+  const [state, formAction] = useActionState<ReferralSendState, FormData>(
+    sendDirectReferralInline,
+    { status: "idle" }
+  );
   const referralTitle = [
     "Referral",
     criteria.clientType,
@@ -622,50 +637,61 @@ function TherapistMatchCard({
   ].filter(Boolean).join(" ");
   const referralBody = criteria.additionalNotes || "Structured referral request from referral search.";
 
+  if (state.status === "success") {
+    return (
+      <div className="rounded-2xl border bg-background p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-medium text-foreground">{therapist.displayName}</p>
+            <p className="text-sm text-muted-foreground">{therapist.title}</p>
+          </div>
+          <span className="text-sm font-medium text-green-600">✓ Referral sent</span>
+        </div>
+        <Button asChild className="mt-3 w-full" variant="outline" size="sm">
+          <Link href={`/directory/${therapist.slug}`}>View profile</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border bg-background p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex-1 space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="font-medium text-foreground">{therapist.displayName}</h3>
-              <p className="text-sm text-muted-foreground">{therapist.title}</p>
-            </div>
-            <ConfidenceIndicator confidence={confidence} />
+          <div>
+            <h3 className="font-medium text-foreground">{therapist.displayName}</h3>
+            <p className="text-sm text-muted-foreground">{therapist.title}</p>
+            <p className="text-xs text-muted-foreground">{therapist.neighborhoods[0] ?? therapist.city}</p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Badge>
-              {therapist.availabilityStatus === "accepting"
-                ? "Accepting referrals"
-                : therapist.availabilityStatus === "waitlist"
-                  ? "Limited openings"
-                  : "Not accepting referrals"}
-            </Badge>
-            <Badge variant="outline">{therapist.neighborhoods[0] ?? therapist.city}</Badge>
-          </div>
-
-          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+          <div className="grid gap-1.5 text-sm text-muted-foreground md:grid-cols-2">
             <p>{getCareFormatLabel(therapist)}</p>
             <p>{getPaymentModelLabel(therapist.paymentModel)}</p>
             <p className="md:col-span-2">{getTrustContext(therapist)}</p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {therapist.specialties.slice(0, 3).map((specialty) => (
               <Badge key={specialty} variant="muted">
                 {specialty}
               </Badge>
             ))}
+            {therapist.communities.slice(0, 2).map((community) => (
+              <Badge key={community} variant="outline" className="border-primary/30 text-xs text-primary">
+                {community}
+              </Badge>
+            ))}
           </div>
 
-          <MatchExplanation explanations={explanations} />
+          <MatchBreakdown
+            dimensions={dimensions}
+            confidence={confidence}
+            availabilityStatus={therapist.availabilityStatus}
+          />
         </div>
 
         <div className="flex flex-col gap-2 md:min-w-32">
-          <form action={sendDirectReferral}>
-            <input name="returnTo" type="hidden" value="/member/referrals" />
-            <input name="type" type="hidden" value="referral_request" />
+          <form action={formAction}>
             <input name="receiverProfileId" type="hidden" value={therapist.profileId} />
             <input name="title" type="hidden" value={referralTitle} />
             <input name="body" type="hidden" value={referralBody} />
@@ -679,16 +705,15 @@ function TherapistMatchCard({
             <input name="formatWanted" type="hidden" value={criteria.format} />
             <input name="privatePayMax" type="hidden" value={criteria.privatePayMax} />
             <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
-
-            <Button type="submit" className="w-full">
+            <SubmitButton className="w-full" pendingLabel="Sending…">
               Send referral
-            </Button>
+            </SubmitButton>
           </form>
-
+          {state.status === "error" && (
+            <p className="text-xs text-red-600">Couldn&apos;t send. Try again.</p>
+          )}
           <Button variant="outline" asChild className="w-full">
-            <Link href={`/directory/${therapist.slug}`}>
-              View profile
-            </Link>
+            <Link href={`/directory/${therapist.slug}`}>View profile</Link>
           </Button>
         </div>
       </div>

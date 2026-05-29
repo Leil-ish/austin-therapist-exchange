@@ -24,6 +24,7 @@ export interface PublicTherapistSummary {
   approachSummary: string;
   specialties: string[];
   populations: string[];
+  communities: string[];
   insuranceAccepted: string[];
   paymentModel: PaymentModel;
   therapyStyleTags: string[];
@@ -180,6 +181,7 @@ export interface DirectReferral {
 
 export interface DirectReferralActivityItem {
   id: string;
+  messageId?: string;
   direction: "incoming" | "outgoing";
   counterpartName: string;
   counterpartSlug?: string;

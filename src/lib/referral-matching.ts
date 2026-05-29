@@ -143,6 +143,18 @@ export const LOCATION_OPTIONS = [
   "Telehealth Only"
 ] as const;
 
+export const COMMUNITIES = [
+  "LGBTQ+",
+  "BIPOC",
+  "Veterans",
+  "Faith-Based",
+  "Neurodivergent",
+  "Spanish-Speaking",
+  "Latinx",
+  "Asian / Pacific Islander",
+  "Deaf / Hard of Hearing"
+] as const;
+
 export const MODALITIES = [
   "ACT",
   "CBT",
@@ -425,6 +437,78 @@ export function calculateMatchConfidence(
   if (matchRatio >= 0.8) return "high";
   if (matchRatio >= 0.6) return "medium";
   return "low";
+}
+
+export type MatchDimension = {
+  label: string;
+  value: string;
+  status: "match" | "gap";
+};
+
+/**
+ * Returns one entry per criterion the referrer actually set, with a match/gap status.
+ * Used to render per-dimension visual breakdowns on therapist match cards.
+ */
+export function getMatchDimensions(
+  levelOfCare: string,
+  clientType: string,
+  presentingIssue: string,
+  payment: string,
+  location: string,
+  insurance: string,
+  therapist: PublicTherapistSummary
+): MatchDimension[] {
+  const dimensions: MatchDimension[] = [];
+
+  if (levelOfCare) {
+    dimensions.push({
+      label: "Level of Care",
+      value: levelOfCare,
+      status: levelOfCareMatches(levelOfCare, therapist.offerings, therapist.bio) ? "match" : "gap"
+    });
+  }
+
+  if (clientType) {
+    dimensions.push({
+      label: "Client Type",
+      value: clientType,
+      status: clientTypeMatches(clientType, therapist.populations) ? "match" : "gap"
+    });
+  }
+
+  if (presentingIssue) {
+    dimensions.push({
+      label: "Issue",
+      value: presentingIssue,
+      status: presentingIssueMatches(presentingIssue, therapist.specialties) ? "match" : "gap"
+    });
+  }
+
+  if (payment) {
+    dimensions.push({
+      label: "Payment",
+      value: payment,
+      status: paymentModelMatchesFilter(therapist.paymentModel, payment.toLowerCase().replace(" ", "_")) ? "match" : "gap"
+    });
+  }
+
+  if (location) {
+    dimensions.push({
+      label: "Location",
+      value: location,
+      status: locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth) ? "match" : "gap"
+    });
+  }
+
+  if (insurance) {
+    dimensions.push({
+      label: "Insurance",
+      value: insurance,
+      status: insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel) ? "match" : "gap"
+    });
+  }
+
+  return dimensions;
 }
 
 export function generateMatchExplanation(

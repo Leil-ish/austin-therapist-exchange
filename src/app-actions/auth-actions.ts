@@ -78,6 +78,10 @@ export async function signInWithMagicLink(formData: FormData) {
       redirect("/login?error=invalid-email");
     }
 
+    if (error.message?.includes("security purposes")) {
+      redirect("/login?error=magic-link-cooldown");
+    }
+
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
@@ -113,6 +117,7 @@ export async function sendPasswordResetEmail(formData: FormData) {
 export async function signInWithPassword(formData: FormData) {
   const email = normalizeEmailInput(String(formData.get("email") ?? ""));
   const password = getPasswordValue(formData);
+  const returnTo = String(formData.get("returnTo") ?? "").trim() || "/member";
 
   if (!email) {
     redirect("/login?error=missing-email&mode=password");
@@ -136,7 +141,7 @@ export async function signInWithPassword(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}&mode=password`);
   }
 
-  redirect("/member");
+  redirect(returnTo as never);
 }
 
 export async function updatePassword(formData: FormData) {

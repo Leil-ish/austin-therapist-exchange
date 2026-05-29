@@ -60,6 +60,19 @@ export default async function TherapistProfilePage({
                   </Button>
                 ) : null}
               </div>
+            ) : !session ? (
+              <div className="flex flex-wrap gap-3">
+                <Button asChild variant="outline">
+                  <Link href={`/login?returnTo=/directory/${therapist.slug}`}>Sign in to save</Link>
+                </Button>
+                {therapist.publicEmail ? (
+                  <Button asChild variant="outline">
+                    <a href={`mailto:${therapist.publicEmail}?subject=${encodeURIComponent(`Referral inquiry for ${therapist.displayName}`)}`}>
+                      Email clinician
+                    </a>
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             {session?.userId && session.userId !== therapist.profileId ? (
               <p className="text-sm text-muted-foreground">Save therapists you want to keep close by for future referrals.</p>
@@ -80,6 +93,9 @@ export default async function TherapistProfilePage({
             <div className="flex flex-wrap gap-2">
               {therapist.specialties.map((specialty) => (
                 <Badge key={specialty}>{specialty}</Badge>
+              ))}
+              {therapist.communities.map((community) => (
+                <Badge key={community} variant="outline" className="border-primary/30 text-primary">{community}</Badge>
               ))}
             </div>
             <div className="grid gap-4 text-sm text-muted-foreground md:grid-cols-2">
