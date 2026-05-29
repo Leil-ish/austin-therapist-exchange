@@ -367,6 +367,89 @@ export async function markReferralsRead(messageIds: string[]) {
     .is("read_at", null);
 }
 
+export type JoinApplicationState =
+  | { status: "idle" }
+  | { status: "error"; code: string; message: string }
+  | { status: "success" };
+
+export async function submitJoinApplicationInline(
+  _prevState: JoinApplicationState,
+  formData: FormData
+): Promise<JoinApplicationState> {
+  const admin = createSupabaseAdminClient();
+
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  const credentials = String(formData.get("credentials") ?? "").trim();
+  const licenseNumber = String(formData.get("licenseNumber") ?? "").trim();
+  const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
+  const referralCode = String(formData.get("referralCode") ?? "").trim().toUpperCase();
+  const note = String(formData.get("note") ?? "").trim();
+
+  if (!fullName || !email || !credentials) {
+    return { status: "error", code: "missing-fields", message: "Please fill in your name, email, and credentials." };
+  }
+
+  if (!referralCode) {
+    return { status: "error", code: "missing-code", message: "A referral code is required to apply. Ask a current member for their code." };
+  }
+
+  const { data: invitation } = await admin
+    .from("invitations")
+    .select("id, code, invited_by, invited_email, is_active, use_count, max_uses, expires_at")
+    .eq("code", referralCode)
+    .maybeSingle();
+
+  if (!invitation) {
+    return { status: "error", code: "invalid-code", message: "That referral code could not be found. Check the code and try again." };
+  }
+
+  const isExpired =
+    typeof invitation.expires_at === "string" && new Date(invitation.expires_at).getTime() < Date.now();
+
+  if (!invitation.is_active || invitation.use_count >= invitation.max_uses || isExpired) {
+    return { status: "error", code: "expired-code", message: "That referral code is no longer active. Ask the member for a fresh one." };
+  }
+
+  if (invitation.invited_email && normalizeEmail(invitation.invited_email) !== email) {
+    return { status: "error", code: "email-mismatch", message: "This code was reserved for a different email address." };
+  }
+
+  const { data: existingRequest } = await admin
+    .from("join_requests")
+    .select("id, status")
+    .ilike("email", email)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingRequest?.status === "pending" || existingRequest?.status === "active") {
+    return { status: "error", code: "already-submitted", message: "An active or pending application already exists for this email." };
+  }
+
+  const { error } = await admin.from("join_requests").insert({
+    email,
+    full_name: fullName,
+    city: "Austin",
+    state_region: "TX",
+    market_slug: "austin-tx",
+    credentials,
+    license_number: licenseNumber || null,
+    website_url: websiteUrl || null,
+    note: note || null,
+    endorsement_from_profile_id: invitation.invited_by,
+    invitation_id: invitation.id,
+    status: "pending"
+  });
+
+  if (error) {
+    return { status: "error", code: "submit-failed", message: "We couldn't submit your application. Please try again." };
+  }
+
+  revalidatePath("/admin/join-requests");
+  return { status: "success" };
+}
+
 export async function submitJoinApplication(formData: FormData) {
   const admin = createSupabaseAdminClient();
 
