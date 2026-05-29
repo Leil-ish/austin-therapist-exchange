@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 import { signOut } from "@/app-actions/auth-actions";
 
@@ -24,9 +25,9 @@ export function MobileNav({ navItems, isSignedIn }: { navItems: readonly NavItem
         <Menu className="h-5 w-5" />
       </button>
 
-      {open && (
+      {open && createPortal(
         <>
-          {/* Backdrop */}
+          {/* Backdrop — portalled to body so header's backdrop-filter doesn't trap fixed position */}
           <div
             className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm"
             onClick={() => setOpen(false)}
@@ -89,7 +90,8 @@ export function MobileNav({ navItems, isSignedIn }: { navItems: readonly NavItem
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

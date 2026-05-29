@@ -10,9 +10,9 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calculateMatchConfidence,
+  CLIENT_TYPES,
   clientTypeMatches,
   generateMatchExplanation,
-  getDynamicDropdownOptions,
   levelOfCareMatches,
   LEVELS_OF_CARE,
   LOCATION_OPTIONS,
@@ -126,8 +126,6 @@ export function ReferralComposeForm({
   const [privatePayMax, setPrivatePayMax] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
 
-  const dynamicOptions = getDynamicDropdownOptions(therapists);
-
   // Filter therapists based on criteria
   const filteredTherapists = therapists.filter(therapist => {
     // Hard excludes
@@ -195,7 +193,7 @@ export function ReferralComposeForm({
                 required
               >
                 <option value="">Select level of care</option>
-                {dynamicOptions.levelsOfCare.map((level) => (
+                {LEVELS_OF_CARE.map((level) => (
                   <option key={level} value={level}>
                     {level}
                   </option>
@@ -215,7 +213,7 @@ export function ReferralComposeForm({
                 required
               >
                 <option value="">Select client type</option>
-                {dynamicOptions.clientTypes.map((type) => (
+                {CLIENT_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {type}
                   </option>
@@ -235,7 +233,7 @@ export function ReferralComposeForm({
                 required
               >
                 <option value="">Select presenting issue</option>
-                {dynamicOptions.presentingIssues.map((issue) => (
+                {PRESENTING_ISSUES.map((issue) => (
                   <option key={issue} value={issue}>
                     {issue}
                   </option>
@@ -255,7 +253,7 @@ export function ReferralComposeForm({
                 required
               >
                 <option value="">Select payment type</option>
-                {dynamicOptions.paymentOptions.map((option) => (
+                {PAYMENT_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -274,7 +272,7 @@ export function ReferralComposeForm({
                 onChange={(e) => setLocation(e.target.value)}
               >
                 <option value="">Any location</option>
-                {dynamicOptions.locations.map((loc) => (
+                {LOCATION_OPTIONS.map((loc) => (
                   <option key={loc} value={loc}>
                     {loc}
                   </option>
