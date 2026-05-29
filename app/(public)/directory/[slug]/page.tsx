@@ -94,6 +94,9 @@ export default async function TherapistProfilePage({
               {therapist.specialties.map((specialty) => (
                 <Badge key={specialty}>{specialty}</Badge>
               ))}
+              {therapist.communities.map((community) => (
+                <Badge key={community} variant="outline" className="border-primary/30 text-primary">{community}</Badge>
+              ))}
             </div>
             <div className="grid gap-4 text-sm text-muted-foreground md:grid-cols-2">
               <div>

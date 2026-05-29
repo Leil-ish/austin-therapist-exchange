@@ -248,7 +248,7 @@ async function getSupplementalTherapistFields(
     therapistProfileIds.length
       ? admin
           .from("therapist_profiles")
-          .select("id, headline, featured_links, offerings, public_email, public_phone")
+          .select("id, headline, featured_links, offerings, public_email, public_phone, communities")
           .in("id", therapistProfileIds)
       : Promise.resolve({ data: [] as unknown[], error: null }),
     profileIds.length
@@ -299,6 +299,7 @@ function mapTherapistSummary(
     approachSummary: String(row.approach_summary ?? "Approach summary coming soon."),
     specialties: asArray(row.specialties),
     populations: asArray(row.populations),
+    communities: asArray(row.communities),
     insuranceAccepted: asArray(row.insurance_accepted),
     paymentModel,
     therapyStyleTags: asArray(row.therapy_style_tags),
@@ -988,7 +989,7 @@ export async function getMemberProfileForUser(profileId: string) {
   const { data } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, payment_model"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, payment_model"
     )
     .eq("profile_id", profileId)
     .maybeSingle();

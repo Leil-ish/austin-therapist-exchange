@@ -1,5 +1,6 @@
 import { saveMemberProfile } from "@/app-actions/member-actions";
 import { updatePassword } from "@/app-actions/auth-actions";
+import { COMMUNITIES } from "@/lib/referral-matching";
 import { EmptyState } from "@/components/state/empty-state";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -142,6 +143,23 @@ export default async function MemberProfilePage({
               name="insuranceAccepted"
               placeholder="Insurance carriers or notes (optional)"
             />
+            <div className="space-y-2 rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2">
+              <p className="font-medium text-foreground">Communities served</p>
+              <p className="text-xs text-muted-foreground">Select all communities you serve or identify with — helps with culturally-informed referrals.</p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {COMMUNITIES.map((community) => (
+                  <label key={community} className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+                    <input
+                      defaultChecked={(Array.isArray(profile.communities) ? profile.communities as string[] : []).includes(community)}
+                      name="communities"
+                      type="checkbox"
+                      value={community}
+                    />
+                    {community}
+                  </label>
+                ))}
+              </div>
+            </div>
             <select
               className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
               defaultValue={String(profile.payment_model ?? "both")}

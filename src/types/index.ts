@@ -24,6 +24,7 @@ export interface PublicTherapistSummary {
   approachSummary: string;
   specialties: string[];
   populations: string[];
+  communities: string[];
   insuranceAccepted: string[];
   paymentModel: PaymentModel;
   therapyStyleTags: string[];
