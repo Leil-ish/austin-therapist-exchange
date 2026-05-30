@@ -319,21 +319,25 @@ export function presentingIssueMatches(presentingIssue: string, therapistSpecial
   const normalizedSpecialties = therapistSpecialties.map(normalizeForMatch);
 
   const issueMappings: Record<string, string[]> = {
-    "anxiety": ["anxiety", "panic"],
-    "depression": ["depression", "mood"],
-    "trauma": ["trauma", "ptsd", "post-traumatic"],
-    "ptsd": ["ptsd", "post-traumatic", "trauma"],
-    "ocd": ["ocd", "obsessive-compulsive"],
-    "sud": ["addiction", "substance", "alcohol", "drugs"],
-    "eating disorder": ["eating disorder", "eating", "anorexia", "bulimia"],
-    "infidelity": ["infidelity", "affairs", "betrayal"],
-    "parenting": ["parenting", "parent", "family"],
-    "self esteem": ["self-esteem", "self worth", "confidence"],
-    "grief loss": ["grief", "loss", "bereavement"],
-    "burnout": ["burnout", "stress", "work-life"],
-    "sleep": ["sleep", "insomnia"],
-    "bipolar disorder": ["bipolar", "mood disorder"],
-    "anger": ["anger", "rage", "aggression"]
+    "anxiety":         ["anxiety", "panic", "perfectionism", "phobia", "ocd", "social anxiety", "generalized anxiety"],
+    "depression":      ["depression", "mood disorder", "mood disorders", "dysthymia", "seasonal"],
+    "trauma":          ["trauma", "ptsd", "post-traumatic", "childhood trauma", "complex trauma",
+                        "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
+    "ptsd":            ["ptsd", "post-traumatic", "trauma / ptsd", "complex trauma", "childhood trauma"],
+    "ocd":             ["ocd", "obsessive-compulsive", "obsessive"],
+    "sud":             ["addiction", "substance", "alcohol", "drugs", "harm reduction",
+                        "relapse", "recovery", "process addiction", "substance use disorders"],
+    "eating disorder": ["eating disorder", "eating disorders", "eating", "anorexia",
+                        "bulimia", "body image", "body dysmorphia"],
+    "infidelity":      ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
+    "parenting":       ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
+    "self esteem":     ["self-esteem", "self esteem", "self worth", "confidence",
+                        "identity", "women's development", "religious deconstruction"],
+    "grief loss":      ["grief", "loss", "bereavement", "grief / loss"],
+    "burnout":         ["burnout", "stress", "work-life", "career discord", "perfectionism"],
+    "sleep":           ["sleep", "insomnia"],
+    "bipolar disorder":["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
+    "anger":           ["anger", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
   };
 
   const keywords = issueMappings[normalizedIssue] || [normalizedIssue];
