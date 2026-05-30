@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { sendDirectReferralInline } from "@/app-actions/member-actions";
 import type { ReferralSendState } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { ReferralContactModal } from "@/components/domain/referral-contact-modal";
 import {
   calculateMatchConfidence,
   CLIENT_TYPES,
@@ -630,6 +630,24 @@ function TherapistMatchCard({
     sendDirectReferralInline,
     { status: "idle" }
   );
+  const [modalOpen, setModalOpen] = useState(false);
+  const [isLogging, setIsLogging] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state.status === "success") {
+      setModalOpen(false);
+      setIsLogging(false);
+    } else if (state.status === "error") {
+      setIsLogging(false);
+    }
+  }, [state.status]);
+
+  function handleLogReferral() {
+    setIsLogging(true);
+    formRef.current?.requestSubmit();
+  }
+
   const referralTitle = [
     "Referral",
     criteria.clientType,
@@ -645,7 +663,7 @@ function TherapistMatchCard({
             <p className="font-medium text-foreground">{therapist.displayName}</p>
             <p className="text-sm text-muted-foreground">{therapist.title}</p>
           </div>
-          <span className="text-sm font-medium text-green-600">✓ Referral sent</span>
+          <span className="text-sm font-medium text-green-600">✓ Referral logged</span>
         </div>
         <Button asChild className="mt-3 w-full" variant="outline" size="sm">
           <Link href={`/directory/${therapist.slug}`}>View profile</Link>
@@ -655,68 +673,82 @@ function TherapistMatchCard({
   }
 
   return (
-    <div className="rounded-2xl border bg-background p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="flex-1 space-y-3">
-          <div>
-            <h3 className="font-medium text-foreground">{therapist.displayName}</h3>
-            <p className="text-sm text-muted-foreground">{therapist.title}</p>
-            <p className="text-xs text-muted-foreground">{therapist.neighborhoods[0] ?? therapist.city}</p>
+    <>
+      <div className="rounded-2xl border bg-background p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="flex-1 space-y-3">
+            <div>
+              <h3 className="font-medium text-foreground">{therapist.displayName}</h3>
+              <p className="text-sm text-muted-foreground">{therapist.title}</p>
+              <p className="text-xs text-muted-foreground">{therapist.neighborhoods[0] ?? therapist.city}</p>
+            </div>
+
+            <div className="grid gap-1.5 text-sm text-muted-foreground md:grid-cols-2">
+              <p>{getCareFormatLabel(therapist)}</p>
+              <p>{getPaymentModelLabel(therapist.paymentModel)}</p>
+              <p className="md:col-span-2">{getTrustContext(therapist)}</p>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {therapist.specialties.slice(0, 3).map((specialty) => (
+                <Badge key={specialty} variant="muted">
+                  {specialty}
+                </Badge>
+              ))}
+              {therapist.communities.slice(0, 2).map((community) => (
+                <Badge key={community} variant="outline" className="border-primary/30 text-xs text-primary">
+                  {community}
+                </Badge>
+              ))}
+            </div>
+
+            <MatchBreakdown
+              dimensions={dimensions}
+              confidence={confidence}
+              availabilityStatus={therapist.availabilityStatus}
+            />
           </div>
 
-          <div className="grid gap-1.5 text-sm text-muted-foreground md:grid-cols-2">
-            <p>{getCareFormatLabel(therapist)}</p>
-            <p>{getPaymentModelLabel(therapist.paymentModel)}</p>
-            <p className="md:col-span-2">{getTrustContext(therapist)}</p>
+          <div className="flex flex-col gap-2 md:min-w-32">
+            {/* Hidden form — submitted programmatically from the modal */}
+            <form ref={formRef} action={formAction}>
+              <input name="receiverProfileId" type="hidden" value={therapist.profileId} />
+              <input name="title" type="hidden" value={referralTitle} />
+              <input name="body" type="hidden" value={referralBody} />
+              <input name="levelOfCare" type="hidden" value={criteria.levelOfCare} />
+              <input name="urgencyLevel" type="hidden" value={criteria.urgency} />
+              <input name="clientType" type="hidden" value={criteria.clientType} />
+              <input name="presentingIssue" type="hidden" value={criteria.presentingIssue} />
+              <input name="payment" type="hidden" value={criteria.payment} />
+              <input name="location" type="hidden" value={criteria.location} />
+              <input name="insuranceWanted" type="hidden" value={criteria.insurance} />
+              <input name="formatWanted" type="hidden" value={criteria.format} />
+              <input name="privatePayMax" type="hidden" value={criteria.privatePayMax} />
+              <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
+            </form>
+
+            <Button className="w-full" onClick={() => setModalOpen(true)}>
+              Contact &amp; log
+            </Button>
+            {state.status === "error" && (
+              <p className="text-xs text-red-600">Couldn&apos;t log. Try again.</p>
+            )}
+            <Button variant="outline" asChild className="w-full">
+              <Link href={`/directory/${therapist.slug}`}>View profile</Link>
+            </Button>
           </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {therapist.specialties.slice(0, 3).map((specialty) => (
-              <Badge key={specialty} variant="muted">
-                {specialty}
-              </Badge>
-            ))}
-            {therapist.communities.slice(0, 2).map((community) => (
-              <Badge key={community} variant="outline" className="border-primary/30 text-xs text-primary">
-                {community}
-              </Badge>
-            ))}
-          </div>
-
-          <MatchBreakdown
-            dimensions={dimensions}
-            confidence={confidence}
-            availabilityStatus={therapist.availabilityStatus}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2 md:min-w-32">
-          <form action={formAction}>
-            <input name="receiverProfileId" type="hidden" value={therapist.profileId} />
-            <input name="title" type="hidden" value={referralTitle} />
-            <input name="body" type="hidden" value={referralBody} />
-            <input name="levelOfCare" type="hidden" value={criteria.levelOfCare} />
-            <input name="urgencyLevel" type="hidden" value={criteria.urgency} />
-            <input name="clientType" type="hidden" value={criteria.clientType} />
-            <input name="presentingIssue" type="hidden" value={criteria.presentingIssue} />
-            <input name="payment" type="hidden" value={criteria.payment} />
-            <input name="location" type="hidden" value={criteria.location} />
-            <input name="insuranceWanted" type="hidden" value={criteria.insurance} />
-            <input name="formatWanted" type="hidden" value={criteria.format} />
-            <input name="privatePayMax" type="hidden" value={criteria.privatePayMax} />
-            <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
-            <SubmitButton className="w-full" pendingLabel="Sending…">
-              Send referral
-            </SubmitButton>
-          </form>
-          {state.status === "error" && (
-            <p className="text-xs text-red-600">Couldn&apos;t send. Try again.</p>
-          )}
-          <Button variant="outline" asChild className="w-full">
-            <Link href={`/directory/${therapist.slug}`}>View profile</Link>
-          </Button>
         </div>
       </div>
-    </div>
+
+      {modalOpen && (
+        <ReferralContactModal
+          therapist={therapist}
+          criteria={criteria}
+          onLog={handleLogReferral}
+          onClose={() => setModalOpen(false)}
+          isLogging={isLogging}
+        />
+      )}
+    </>
   );
 }

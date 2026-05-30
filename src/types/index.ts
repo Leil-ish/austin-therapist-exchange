@@ -184,14 +184,18 @@ export interface DirectReferralActivityItem {
   id: string;
   messageId?: string;
   direction: "incoming" | "outgoing";
+  counterpartId: string;
   counterpartName: string;
   counterpartSlug?: string;
+  counterpartPhone?: string;
+  counterpartEmail?: string;
   title: string;
   region?: string;
   paymentModel?: string;
   status: ReferralStatus;
   readAt?: string;
   createdAtLabel: string;
+  createdAt: string;
 }
 
 export interface DirectReferralActivitySummary {
