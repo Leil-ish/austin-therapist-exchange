@@ -2,11 +2,14 @@ import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth/session";
 
-export async function requireMember() {
+export async function requireMember(returnTo?: string) {
   const session = await getSession();
 
   if (!session || !["therapist", "admin"].includes(session.role)) {
-    redirect("/login");
+    const loginUrl = returnTo
+      ? `/login?returnTo=${encodeURIComponent(returnTo)}`
+      : "/login";
+    redirect(loginUrl as never);
   }
 
   if (session.role !== "admin" && session.membershipState !== "active") {

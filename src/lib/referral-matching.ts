@@ -93,11 +93,11 @@ const REGION_ALIASES: Record<(typeof AUSTIN_METRO_AREAS)[number], string[]> = {
 };
 
 export const LEVELS_OF_CARE = [
-  "Outpatient",
-  "Group",
-  "IOP",
-  "PHP",
-  "Residential"
+  "Weekly Therapy",
+  "Group Therapy",
+  "Intensive Outpatient (IOP)",
+  "Partial Hospitalization (PHP)",
+  "Residential Treatment"
 ] as const;
 
 export const CLIENT_TYPES = [
@@ -272,17 +272,17 @@ export function levelOfCareMatches(levelOfCare: string, therapistOfferings: stri
   const normalizedOfferings = therapistOfferings.map(normalizeForMatch);
   const normalizedBio = normalizeForMatch(therapistBio);
 
-  // Default to outpatient if no specific level mentioned
-  if (normalizedLevel === "outpatient") {
+  // Default to weekly therapy if no specific level mentioned
+  if (normalizedLevel === "weekly therapy") {
     return true;
   }
 
   // Check offerings and bio for specific level support
   const levelKeywords: Record<string, string[]> = {
-    "group": ["group therapy", "group sessions", "groups"],
-    "iop": ["intensive outpatient", "iop", "intensive program"],
-    "php": ["partial hospitalization", "php", "day treatment"],
-    "residential": ["residential", "inpatient", "treatment center"]
+    "group therapy": ["group therapy", "group sessions", "groups"],
+    "intensive outpatient (iop)": ["intensive outpatient", "iop", "intensive program"],
+    "partial hospitalization (php)": ["partial hospitalization", "php", "day treatment"],
+    "residential treatment": ["residential", "inpatient", "treatment center"]
   };
 
   const keywords = levelKeywords[normalizedLevel] || [];

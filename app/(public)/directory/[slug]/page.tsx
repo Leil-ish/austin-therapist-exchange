@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
-import { getSession } from "@/lib/auth/session";
+import { requireMember } from "@/lib/auth/guards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,8 +20,8 @@ export default async function TherapistProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const session = await getSession();
-  const therapist = await getPublicTherapistBySlug(slug, session?.userId);
+  const session = await requireMember(`/directory/${slug}`);
+  const therapist = await getPublicTherapistBySlug(slug, session.userId);
 
   if (!therapist) {
     notFound();
@@ -54,7 +54,7 @@ export default async function TherapistProfilePage({
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {session?.userId && session.userId !== therapist.profileId ? (
+            {session.userId !== therapist.profileId ? (
               <div className="flex flex-wrap gap-3">
                 <Button asChild>
                   <Link href="/member/referrals">Make a referral</Link>
@@ -74,21 +74,8 @@ export default async function TherapistProfilePage({
                   </Button>
                 ) : null}
               </div>
-            ) : !session ? (
-              <div className="flex flex-wrap gap-3">
-                <Button asChild variant="outline">
-                  <Link href={`/login?returnTo=/directory/${therapist.slug}`}>Sign in to save</Link>
-                </Button>
-                {therapist.publicEmail ? (
-                  <Button asChild variant="outline">
-                    <a href={`mailto:${therapist.publicEmail}?subject=${encodeURIComponent(`Referral inquiry for ${therapist.displayName}`)}`}>
-                      Email clinician
-                    </a>
-                  </Button>
-                ) : null}
-              </div>
             ) : null}
-            {session?.userId && session.userId !== therapist.profileId ? (
+            {session.userId !== therapist.profileId ? (
               <p className="text-sm text-muted-foreground">Save therapists you want to keep close by for future referrals.</p>
             ) : null}
             <p className="leading-7 text-muted-foreground">{therapist.bio}</p>

@@ -188,14 +188,14 @@ export function ReferralComposeForm({
 
   const getRequiredFields = () => {
     switch (levelOfCare) {
-      case "Group":
+      case "Group Therapy":
         return { clientType, groupFocus, format, payment, urgency };
-      case "IOP":
-      case "PHP":
+      case "Intensive Outpatient (IOP)":
+      case "Partial Hospitalization (PHP)":
         return { clientType, presentingIssue, insurance, urgency };
-      case "Residential":
+      case "Residential Treatment":
         return { clientType, presentingIssue, insurance, ageRange, urgency };
-      case "Outpatient":
+      case "Weekly Therapy":
       default:
         return { clientType, presentingIssue, payment, urgency };
     }
@@ -203,7 +203,7 @@ export function ReferralComposeForm({
 
   const requiredFieldsObj = getRequiredFields();
   const hasRequiredFields = Boolean(levelOfCare) && Object.values(requiredFieldsObj).every(Boolean);
-  const selectedPresentingIssue = levelOfCare === "Group" ? groupFocus : presentingIssue;
+  const selectedPresentingIssue = levelOfCare === "Group Therapy" ? groupFocus : presentingIssue;
   const criteria = {
     levelOfCare,
     urgency,
@@ -223,7 +223,7 @@ export function ReferralComposeForm({
     if (location && !locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) return false;
     if (
       insurance &&
-      (payment === "Insurance" || payment === "Both" || levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential") &&
+      (payment === "Insurance" || payment === "Both" || levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment") &&
       !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)
     ) {
       return false;
@@ -361,10 +361,10 @@ export function ReferralComposeForm({
                   </select>
                 </div>
 
-                {levelOfCare !== "Group" && (
+                {levelOfCare !== "Group Therapy" && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="presentingIssue">
-                      {levelOfCare === "Residential" || levelOfCare === "IOP" || levelOfCare === "PHP" ? "Primary Need" : "Presenting Issue"}
+                      {levelOfCare === "Residential Treatment" || levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" ? "Primary Need" : "Presenting Issue"}
                       <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -384,7 +384,7 @@ export function ReferralComposeForm({
                   </div>
                 )}
 
-                {levelOfCare === "Group" && (
+                {levelOfCare === "Group Therapy" && (
                   <>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground" htmlFor="groupFocus">
@@ -447,7 +447,7 @@ export function ReferralComposeForm({
                   </select>
                 </div>
 
-                {(levelOfCare === "Outpatient" || levelOfCare === "Group") && (
+                {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="payment">
                       Payment <span className="text-red-500">*</span>
@@ -469,20 +469,20 @@ export function ReferralComposeForm({
                   </div>
                 )}
 
-                {((levelOfCare === "Outpatient" || levelOfCare === "Group") && (payment === "Insurance" || payment === "Both")) ||
-                levelOfCare === "IOP" ||
-                levelOfCare === "PHP" ||
-                levelOfCare === "Residential" ? (
+                {((levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Insurance" || payment === "Both")) ||
+                levelOfCare === "Intensive Outpatient (IOP)" ||
+                levelOfCare === "Partial Hospitalization (PHP)" ||
+                levelOfCare === "Residential Treatment" ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="insurance">
-                      Insurance {(levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential") && <span className="text-red-500">*</span>}
+                      Insurance {(levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment") && <span className="text-red-500">*</span>}
                     </label>
                     <select
                       className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                       id="insurance"
                       value={insurance}
                       onChange={(e) => setInsurance(e.target.value)}
-                      required={levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential"}
+                      required={levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment"}
                     >
                       <option value="">Select insurance</option>
                       {INSURANCE_CARRIERS.map((option) => (
@@ -494,7 +494,7 @@ export function ReferralComposeForm({
                   </div>
                 ) : null}
 
-                {(levelOfCare === "Outpatient" || levelOfCare === "Group") && (payment === "Private Pay" || payment === "Both") && (
+                {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Private Pay" || payment === "Both") && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="privatePayMax">
                       Private Pay Max
@@ -509,7 +509,7 @@ export function ReferralComposeForm({
                   </div>
                 )}
 
-                {levelOfCare === "Residential" && (
+                {levelOfCare === "Residential Treatment" && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="ageRange">
                       Age Range <span className="text-red-500">*</span>
