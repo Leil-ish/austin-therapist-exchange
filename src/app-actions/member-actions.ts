@@ -620,17 +620,13 @@ export async function followClinician(formData: FormData) {
     redirect(returnTo as never);
   }
 
-  const { error } = await admin.from("follows").upsert(
-    {
-      follower_profile_id: session.userId,
-      followed_profile_id: followedProfileId
-    },
-    {
-      onConflict: "follower_profile_id,followed_profile_id"
-    }
-  );
+  const { error } = await admin.from("follows").insert({
+    follower_profile_id: session.userId,
+    followed_profile_id: followedProfileId
+  });
 
-  if (error) {
+  // 23505 = unique_violation: already following — treat as success
+  if (error && error.code !== "23505") {
     redirect(`${returnTo}?followError=1` as never);
   }
 

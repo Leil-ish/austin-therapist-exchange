@@ -57,7 +57,7 @@ export default async function TherapistProfilePage({
             {session.userId !== therapist.profileId ? (
               <div className="flex flex-wrap gap-3">
                 <Button asChild>
-                  <Link href="/member/referrals">Make a referral</Link>
+                  <Link href={`/member/referrals/to/${therapist.slug}`}>Make a referral</Link>
                 </Button>
                 <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
                   <input name="followedProfileId" type="hidden" value={therapist.profileId} />
