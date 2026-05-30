@@ -19,8 +19,13 @@ begin
   -- -----------------------------------------------------------------------
   delete from auth.users
   where id in (
-    select id from public.profiles
-    where slug in ('maya-hernandez-lcsw', 'julian-park-lpc', 'nina-patel-lmft')
+    select p.id from public.profiles p
+    join public.therapist_profiles tp on tp.profile_id = p.id
+    where tp.public_display_name in (
+      'Maya Hernandez', 'Maya Hernandez, LCSW',
+      'Julian Park', 'Julian Park, LPC',
+      'Nina Patel', 'Nina Patel, LMFT'
+    )
   );
 
   -- -----------------------------------------------------------------------
