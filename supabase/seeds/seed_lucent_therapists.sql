@@ -38,8 +38,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'leeholleylcsw@gmail.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Lee Holley', 'lee-holley', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Lee Holley', 'lee-holley', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Lee Holley', 'LCSW, LCDC',
     'Lee specializes in substance use disorders, harm reduction, and community integration—offering a non-judgmental, recovery-oriented approach to clients at every stage of change.',
@@ -55,10 +55,10 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'adriana@hemlockhealingtherapy.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Adriana Loya', 'adriana-loya', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Adriana Loya', 'adriana-loya', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
-  values (v_id, 'Adriana Loya', 'LPC-A, LCDC',
+  values (v_id, 'Adriana Loya', 'LPC-Associate, LCDC',
     'Adriana works with emerging adults navigating substance use, trauma, and attachment wounds—with particular care for clients building new coping foundations.',
     array['Substance Use Disorders','Trauma','Attachment','Depression'],
     array['Aetna','Optum','Cigna','Quest Behavioral Health','United Healthcare'],
@@ -72,8 +72,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'arielpalcsw@apapsychotherapy.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Ariel Peters-Angelucci', 'ariel-peters-angelucci', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Ariel Peters-Angelucci', 'ariel-peters-angelucci', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Ariel Peters-Angelucci', 'LCSW',
     'Ariel helps clients heal from childhood trauma, addiction, and toxic family dynamics through somatic-aware, trauma-focused care.',
@@ -89,8 +89,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'easton@pathwaysgroupcc.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Easton Falke', 'easton-falke', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Easton Falke', 'easton-falke', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Easton Falke', 'LPC',
     'Easton works with adults navigating trauma, anxiety, and men''s mental health—offering evidence-based care with a collaborative, strength-focused approach.',
@@ -106,8 +106,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'lindley@austincouplesconcierge.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Lindley Gentile', 'lindley-gentile', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Lindley Gentile', 'lindley-gentile', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Lindley Gentile', 'LMFT',
     'Lindley specializes in women''s development, couples and relationships, and sex and intimacy—offering thoughtful, depth-oriented care.',
@@ -123,8 +123,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'tamekat@xcellencecounselingandwellness.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Tameka Thompson', 'tameka-thompson', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Tameka Thompson', 'tameka-thompson', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Tameka Thompson', 'LPC-S',
     'Tameka works with individuals and families navigating anxiety, depression, grief, and trauma—with specialized training in parent-child interaction and trauma-focused CBT.',
@@ -140,8 +140,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'therapy@aliputnam.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Ali Putnam', 'ali-putnam', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Ali Putnam', 'ali-putnam', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Ali Putnam', 'LMFT',
     'Ali is a Gottman-certified couples therapist working with married and partnered adults on infidelity, SUD, anxiety, and relationship repair.',
@@ -157,10 +157,10 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'amanda@eightarmstherapy.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Amanda Allard', 'amanda-allard', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Amanda Allard', 'amanda-allard', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
-  values (v_id, 'Amanda Allard', 'LPC-A, ATR-P, LCDC',
+  values (v_id, 'Amanda Allard', 'LPC-Associate, ATR-P, LCDC',
     'Amanda integrates art therapy, music, and experiential approaches with trauma-informed and DBT-based care—specializing in addiction, process addiction, and identity work.',
     array['Addiction','Process Addiction','Art Therapy','Trauma','Identity'],
     array['Out of network (superbill provided)'],
@@ -174,8 +174,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'anamaria@austinbilingualtherapy.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Ana Maria Cabezas', 'ana-maria-cabezas', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Ana Maria Cabezas', 'ana-maria-cabezas', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Ana Maria Cabezas', 'LPC-S',
     'Ana Maria provides bilingual (Spanish/English) trauma therapy for children and adults, with deep expertise in domestic violence, somatic experiencing, and play therapy.',
@@ -191,8 +191,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'aviesca@viescatxs.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Angela Viesca', 'angela-viesca', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Angela Viesca', 'angela-viesca', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Angela Viesca', 'LCSW-S',
     'Angela is a trauma and dissociation specialist trained in EMDR, Deep Brain Reorienting, and ketamine-assisted psychotherapy—offering advanced care for complex presentations.',
@@ -208,8 +208,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'recovery@counselingannawarde.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Anna Warde', 'anna-warde', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Anna Warde', 'anna-warde', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Anna Warde', 'LCDC',
     'Anna works primarily with families navigating a loved one''s substance use—offering psychoeducation, codependency support, and family systems work.',
@@ -225,8 +225,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'brendaleegauthier@gmail.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Brenda Lee Gauthier', 'brenda-lee-gauthier', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Brenda Lee Gauthier', 'brenda-lee-gauthier', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Brenda Lee Gauthier', 'LCSW, LCDC, SEP',
     'Brenda Lee integrates somatic experiencing with addiction and complex trauma work—helping clients regulate their nervous systems and rebuild after significant loss.',
@@ -242,8 +242,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'camila@relationalhealingtherapy.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Camila Gomez', 'camila-gomez', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Camila Gomez', 'camila-gomez', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Camila Gomez', 'LPC',
     'Camila offers bilingual (Spanish/English) therapy for complex trauma, OCD, and dissociative disorders—with a particular commitment to LGBTQ+, neurodivergent, and Latinx communities.',
@@ -259,8 +259,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'connor.lcsw@gmail.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Connor Bowie', 'connor-bowie', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Connor Bowie', 'connor-bowie', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Connor Bowie', 'LCSW',
     'Connor works with adults navigating substance use disorders, trauma, and grief—offering steady, evidence-informed support in both virtual and in-person settings.',
@@ -276,8 +276,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'mr.dcounseling@gmail.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Joe Dias', 'joe-dias', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Joe Dias', 'joe-dias', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Joe Dias', 'LPC-S',
     'Joe works with high-performance professionals and high-conflict couples—offering accountability-driven therapy for existential questions, SUD, and career transitions.',
@@ -293,8 +293,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'connect@unbrokenabundance.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Kitty Ferguson-Mappus', 'kitty-ferguson-mappus', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Kitty Ferguson-Mappus', 'kitty-ferguson-mappus', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Kitty Ferguson-Mappus', 'LCSW-S',
     'Kitty leads a group practice focused on trauma, SUD, body image, and LGBTQIA+ and neurodivergent clients—with EMDR certification and broad insurance access.',
@@ -310,8 +310,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'miles@mileswalkercounseling.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Miles Walker', 'miles-walker', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Miles Walker', 'miles-walker', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Miles Walker', 'LPC, LCDC',
     'Miles brings a psychodynamic and IFS lens to trauma and substance use work—helping clients develop insight, internal coherence, and lasting change.',
@@ -327,8 +327,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'rachel@rachelshooktherapy.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Rachel Shook', 'rachel-shook', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Rachel Shook', 'rachel-shook', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Rachel Shook', 'LCSW',
     'Rachel is an EMDR-trained therapist who works with adults navigating anxiety, depression, trauma, and life transitions—with a warm focus on clients in recovery.',
@@ -344,8 +344,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'shawna@ptstherapy.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Shawna Moss', 'shawna-moss', 'Pflugerville', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Shawna Moss', 'shawna-moss', 'Pflugerville', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Shawna Moss', 'LCSW-S',
     'Shawna uses Accelerated Resolution Therapy to help clients process trauma, anxiety, and grief efficiently—with insurance access and no current waitlist.',
@@ -361,8 +361,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'hello@chloeropnerlcsw.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Chloe Ropner', 'chloe-ropner', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Chloe Ropner', 'chloe-ropner', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Chloe Ropner', 'LCSW',
     'Chloe specializes in eating disorders, body dysmorphia, and somatic healing—using IFS, RCT, and holistic approaches with broad insurance access.',
@@ -378,8 +378,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'carly@carlybassettlcsw.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Carly Bassett', 'carly-bassett', 'Round Rock', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Carly Bassett', 'carly-bassett', 'Round Rock', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Carly Bassett', 'LCSW-S',
     'Carly combines EMDR, Gottman therapy, and ketamine-assisted psychotherapy to support grief, trauma, and relationships—with experience working with seniors and older adults.',
@@ -395,8 +395,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'samantha@complex-counseling.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Samantha Meyer', 'samantha-meyer', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Samantha Meyer', 'samantha-meyer', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Samantha Meyer', 'LPC',
     'Samantha specializes in complex trauma, DID, and neurodivergence—using an integrated EMDR and IFS approach with a warm, collaborative presence and immediate availability.',
@@ -412,8 +412,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'haylie@autonomytherapyatx.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Haylie Hill', 'haylie-hill', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Haylie Hill', 'haylie-hill', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Haylie Hill', 'LPC',
     'Haylie works with adults navigating trauma, anxiety, eating disorders, and mood disorders—with EMDR training and an optional faith-based counseling approach.',
@@ -429,8 +429,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'eweber@therapytimeaustin.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Elizabeth Weber', 'elizabeth-weber', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Elizabeth Weber', 'elizabeth-weber', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Elizabeth Weber', 'LPC-S, LMFT',
     'Elizabeth works with adults navigating anxiety, relationships, perfectionism, burnout, and women''s issues—with Gottman training and a steady, lower-acuity focus.',
@@ -446,8 +446,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'counseling@kendallcampbell.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Kendall Campbell', 'kendall-campbell', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Kendall Campbell', 'kendall-campbell', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Kendall Campbell', 'LMFT',
     'Kendall is a Gottman Level 2-certified therapist specializing in couples, high-conflict relationships, and infidelity recovery—with direct, results-oriented care.',
@@ -463,10 +463,10 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'emery.rodriguez.lpc@gmail.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Emery Rodriguez', 'emery-rodriguez', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Emery Rodriguez', 'emery-rodriguez', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
-  values (v_id, 'Emery Rodriguez', 'LPC-A',
+  values (v_id, 'Emery Rodriguez', 'LPC-Associate',
     'Emery works with LGBTQ+ clients, trauma survivors, and neurodivergent individuals using EMDR, somatic therapy, and ketamine-assisted modalities.',
     array['Trauma','ADHD','Neurodivergence','Somatic','Ketamine-Assisted Therapy'],
     array['Aetna'],
@@ -480,8 +480,8 @@ begin
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
   values (v_id, '00000000-0000-0000-0000-000000000000', 'LiveBetter@BetterHealthCounseling.net', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
-  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, membership_tier, approved_at)
-  values (v_id, 'therapist', 'active', 'Michelle Sacksteder', 'michelle-sacksteder', 'Austin', 'austin-tx', false, 'free', now());
+  insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
+  values (v_id, 'therapist', 'active', 'Michelle Sacksteder', 'michelle-sacksteder', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
   values (v_id, 'Michelle Sacksteder', 'LPC',
     'Michelle specializes in ADHD, ASD, dissociative disorders, and maternal mental health—using Brainspotting alongside somatic and relational approaches with broad insurance access.',
