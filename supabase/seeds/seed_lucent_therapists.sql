@@ -462,7 +462,7 @@ begin
   -- Emery Rodriguez
   v_id := gen_random_uuid();
   insert into auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, aud, role)
-  values (v_id, '00000000-0000-0000-0000-000000000000', 'emery.rodriguez.lpc@gmail.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
+  values (v_id, '00000000-0000-0000-0000-000000000000', 'emery@selvawellnesscollective.com', '', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated');
   insert into public.profiles (id, role, membership_state, full_name, slug, city, market_slug, can_issue_referrals, approved_at)
   values (v_id, 'therapist', 'active', 'Emery Rodriguez', 'emery-rodriguez', 'Austin', 'austin-tx', false, now());
   insert into public.therapist_profiles (profile_id, public_display_name, credentials, bio, specialties, insurance_accepted, payment_model, therapy_style_tags, populations, communities, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, public_email, public_phone, website_url)
