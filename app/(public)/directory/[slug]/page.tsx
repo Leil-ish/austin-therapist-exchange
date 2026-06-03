@@ -15,11 +15,17 @@ import {
 } from "@/lib/data/live-data";
 
 export default async function TherapistProfilePage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ from?: string; returnTo?: string }>;
 }) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const rawReturnTo = resolvedSearchParams.returnTo ?? resolvedSearchParams.from;
+  const returnTo = rawReturnTo?.startsWith("/member/referrals") ? rawReturnTo : null;
+  const fromReferrals = Boolean(returnTo);
   const session = await requireMember(`/directory/${slug}`);
   const therapist = await getPublicTherapistBySlug(slug, session.userId);
 
@@ -29,6 +35,16 @@ export default async function TherapistProfilePage({
 
   return (
     <PageShell>
+      {fromReferrals && (
+        <div className="mx-auto max-w-5xl px-6 pt-8">
+          <Link
+            href={(returnTo ?? "/member/referrals") as never}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+          >
+            <span aria-hidden>←</span> Back to referral search
+          </Link>
+        </div>
+      )}
       <section className="mx-auto grid max-w-5xl gap-8 px-6 py-16 md:grid-cols-[1.2fr_0.8fr]">
         <Card className="bg-white/90">
           <CardHeader className="space-y-4">

@@ -248,13 +248,13 @@ async function getSupplementalTherapistFields(
     therapistProfileIds.length
       ? admin
           .from("therapist_profiles")
-          .select("id, headline, featured_links, offerings, public_email, public_phone, communities")
+          .select("id, public_email, public_phone, communities")
           .in("id", therapistProfileIds)
       : Promise.resolve({ data: [] as unknown[], error: null }),
     profileIds.length
       ? admin
           .from("profiles")
-          .select("id, membership_tier, avatar_url")
+          .select("id")
           .in("id", profileIds)
       : Promise.resolve({ data: [] as unknown[], error: null })
   ]);
@@ -457,9 +457,9 @@ export async function getReferralCandidateTherapists(
   viewerProfileId?: string
 ): Promise<PublicTherapistSummary[]> {
   const admin = createSupabaseAdminClient();
-  const { data: rawProfiles } = await admin
+  const { data: rawProfiles, error: profilesError } = await admin
     .from("profiles")
-    .select("id, slug, city, membership_tier, role, membership_state")
+    .select("id, slug, city, role, membership_state")
     .in("membership_state", ["active", "pending"])
     .in("role", ["therapist", "admin"]);
 
@@ -472,10 +472,10 @@ export async function getReferralCandidateTherapists(
   }
 
   const profileIds = profiles.map((profile) => String(profile.id));
-  const { data: rawTherapistProfiles } = await admin
+  const { data: rawTherapistProfiles, error: tpError } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, featured_links, offerings, headline"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, communities"
     )
     .in("profile_id", profileIds);
 
@@ -505,7 +505,6 @@ export async function getReferralCandidateTherapists(
           profile_id: row.profile_id,
           slug: profile.slug,
           city: profile.city ?? "Austin",
-          membership_tier: profile.membership_tier ?? "free",
           public_endorsement_count: 0,
           ...row,
           ...therapistFields.get(String(row.id)),

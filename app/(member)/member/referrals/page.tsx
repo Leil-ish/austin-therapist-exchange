@@ -5,7 +5,6 @@ import { MarkReferralsRead } from "@/components/domain/mark-referrals-read";
 import { ReferralComposeForm } from "@/components/domain/referral-compose-form";
 import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireMember } from "@/lib/auth/guards";
@@ -55,40 +54,30 @@ export default async function MemberReferralsPage({
 
   // Group outgoing referrals by therapist for the "Referred to" tracker
   const referredToMap = new Map<string, {
-    counterpartId: string;
+    key: string;
     name: string;
     slug?: string;
-    phone?: string;
-    email?: string;
     referrals: DirectReferralActivityItem[];
-    lastReferralAt: string;
     lastReferralLabel: string;
   }>();
   for (const item of directReferrals.outgoing) {
-    const key = item.counterpartId;
+    const key = item.counterpartSlug ?? item.counterpartName;
     const existing = referredToMap.get(key);
     if (!existing) {
       referredToMap.set(key, {
-        counterpartId: item.counterpartId,
+        key,
         name: item.counterpartName,
         slug: item.counterpartSlug,
-        phone: item.counterpartPhone,
-        email: item.counterpartEmail,
         referrals: [item],
-        lastReferralAt: item.createdAt,
         lastReferralLabel: item.createdAtLabel
       });
     } else {
       existing.referrals.push(item);
-      // keep the most recent
-      if (item.createdAt > existing.lastReferralAt) {
-        existing.lastReferralAt = item.createdAt;
-        existing.lastReferralLabel = item.createdAtLabel;
-      }
+      existing.lastReferralLabel = item.createdAtLabel;
     }
   }
   const referredTo = [...referredToMap.values()].sort(
-    (a, b) => b.referrals.length - a.referrals.length || b.lastReferralAt.localeCompare(a.lastReferralAt)
+    (a, b) => b.referrals.length - a.referrals.length
   );
 
   const unreadMessageIds = directReferrals.incoming
@@ -106,7 +95,7 @@ export default async function MemberReferralsPage({
           <p className="text-sm text-muted-foreground">
             Start with structured referral criteria and see therapist matches before reviewing referral activity.
           </p>
-          <ReferralComposeForm senderEmail={session.email} statusCopy={statusCopy} therapists={therapists} />
+          <ReferralComposeForm statusCopy={statusCopy} therapists={therapists} />
         </CardContent>
       </Card>
 
@@ -236,7 +225,7 @@ export default async function MemberReferralsPage({
           {referredTo.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {referredTo.map((entry) => (
-                <div key={entry.counterpartId} className="rounded-2xl border bg-background p-4 space-y-3">
+                <div key={entry.key} className="rounded-2xl border bg-background p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       {entry.slug ? (
@@ -254,31 +243,6 @@ export default async function MemberReferralsPage({
                       {entry.referrals.length} referral{entry.referrals.length === 1 ? "" : "s"}
                     </Badge>
                   </div>
-
-                  <div className="space-y-1.5 text-sm">
-                    {entry.phone ? (
-                      <a
-                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                        href={`tel:${entry.phone}`}
-                      >
-                        <span className="text-xs font-medium uppercase tracking-wider w-10 shrink-0">Phone</span>
-                        <span>{entry.phone}</span>
-                      </a>
-                    ) : null}
-                    {entry.email ? (
-                      <a
-                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                        href={`mailto:${entry.email}`}
-                      >
-                        <span className="text-xs font-medium uppercase tracking-wider w-10 shrink-0">Email</span>
-                        <span className="truncate">{entry.email}</span>
-                      </a>
-                    ) : null}
-                    {!entry.phone && !entry.email ? (
-                      <p className="text-xs text-muted-foreground">No contact info on file</p>
-                    ) : null}
-                  </div>
-
                   <p className="text-xs text-muted-foreground">Last referral {entry.lastReferralLabel}</p>
                 </div>
               ))}

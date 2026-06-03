@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useTransition, useState } from "react";
+import { ChevronDown, ChevronUp, Eye, MapPin, Pencil, Users, Target, Globe } from "lucide-react";
 
 import { sendDirectReferralInline } from "@/app-actions/member-actions";
 import type { ReferralSendState } from "@/app-actions/member-actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReferralContactModal } from "@/components/domain/referral-contact-modal";
 import {
   calculateMatchConfidence,
   CLIENT_TYPES,
+  generateMatchExplanation,
   getMatchDimensions,
   insuranceMatches,
   INSURANCE_CARRIERS,
@@ -42,41 +43,9 @@ function getUrgencyColor(urgency: string) {
 }
 
 function getPaymentModelLabel(value: string) {
-  if (value === "private_pay") return "Private pay";
-  if (value === "insurance") return "Insurance";
-  return "Private pay and insurance";
-}
-
-function getCareFormatLabel(therapist: PublicTherapistSummary) {
-  if (therapist.inPerson && therapist.telehealth) {
-    return "In person and telehealth";
-  }
-
-  if (therapist.telehealth) {
-    return "Telehealth";
-  }
-
-  return "In person";
-}
-
-function getTrustContext(therapist: PublicTherapistSummary) {
-  if (therapist.trustedByViewer) {
-    return "Trusted by you";
-  }
-
-  if (therapist.isFollowed) {
-    return "In your network";
-  }
-
-  if (therapist.trustedBy.length === 1) {
-    return `Trusted by ${therapist.trustedBy[0]?.name}`;
-  }
-
-  if (therapist.trustedBy.length > 1) {
-    return `Trusted by ${therapist.trustedBy[0]?.name} and ${therapist.trustedBy.length - 1} others`;
-  }
-
-  return "No direct trust context yet";
+  if (value === "private_pay") return "Accepts Private Pay";
+  if (value === "insurance") return "Accepts Insurance";
+  return "Private Pay & Insurance";
 }
 
 function getAvailabilityRank(status: PublicTherapistSummary["availabilityStatus"]) {
@@ -85,51 +54,40 @@ function getAvailabilityRank(status: PublicTherapistSummary["availabilityStatus"
   return 1;
 }
 
+function ConfidenceDots({ confidence }: { confidence: "high" | "medium" | "low" }) {
+  const count = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
+  const filledColor =
+    confidence === "high"
+      ? "bg-green-500"
+      : confidence === "medium"
+        ? "bg-amber-400"
+        : "bg-red-400";
+
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className={`h-2 w-2 rounded-full ${i <= count ? filledColor : "bg-gray-200"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 function MatchBreakdown({
   dimensions,
-  confidence,
   availabilityStatus
 }: {
   dimensions: MatchDimension[];
-  confidence: "high" | "medium" | "low";
   availabilityStatus: "accepting" | "waitlist" | "full";
 }) {
   if (dimensions.length === 0) return null;
 
   const matchCount = dimensions.filter((d) => d.status === "match").length;
-  const scoreColor =
-    confidence === "high"
-      ? "text-green-700"
-      : confidence === "medium"
-        ? "text-yellow-600"
-        : "text-red-500";
 
   return (
     <div className="space-y-2 rounded-xl bg-muted/40 px-3 py-2.5">
-      <div className="flex items-center gap-2">
-        <span className={`text-sm font-semibold tabular-nums ${scoreColor}`}>
-          {matchCount}/{dimensions.length}
-        </span>
-        <span className="text-xs text-muted-foreground">criteria matched</span>
-        <div className="ml-1 flex gap-0.5">
-          {dimensions.map((dimension) => (
-            <div
-              key={dimension.label}
-              className={`h-1.5 w-5 rounded-full ${dimension.status === "match" ? "bg-green-500" : "bg-red-300"}`}
-            />
-          ))}
-          <div
-            className={`h-1.5 w-5 rounded-full ${
-              availabilityStatus === "accepting"
-                ? "bg-green-500"
-                : availabilityStatus === "waitlist"
-                  ? "bg-yellow-400"
-                  : "bg-gray-300"
-            }`}
-          />
-        </div>
-      </div>
-
       <div className="flex flex-wrap gap-1.5">
         {dimensions.map((dimension) => (
           <span
@@ -160,16 +118,17 @@ function MatchBreakdown({
               : "✗ Full"}
         </span>
       </div>
+      <p className="text-xs text-muted-foreground">
+        {matchCount} of {dimensions.length} criteria matched
+      </p>
     </div>
   );
 }
 
 export function ReferralComposeForm({
-  senderEmail,
   statusCopy,
   therapists
 }: {
-  senderEmail?: string;
   statusCopy?: string | null;
   therapists: PublicTherapistSummary[];
 }) {
@@ -185,6 +144,54 @@ export function ReferralComposeForm({
   const [groupFocus, setGroupFocus] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
+  const [formOpen, setFormOpen] = useState(true);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Restore state from URL on mount
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const loc = p.get("loc") ?? "";
+    const urg = p.get("urg") ?? "";
+    const ct = p.get("ct") ?? "";
+    const pi = p.get("pi") ?? "";
+    const region = p.get("region") ?? "";
+    const pay = p.get("pay") ?? "";
+    const ins = p.get("ins") ?? "";
+    const fmt = p.get("fmt") ?? "";
+    const gf = p.get("gf") ?? "";
+    const age = p.get("age") ?? "";
+    const sub = p.get("sub") === "1";
+    if (loc) setLevelOfCare(loc);
+    if (urg) setUrgency(urg);
+    if (ct) setClientType(ct);
+    if (pi) setPresentingIssue(pi);
+    if (region) setLocation(region);
+    if (pay) setPayment(pay);
+    if (ins) setInsurance(ins);
+    if (fmt) setFormat(fmt);
+    if (gf) setGroupFocus(gf);
+    if (age) setAgeRange(age);
+    if (sub) { setSubmitted(true); setFormOpen(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Write state to URL on every change (no router — avoids re-renders)
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (levelOfCare) p.set("loc", levelOfCare);
+    if (urgency) p.set("urg", urgency);
+    if (clientType) p.set("ct", clientType);
+    if (presentingIssue) p.set("pi", presentingIssue);
+    if (location) p.set("region", location);
+    if (payment) p.set("pay", payment);
+    if (insurance) p.set("ins", insurance);
+    if (format) p.set("fmt", format);
+    if (groupFocus) p.set("gf", groupFocus);
+    if (ageRange) p.set("age", ageRange);
+    if (submitted) p.set("sub", "1");
+    const qs = p.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [levelOfCare, urgency, clientType, presentingIssue, location, payment, insurance, format, groupFocus, ageRange, submitted]);
 
   const getRequiredFields = () => {
     switch (levelOfCare) {
@@ -217,51 +224,77 @@ export function ReferralComposeForm({
     additionalNotes
   };
 
-  const filteredTherapists = therapists.filter((therapist) => {
-    if (levelOfCare && !levelOfCareMatches(levelOfCare, therapist.offerings, therapist.bio)) return false;
-    if (payment && !paymentModelMatchesFilter(therapist.paymentModel, payment.toLowerCase().replace(" ", "_"))) return false;
-    if (location && !locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) return false;
-    if (
-      insurance &&
-      (payment === "Insurance" || payment === "Both" || levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment") &&
-      !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)
-    ) {
-      return false;
-    }
-
-    return true;
-  });
-
-  const rankedTherapists = filteredTherapists
-    .map((therapist) => {
-      const confidence = calculateMatchConfidence(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
-      const dimensions = getMatchDimensions(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
-
-      let urgencyBoost = 0;
-      if (urgency.includes("Urgent") && !urgency.includes("Moderately") && therapist.availabilityStatus === "accepting") {
-        urgencyBoost = 5;
-      } else if (urgency.includes("Moderately") && therapist.availabilityStatus !== "full") {
-        urgencyBoost = 2;
+  const filteredTherapists = useMemo(() =>
+    therapists.filter((therapist) => {
+      if (levelOfCare && !levelOfCareMatches(levelOfCare, therapist.offerings, therapist.bio)) return false;
+      if (payment && !paymentModelMatchesFilter(therapist.paymentModel, payment.toLowerCase().replace(" ", "_"))) return false;
+      if (location && !locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) return false;
+      if (
+        insurance &&
+        (payment === "Insurance" || payment === "Both" ||
+          levelOfCare === "Intensive Outpatient (IOP)" ||
+          levelOfCare === "Partial Hospitalization (PHP)" ||
+          levelOfCare === "Residential Treatment") &&
+        !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)
+      ) {
+        return false;
       }
+      return true;
+    }),
+    [therapists, levelOfCare, payment, location, insurance]
+  );
 
-      const trustScore =
-        Number(Boolean(therapist.trustedByViewer)) * 8 +
-        Number(Boolean(therapist.isFollowed)) * 5 +
-        Math.min(therapist.trustedBy.length, 3) * 2;
-      const availabilityScore = getAvailabilityRank(therapist.availabilityStatus);
-      const confidenceScore = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
+  const rankedTherapists = useMemo(() =>
+    filteredTherapists
+      .map((therapist) => {
+        const confidence = calculateMatchConfidence(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
+        const dimensions = getMatchDimensions(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
+
+        let urgencyBoost = 0;
+        if (urgency.includes("Urgent") && !urgency.includes("Moderately") && therapist.availabilityStatus === "accepting") {
+          urgencyBoost = 5;
+        } else if (urgency.includes("Moderately") && therapist.availabilityStatus !== "full") {
+          urgencyBoost = 2;
+        }
+
+        const trustScore =
+          Number(Boolean(therapist.trustedByViewer)) * 8 +
+          Number(Boolean(therapist.isFollowed)) * 5 +
+          Math.min(therapist.trustedBy.length, 3) * 2;
+        const availabilityScore = getAvailabilityRank(therapist.availabilityStatus);
+        const confidenceScore = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
+
+        return { therapist, confidence, dimensions, score: trustScore + availabilityScore + confidenceScore + urgencyBoost };
+      })
+      .sort((a, b) => b.score - a.score),
+    [filteredTherapists, levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, urgency]
+  );
+
+  const { topMatches, trustedNetworkMatches, broaderMatches, effectiveTopMatches, effectiveBroader, hasAnyNetwork } =
+    useMemo(() => {
+      const inNetwork = (t: PublicTherapistSummary) => t.trustedByViewer || t.isFollowed || t.trustedBy.length > 0;
+
+      const top = rankedTherapists.filter((m) => m.confidence === "high" && inNetwork(m.therapist));
+      const topIds = new Set(top.map((m) => m.therapist.profileId));
+
+      const trusted = rankedTherapists.filter((m) => !topIds.has(m.therapist.profileId) && inNetwork(m.therapist));
+      const trustedIds = new Set(trusted.map((m) => m.therapist.profileId));
+
+      const broader = rankedTherapists.filter((m) => !topIds.has(m.therapist.profileId) && !trustedIds.has(m.therapist.profileId));
+
+      const effectiveTop = top.length > 0 ? top : rankedTherapists.filter((m) => m.confidence === "high");
+      const effectiveTopIds = new Set(effectiveTop.map((m) => m.therapist.profileId));
+      const effectiveBroad = rankedTherapists.filter((m) => !effectiveTopIds.has(m.therapist.profileId));
 
       return {
-        therapist,
-        confidence,
-        dimensions,
-        score: trustScore + availabilityScore + confidenceScore + urgencyBoost
+        topMatches: top,
+        trustedNetworkMatches: trusted,
+        broaderMatches: broader,
+        effectiveTopMatches: effectiveTop,
+        effectiveBroader: effectiveBroad,
+        hasAnyNetwork: rankedTherapists.some((m) => inNetwork(m.therapist)),
       };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  const highMediumMatches = rankedTherapists.filter((match) => match.confidence === "high" || match.confidence === "medium");
-  const lowMatches = rankedTherapists.filter((match) => match.confidence === "low");
+    }, [rankedTherapists]);
 
   const handleLevelOfCareChange = (level: string) => {
     setLevelOfCare(level);
@@ -273,13 +306,39 @@ export function ReferralComposeForm({
     setFormat("");
     setGroupFocus("");
     setAgeRange("");
+    setSubmitted(false);
   };
 
   const handlePaymentChange = (newPayment: string) => {
     setPayment(newPayment);
     if (newPayment !== "Insurance" && newPayment !== "Both") setInsurance("");
     if (newPayment !== "Private Pay" && newPayment !== "Both") setPrivatePayMax("");
+    setSubmitted(false);
   };
+
+  const [isPending, startTransition] = useTransition();
+
+  const handleSubmit = () => {
+    startTransition(() => {
+      setSubmitted(true);
+      setFormOpen(false);
+    });
+  };
+
+  const handleEditSearch = () => {
+    setSubmitted(false);
+    setFormOpen(true);
+  };
+
+  const criteriaSummary = [
+    levelOfCare,
+    clientType,
+    selectedPresentingIssue,
+    location || null,
+    payment || null
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="space-y-6">
@@ -291,113 +350,107 @@ export function ReferralComposeForm({
 
       <Card className="bg-white/90">
         <CardHeader>
-          <CardTitle>Referral search</CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Referral search</CardTitle>
+            {submitted && (
+              <button
+                type="button"
+                onClick={handleEditSearch}
+                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
+              >
+                <Pencil size={12} />
+                Edit Search
+              </button>
+            )}
+          </div>
+          {submitted && !formOpen && criteriaSummary && (
+            <p className="mt-1 text-sm text-muted-foreground">{criteriaSummary}</p>
+          )}
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-foreground">
-              Level of Care <span className="text-red-500">*</span>
-            </label>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-2 shadow-sm">
-              <div className="flex flex-wrap gap-2">
-                {LEVELS_OF_CARE.map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => handleLevelOfCareChange(levelOfCare === level ? "" : level)}
-                    className={`rounded-full px-5 py-3 text-sm font-semibold transition ${
-                      levelOfCare === level
-                        ? "bg-primary text-white shadow"
-                        : "border border-slate-300 bg-white text-slate-700 hover:border-primary hover:text-primary"
-                    }`}
-                  >
-                    {level}
-                  </button>
-                ))}
+
+        {formOpen && (
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">
+                Level of Care <span className="text-red-500">*</span>
+              </label>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-2 shadow-sm">
+                <div className="flex flex-wrap gap-2">
+                  {LEVELS_OF_CARE.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => handleLevelOfCareChange(levelOfCare === level ? "" : level)}
+                      className={`rounded-full px-5 py-3 text-sm font-semibold transition ${
+                        levelOfCare === level
+                          ? "bg-primary text-white shadow"
+                          : "border border-slate-300 bg-white text-slate-700 hover:border-primary hover:text-primary"
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          {levelOfCare && (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="urgency">
-                  Urgency <span className="text-red-500">*</span>
-                </label>
-                <select
-                  className={`w-full rounded-2xl border px-4 py-3 text-sm transition ${urgency ? getUrgencyColor(urgency) : "bg-white text-slate-900"}`}
-                  id="urgency"
-                  value={urgency}
-                  onChange={(e) => setUrgency(e.target.value)}
-                  required
-                >
-                  <option value="">Select urgency level</option>
-                  {URGENCY_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
+            {levelOfCare && (
+              <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="clientType">
-                    Client Type <span className="text-red-500">*</span>
+                  <label className="text-sm font-medium text-foreground" htmlFor="urgency">
+                    Urgency <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                    id="clientType"
-                    value={clientType}
-                    onChange={(e) => setClientType(e.target.value)}
+                    className={`w-full rounded-2xl border px-4 py-3 text-sm transition ${urgency ? getUrgencyColor(urgency) : "bg-white text-slate-900"}`}
+                    id="urgency"
+                    value={urgency}
+                    onChange={(e) => setUrgency(e.target.value)}
                     required
                   >
-                    <option value="">Select client type</option>
-                    {CLIENT_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
+                    <option value="">Select urgency level</option>
+                    {URGENCY_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {levelOfCare !== "Group Therapy" && (
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="presentingIssue">
-                      {levelOfCare === "Residential Treatment" || levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" ? "Primary Need" : "Presenting Issue"}
-                      <span className="text-red-500">*</span>
+                    <label className="text-sm font-medium text-foreground" htmlFor="clientType">
+                      Client Type <span className="text-red-500">*</span>
                     </label>
                     <select
                       className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="presentingIssue"
-                      value={presentingIssue}
-                      onChange={(e) => setPresentingIssue(e.target.value)}
+                      id="clientType"
+                      value={clientType}
+                      onChange={(e) => setClientType(e.target.value)}
                       required
                     >
-                      <option value="">Select issue</option>
-                      {PRESENTING_ISSUES.map((issue) => (
-                        <option key={issue} value={issue}>
-                          {issue}
+                      <option value="">Select client type</option>
+                      {CLIENT_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
                         </option>
                       ))}
                     </select>
                   </div>
-                )}
 
-                {levelOfCare === "Group Therapy" && (
-                  <>
+                  {levelOfCare !== "Group Therapy" && (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground" htmlFor="groupFocus">
-                        Group Focus <span className="text-red-500">*</span>
+                      <label className="text-sm font-medium text-foreground" htmlFor="presentingIssue">
+                        {levelOfCare === "Residential Treatment" || levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" ? "Primary Need" : "Presenting Issue"}
+                        <span className="text-red-500">*</span>
                       </label>
                       <select
                         className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                        id="groupFocus"
-                        value={groupFocus}
-                        onChange={(e) => setGroupFocus(e.target.value)}
+                        id="presentingIssue"
+                        value={presentingIssue}
+                        onChange={(e) => setPresentingIssue(e.target.value)}
                         required
                       >
-                        <option value="">Select focus</option>
+                        <option value="">Select issue</option>
                         {PRESENTING_ISSUES.map((issue) => (
                           <option key={issue} value={issue}>
                             {issue}
@@ -405,198 +458,321 @@ export function ReferralComposeForm({
                         ))}
                       </select>
                     </div>
+                  )}
 
+                  {levelOfCare === "Group Therapy" && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground" htmlFor="groupFocus">
+                          Group Focus <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                          id="groupFocus"
+                          value={groupFocus}
+                          onChange={(e) => setGroupFocus(e.target.value)}
+                          required
+                        >
+                          <option value="">Select focus</option>
+                          {PRESENTING_ISSUES.map((issue) => (
+                            <option key={issue} value={issue}>
+                              {issue}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground" htmlFor="format">
+                          Format <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                          id="format"
+                          value={format}
+                          onChange={(e) => setFormat(e.target.value)}
+                          required
+                        >
+                          <option value="">Select format</option>
+                          {FORMAT_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="location">
+                      Location
+                    </label>
+                    <select
+                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                      id="location"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                    >
+                      <option value="">Any location</option>
+                      {LOCATION_OPTIONS.map((loc) => (
+                        <option key={loc} value={loc}>
+                          {loc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground" htmlFor="format">
-                        Format <span className="text-red-500">*</span>
+                      <label className="text-sm font-medium text-foreground" htmlFor="payment">
+                        Payment <span className="text-red-500">*</span>
                       </label>
                       <select
                         className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                        id="format"
-                        value={format}
-                        onChange={(e) => setFormat(e.target.value)}
+                        id="payment"
+                        value={payment}
+                        onChange={(e) => handlePaymentChange(e.target.value)}
                         required
                       >
-                        <option value="">Select format</option>
-                        {FORMAT_OPTIONS.map((option) => (
+                        <option value="">Select payment type</option>
+                        {PAYMENT_OPTIONS.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>
                         ))}
                       </select>
                     </div>
-                  </>
-                )}
+                  )}
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="location">
-                    Location
-                  </label>
-                  <select
-                    className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                    id="location"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                  >
-                    <option value="">Any location</option>
-                    {LOCATION_OPTIONS.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
+                  {((levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Insurance" || payment === "Both")) ||
+                  levelOfCare === "Intensive Outpatient (IOP)" ||
+                  levelOfCare === "Partial Hospitalization (PHP)" ||
+                  levelOfCare === "Residential Treatment" ? (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground" htmlFor="insurance">
+                        Insurance {(levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment") && <span className="text-red-500">*</span>}
+                      </label>
+                      <select
+                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                        id="insurance"
+                        value={insurance}
+                        onChange={(e) => setInsurance(e.target.value)}
+                        required={levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment"}
+                      >
+                        <option value="">Select insurance</option>
+                        {INSURANCE_CARRIERS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+
+                  {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Private Pay" || payment === "Both") && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground" htmlFor="privatePayMax">
+                        Private Pay Max
+                      </label>
+                      <input
+                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                        id="privatePayMax"
+                        placeholder="e.g. $200"
+                        value={privatePayMax}
+                        onChange={(e) => setPrivatePayMax(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  {levelOfCare === "Residential Treatment" && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground" htmlFor="ageRange">
+                        Age Range <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                        id="ageRange"
+                        value={ageRange}
+                        onChange={(e) => setAgeRange(e.target.value)}
+                        required
+                      >
+                        <option value="">Select age range</option>
+                        {AGE_RANGE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
-                {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="payment">
-                      Payment <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="payment"
-                      value={payment}
-                      onChange={(e) => handlePaymentChange(e.target.value)}
-                      required
-                    >
-                      <option value="">Select payment type</option>
-                      {PAYMENT_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground" htmlFor="additionalNotes">
+                    Additional Notes
+                  </label>
+                  <textarea
+                    className="min-h-20 w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                    id="additionalNotes"
+                    placeholder="Any additional context that might help the receiving therapist..."
+                    value={additionalNotes}
+                    onChange={(e) => { setAdditionalNotes(e.target.value); setSubmitted(false); }}
+                  />
+                </div>
 
-                {((levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Insurance" || payment === "Both")) ||
-                levelOfCare === "Intensive Outpatient (IOP)" ||
-                levelOfCare === "Partial Hospitalization (PHP)" ||
-                levelOfCare === "Residential Treatment" ? (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="insurance">
-                      Insurance {(levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment") && <span className="text-red-500">*</span>}
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="insurance"
-                      value={insurance}
-                      onChange={(e) => setInsurance(e.target.value)}
-                      required={levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment"}
-                    >
-                      <option value="">Select insurance</option>
-                      {INSURANCE_CARRIERS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-
-                {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Private Pay" || payment === "Both") && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="privatePayMax">
-                      Private Pay Max
-                    </label>
-                    <input
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="privatePayMax"
-                      placeholder="e.g. $200"
-                      value={privatePayMax}
-                      onChange={(e) => setPrivatePayMax(e.target.value)}
-                    />
-                  </div>
-                )}
-
-                {levelOfCare === "Residential Treatment" && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="ageRange">
-                      Age Range <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="ageRange"
-                      value={ageRange}
-                      onChange={(e) => setAgeRange(e.target.value)}
-                      required
-                    >
-                      <option value="">Select age range</option>
-                      {AGE_RANGE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="additionalNotes">
-                  Additional Notes
-                </label>
-                <textarea
-                  className="min-h-20 w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                  id="additionalNotes"
-                  placeholder="Any additional context that might help the receiving therapist..."
-                  value={additionalNotes}
-                  onChange={(e) => setAdditionalNotes(e.target.value)}
-                />
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {hasRequiredFields ? (
-        <Card className="bg-white/90">
-          <CardHeader>
-            <CardTitle>Therapist Matches</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {rankedTherapists.length === 0 ? (
-              <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
-                No therapists match these criteria yet. Try adjusting your filters or check back as more providers join.
-              </div>
-            ) : (
-              <>
-                {highMediumMatches.length > 0 && (
-                  <div className="space-y-4">
-                    {highMediumMatches.map(({ therapist, confidence, dimensions }) => (
-                      <TherapistMatchCard
-                        key={therapist.profileId}
-                        therapist={therapist}
-                        confidence={confidence}
-                        dimensions={dimensions}
-                        criteria={criteria}
-                        senderEmail={senderEmail}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {lowMatches.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-muted-foreground">Other possible matches</h3>
-                    {lowMatches.map(({ therapist, confidence, dimensions }) => (
-                      <TherapistMatchCard
-                        key={therapist.profileId}
-                        therapist={therapist}
-                        confidence={confidence}
-                        dimensions={dimensions}
-                        criteria={criteria}
-                        senderEmail={senderEmail}
-                      />
-                    ))}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!hasRequiredFields || isPending}
+                  className="w-full rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isPending ? "Finding matches…" : "Find Trusted Referrals"}
+                </button>
               </>
             )}
           </CardContent>
-        </Card>
+        )}
+      </Card>
+
+      {submitted ? (
+        <div className="space-y-6">
+          {rankedTherapists.length === 0 ? (
+            <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
+              No therapists match these criteria yet. Try adjusting your filters or check back as more providers join.
+            </div>
+          ) : hasAnyNetwork ? (
+            <>
+              {topMatches.length > 0 && (
+                <MatchSection
+                  icon={<Target size={16} className="text-primary" />}
+                  title="Top Matches"
+                  count={topMatches.length}
+                  matches={topMatches}
+                  criteria={criteria}
+                />
+              )}
+              {trustedNetworkMatches.length > 0 && (
+                <MatchSection
+                  icon={<Users size={16} className="text-primary" />}
+                  title="Trusted Network"
+                  count={trustedNetworkMatches.length}
+                  matches={trustedNetworkMatches}
+                  criteria={criteria}
+                />
+              )}
+              {broaderMatches.length > 0 && (
+                <MatchSection
+                  icon={<Globe size={16} className="text-muted-foreground" />}
+                  title="Broader Matches"
+                  count={broaderMatches.length}
+                  matches={broaderMatches}
+                  criteria={criteria}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {effectiveTopMatches.length > 0 && (
+                <MatchSection
+                  icon={<Target size={16} className="text-primary" />}
+                  title="Top Matches"
+                  count={effectiveTopMatches.length}
+                  matches={effectiveTopMatches}
+                  criteria={criteria}
+                />
+              )}
+              {effectiveBroader.length > 0 && (
+                <MatchSection
+                  icon={<Globe size={16} className="text-muted-foreground" />}
+                  title="Other Matches"
+                  count={effectiveBroader.length}
+                  matches={effectiveBroader}
+                  criteria={criteria}
+                />
+              )}
+            </>
+          )}
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">Complete the required criteria above to see matching therapists.</p>
+      )}
+    </div>
+  );
+}
+
+const SECTION_DEFAULT_SHOW = 5;
+
+function MatchSection({
+  icon,
+  title,
+  count,
+  matches,
+  criteria
+}: {
+  icon: React.ReactNode;
+  title: string;
+  count: number;
+  matches: Array<{
+    therapist: PublicTherapistSummary;
+    confidence: "high" | "medium" | "low";
+    dimensions: MatchDimension[];
+    score: number;
+  }>;
+  criteria: {
+    levelOfCare: string;
+    urgency: string;
+    clientType: string;
+    presentingIssue: string;
+    payment: string;
+    location: string;
+    insurance: string;
+    privatePayMax: string;
+    format: string;
+    additionalNotes: string;
+  };
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? matches : matches.slice(0, SECTION_DEFAULT_SHOW);
+  const hiddenCount = matches.length - SECTION_DEFAULT_SHOW;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        {icon}
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+          {count}
+        </span>
+      </div>
+      <div className="space-y-3">
+        {visible.map(({ therapist, confidence, dimensions }) => (
+          <TherapistMatchCard
+            key={therapist.profileId}
+            therapist={therapist}
+            confidence={confidence}
+            dimensions={dimensions}
+            criteria={criteria}
+          />
+        ))}
+      </div>
+      {!showAll && hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full rounded-2xl border border-dashed border-slate-300 py-2.5 text-sm text-muted-foreground transition hover:border-primary hover:text-primary"
+        >
+          Show {hiddenCount} more
+        </button>
+      )}
+      {showAll && matches.length > SECTION_DEFAULT_SHOW && (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="w-full rounded-2xl border border-dashed border-slate-300 py-2.5 text-sm text-muted-foreground transition hover:border-primary hover:text-primary"
+        >
+          Show fewer
+        </button>
       )}
     </div>
   );
@@ -606,8 +782,7 @@ function TherapistMatchCard({
   therapist,
   confidence,
   dimensions,
-  criteria,
-  senderEmail
+  criteria
 }: {
   therapist: PublicTherapistSummary;
   confidence: "high" | "medium" | "low";
@@ -624,12 +799,12 @@ function TherapistMatchCard({
     format: string;
     additionalNotes: string;
   };
-  senderEmail?: string;
 }) {
   const [state, formAction] = useActionState<ReferralSendState, FormData>(
     sendDirectReferralInline,
     { status: "idle" }
   );
+  const [isWhyExpanded, setIsWhyExpanded] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -648,25 +823,76 @@ function TherapistMatchCard({
     formRef.current?.requestSubmit();
   }
 
+  const confidenceLabel =
+    confidence === "high" ? "High" : confidence === "medium" ? "Medium" : "Low";
+  const confidenceColor =
+    confidence === "high"
+      ? "text-green-600"
+      : confidence === "medium"
+        ? "text-amber-600"
+        : "text-muted-foreground";
+
+  const trustBadges: string[] = [];
+  if (therapist.trustedByViewer) trustBadges.push("You Trust");
+  else if (therapist.isFollowed) trustBadges.push("In Network");
+  else if (therapist.trustedBy.length === 1) {
+    trustBadges.push(`${therapist.trustedBy[0]?.name} trusts them`);
+  } else if (therapist.trustedBy.length > 1) {
+    trustBadges.push(`${therapist.trustedBy[0]?.name} +${therapist.trustedBy.length - 1} trust them`);
+  }
+
+  const attributeChips: string[] = [];
+  if (therapist.populations.length > 0) {
+    attributeChips.push(`Works with ${therapist.populations[0]}`);
+  }
+  if (therapist.telehealth && therapist.availabilityStatus === "accepting") {
+    attributeChips.push("Available via Telehealth");
+  } else if (therapist.telehealth) {
+    attributeChips.push("Telehealth");
+  }
+  if (therapist.inPerson && therapist.neighborhoods[0]) {
+    attributeChips.push(`Located in ${therapist.neighborhoods[0]}`);
+  }
+  attributeChips.push(getPaymentModelLabel(therapist.paymentModel));
+
+  const whyExplanations = generateMatchExplanation(
+    criteria.levelOfCare,
+    criteria.clientType,
+    criteria.presentingIssue,
+    criteria.payment,
+    criteria.location,
+    criteria.insurance,
+    therapist
+  );
+
   const referralTitle = [
     "Referral",
     criteria.clientType,
     criteria.presentingIssue ? `for ${criteria.presentingIssue}` : ""
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
   const referralBody = criteria.additionalNotes || "Structured referral request from referral search.";
 
   if (state.status === "success") {
     return (
-      <div className="rounded-2xl border bg-background p-6">
+      <div className="rounded-2xl border bg-white p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="font-medium text-foreground">{therapist.displayName}</p>
+            <p className="font-semibold text-foreground">{therapist.displayName}</p>
             <p className="text-sm text-muted-foreground">{therapist.title}</p>
           </div>
           <span className="text-sm font-medium text-green-600">✓ Referral logged</span>
         </div>
-        <Button asChild className="mt-3 w-full" variant="outline" size="sm">
-          <Link href={`/directory/${therapist.slug}`}>View profile</Link>
+        <Button
+          className="mt-3 w-full"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          }}
+        >
+          View profile
         </Button>
       </div>
     );
@@ -674,70 +900,119 @@ function TherapistMatchCard({
 
   return (
     <>
-      <div className="rounded-2xl border bg-background p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex-1 space-y-3">
-            <div>
-              <h3 className="font-medium text-foreground">{therapist.displayName}</h3>
-              <p className="text-sm text-muted-foreground">{therapist.title}</p>
-              <p className="text-xs text-muted-foreground">{therapist.neighborhoods[0] ?? therapist.city}</p>
-            </div>
-
-            <div className="grid gap-1.5 text-sm text-muted-foreground md:grid-cols-2">
-              <p>{getCareFormatLabel(therapist)}</p>
-              <p>{getPaymentModelLabel(therapist.paymentModel)}</p>
-              <p className="md:col-span-2">{getTrustContext(therapist)}</p>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {therapist.specialties.slice(0, 3).map((specialty) => (
-                <Badge key={specialty} variant="muted">
-                  {specialty}
-                </Badge>
-              ))}
-              {therapist.communities.slice(0, 2).map((community) => (
-                <Badge key={community} variant="outline" className="border-primary/30 text-xs text-primary">
-                  {community}
-                </Badge>
+      <div className="rounded-2xl border bg-white p-5">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h3 className="font-semibold text-foreground">{therapist.displayName}</h3>
+              {trustBadges.map((badge) => (
+                <span
+                  key={badge}
+                  className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary"
+                >
+                  <span className="text-[9px]" aria-hidden>○</span>
+                  {badge}
+                </span>
               ))}
             </div>
+            <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+              <MapPin size={12} className="shrink-0" />
+              <span>
+                {therapist.neighborhoods[0] ?? therapist.city}
+                {therapist.telehealth ? " · Telehealth" : ""}
+              </span>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+            <span className={`text-sm font-semibold ${confidenceColor}`}>{confidenceLabel}</span>
+            <ConfidenceDots confidence={confidence} />
+          </div>
+        </div>
 
+        {/* Attribute chips */}
+        {attributeChips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {attributeChips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Hidden form — submitted programmatically via modal */}
+        <form ref={formRef} action={formAction} className="hidden">
+          <input name="receiverProfileId" type="hidden" value={therapist.profileId} />
+          <input name="title" type="hidden" value={referralTitle} />
+          <input name="body" type="hidden" value={referralBody} />
+          <input name="levelOfCare" type="hidden" value={criteria.levelOfCare} />
+          <input name="urgencyLevel" type="hidden" value={criteria.urgency} />
+          <input name="clientType" type="hidden" value={criteria.clientType} />
+          <input name="presentingIssue" type="hidden" value={criteria.presentingIssue} />
+          <input name="payment" type="hidden" value={criteria.payment} />
+          <input name="location" type="hidden" value={criteria.location} />
+          <input name="insuranceWanted" type="hidden" value={criteria.insurance} />
+          <input name="formatWanted" type="hidden" value={criteria.format} />
+          <input name="privatePayMax" type="hidden" value={criteria.privatePayMax} />
+          <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
+          <button type="submit" />
+        </form>
+
+        {/* Action row */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button
+            className="min-w-[120px] flex-1"
+            onClick={() => setModalOpen(true)}
+          >
+            Contact &amp; log
+          </Button>
+          <Button
+            variant="outline"
+            className="min-w-[120px] flex-1"
+            onClick={() => {
+              window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+            }}
+          >
+            <Eye size={14} className="mr-1.5" />
+            View Profile
+          </Button>
+          <button
+            type="button"
+            onClick={() => setIsWhyExpanded((v) => !v)}
+            className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {isWhyExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            Why this match?
+          </button>
+        </div>
+
+        {state.status === "error" && (
+          <p className="mt-2 text-xs text-red-600">Couldn&apos;t log. Try again.</p>
+        )}
+
+        {/* Expandable "Why this match?" */}
+        {isWhyExpanded && (
+          <div className="mt-3 space-y-3 rounded-xl bg-muted/40 px-3 py-3">
+            {whyExplanations.length > 0 && (
+              <ul className="space-y-1.5">
+                {whyExplanations.map((explanation, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
+                    {explanation}
+                  </li>
+                ))}
+              </ul>
+            )}
             <MatchBreakdown
               dimensions={dimensions}
-              confidence={confidence}
               availabilityStatus={therapist.availabilityStatus}
             />
           </div>
-
-          <div className="flex flex-col gap-2 md:min-w-32">
-            {/* Hidden form — submitted programmatically from the modal */}
-            <form ref={formRef} action={formAction}>
-              <input name="receiverProfileId" type="hidden" value={therapist.profileId} />
-              <input name="title" type="hidden" value={referralTitle} />
-              <input name="body" type="hidden" value={referralBody} />
-              <input name="levelOfCare" type="hidden" value={criteria.levelOfCare} />
-              <input name="urgencyLevel" type="hidden" value={criteria.urgency} />
-              <input name="clientType" type="hidden" value={criteria.clientType} />
-              <input name="presentingIssue" type="hidden" value={criteria.presentingIssue} />
-              <input name="payment" type="hidden" value={criteria.payment} />
-              <input name="location" type="hidden" value={criteria.location} />
-              <input name="insuranceWanted" type="hidden" value={criteria.insurance} />
-              <input name="formatWanted" type="hidden" value={criteria.format} />
-              <input name="privatePayMax" type="hidden" value={criteria.privatePayMax} />
-              <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
-            </form>
-
-            <Button className="w-full" onClick={() => setModalOpen(true)}>
-              Contact &amp; log
-            </Button>
-            {state.status === "error" && (
-              <p className="text-xs text-red-600">Couldn&apos;t log. Try again.</p>
-            )}
-            <Button variant="outline" asChild className="w-full">
-              <Link href={`/directory/${therapist.slug}`}>View profile</Link>
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
 
       {modalOpen && (
