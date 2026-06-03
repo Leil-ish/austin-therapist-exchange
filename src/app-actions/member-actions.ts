@@ -184,54 +184,6 @@ export async function createMemberPost(formData: FormData) {
   redirect("/member/feed?created=1");
 }
 
-async function sendReferralNotificationEmail({
-  receiverProfileId,
-  senderName,
-  criteria
-}: {
-  receiverProfileId: string;
-  senderName: string;
-  criteria: { levelOfCare: string; clientType: string; presentingIssue: string; payment: string; additionalNotes: string };
-}) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return;
-
-  const admin = createSupabaseAdminClient();
-  const { data } = await admin.auth.admin.getUserById(receiverProfileId);
-  const receiverEmail = data.user?.email;
-  if (!receiverEmail) return;
-
-  const criteriaLines = [
-    criteria.levelOfCare && `Level of care: ${criteria.levelOfCare}`,
-    criteria.clientType && `Client type: ${criteria.clientType}`,
-    criteria.presentingIssue && `Presenting issue: ${criteria.presentingIssue}`,
-    criteria.payment && `Payment: ${criteria.payment}`,
-    criteria.additionalNotes && `Notes: ${criteria.additionalNotes}`
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: "Austin Therapist Exchange <mail@austintherapistexchange.com>",
-      to: receiverEmail,
-      subject: `New referral from ${senderName}`,
-      text: [
-        `${senderName} sent you a referral on Austin Therapist Exchange.`,
-        "",
-        criteriaLines,
-        "",
-        "Log in to view and respond:",
-        "https://austintherapistexchange.com/member/referrals"
-      ].join("\n")
-    })
-  }).catch(() => {
-    // notification is best-effort — never crash the referral send
-  });
-}
-
 function autoGenerateReferralTitle(formData: FormData) {
   const presentingIssue = String(formData.get("presentingIssue") ?? "").trim();
   const levelOfCare = String(formData.get("levelOfCare") ?? "").trim();
@@ -285,18 +237,6 @@ export async function sendDirectReferral(formData: FormData) {
     redirect(`${returnTo}?directReferralError=1` as never);
   }
 
-  void sendReferralNotificationEmail({
-    receiverProfileId,
-    senderName: session.fullName ?? "A colleague",
-    criteria: {
-      levelOfCare: String(formData.get("levelOfCare") ?? ""),
-      clientType: String(formData.get("clientType") ?? ""),
-      presentingIssue: String(formData.get("presentingIssue") ?? ""),
-      payment: String(formData.get("payment") ?? ""),
-      additionalNotes: String(formData.get("additionalNotes") ?? "")
-    }
-  });
-
   revalidatePath("/member");
   revalidatePath("/member/feed");
   revalidatePath("/member/referrals");
@@ -347,12 +287,6 @@ export async function sendDirectReferralInline(
     await admin.from("referral_messages").delete().eq("id", message.id);
     return { status: "error" };
   }
-
-  void sendReferralNotificationEmail({
-    receiverProfileId,
-    senderName: session.fullName ?? "A colleague",
-    criteria: { levelOfCare, clientType, presentingIssue, payment, additionalNotes }
-  });
 
   revalidatePath("/member/referrals");
   return { status: "success" };
@@ -686,17 +620,13 @@ export async function followClinician(formData: FormData) {
     redirect(returnTo as never);
   }
 
-  const { error } = await admin.from("follows").upsert(
-    {
-      follower_profile_id: session.userId,
-      followed_profile_id: followedProfileId
-    },
-    {
-      onConflict: "follower_profile_id,followed_profile_id"
-    }
-  );
+  const { error } = await admin.from("follows").insert({
+    follower_profile_id: session.userId,
+    followed_profile_id: followedProfileId
+  });
 
-  if (error) {
+  // 23505 = unique_violation: already following — treat as success
+  if (error && error.code !== "23505") {
     redirect(`${returnTo}?followError=1` as never);
   }
 
@@ -808,6 +738,29 @@ export async function saveCuratedList(formData: FormData) {
   revalidatePath("/member/lists");
   revalidatePath("/directory");
   redirect("/member/lists?saved=1" as never);
+}
+
+export async function updateAvatarUrl(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+  const avatarUrl = String(formData.get("avatarUrl") ?? "").trim();
+
+  if (!avatarUrl) {
+    return { error: "Missing avatar URL" };
+  }
+
+  const { error } = await admin
+    .from("profiles")
+    .update({ avatar_url: avatarUrl })
+    .eq("id", session.userId);
+
+  if (error) {
+    return { error: "Failed to save avatar" };
+  }
+
+  revalidatePath("/member/profile");
+  revalidatePath("/directory");
+  return { success: true };
 }
 
 export async function respondToDirectReferral(formData: FormData) {

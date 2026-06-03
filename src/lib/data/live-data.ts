@@ -318,6 +318,7 @@ function mapTherapistSummary(
     curatedListTitles: curatedListTitles.get(therapistProfileId) ?? [],
     publicEmail: typeof row.public_email === "string" ? row.public_email : undefined,
     publicPhone: typeof row.public_phone === "string" ? row.public_phone : undefined,
+    avatarUrl: typeof row.avatar_url === "string" && row.avatar_url ? row.avatar_url : undefined,
     isFollowed: followedProfileIds.has(profileId),
     trustedByViewer: viewerProfileId ? trustedConnections.some((connection) => connection.id === viewerProfileId) : false,
     membershipTier: (row.membership_tier as MembershipTier | null) ?? "free",
@@ -761,20 +762,32 @@ export async function getDirectReferralActivity(profileId: string): Promise<Dire
   ];
 
   const { data: rawProfiles } = counterpartIds.length
-    ? await admin.from("profiles").select("id, full_name, slug").in("id", counterpartIds)
+    ? await admin
+        .from("profiles")
+        .select("id, full_name, slug, therapist_profiles(public_display_name, public_email, public_phone)")
+        .in("id", counterpartIds)
     : { data: [] as unknown[] };
   const { data: rawMessages } = messageIds.length
     ? await admin.from("referral_messages").select("id, read_at").in("id", messageIds)
     : { data: [] as unknown[] };
 
   const profiles = new Map(
-    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((profile) => [
-      String(profile.id),
-      {
-        name: String(profile.full_name ?? "Clinician"),
-        slug: typeof profile.slug === "string" ? profile.slug : undefined
-      }
-    ])
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((profile) => {
+      const tp = Array.isArray(profile.therapist_profiles)
+        ? (profile.therapist_profiles[0] as Record<string, unknown> | undefined)
+        : undefined;
+      return [
+        String(profile.id),
+        {
+          name: (typeof tp?.public_display_name === "string" && tp.public_display_name)
+            ? tp.public_display_name
+            : String(profile.full_name ?? "Clinician"),
+          slug: typeof profile.slug === "string" ? profile.slug : undefined,
+          phone: typeof tp?.public_phone === "string" ? tp.public_phone : undefined,
+          email: typeof tp?.public_email === "string" ? tp.public_email : undefined
+        }
+      ];
+    })
   );
   const messages = new Map(
     ((rawMessages ?? []) as Array<Record<string, unknown>>).map((message) => [
@@ -787,18 +800,23 @@ export async function getDirectReferralActivity(profileId: string): Promise<Dire
     .filter((referral) => String(referral.receiver_profile_id) === profileId)
     .map((referral) => {
       const details = (referral.client_details as Record<string, unknown> | null) ?? {};
-      const counterpart = profiles.get(String(referral.sender_profile_id));
+      const counterpartId = String(referral.sender_profile_id);
+      const counterpart = profiles.get(counterpartId);
       return {
         id: String(referral.id),
         messageId: typeof referral.message_id === "string" ? referral.message_id : undefined,
         direction: "incoming" as const,
+        counterpartId,
         counterpartName: counterpart?.name ?? "Clinician",
         counterpartSlug: counterpart?.slug,
+        counterpartPhone: counterpart?.phone,
+        counterpartEmail: counterpart?.email,
         title: String(details.title ?? "Referral"),
         region: typeof details.regionWanted === "string" ? details.regionWanted : undefined,
         paymentModel: typeof details.paymentWanted === "string" ? getPaymentModelLabel(details.paymentWanted) : undefined,
         status: String(referral.status ?? "open") as FeedItem["status"],
         readAt: typeof referral.message_id === "string" ? messages.get(referral.message_id) : undefined,
+        createdAt: String(referral.created_at ?? ""),
         createdAtLabel: formatCreatedAtLabel(referral.created_at as string | null)
       };
     });
@@ -807,24 +825,29 @@ export async function getDirectReferralActivity(profileId: string): Promise<Dire
     .filter((referral) => String(referral.sender_profile_id) === profileId)
     .map((referral) => {
       const details = (referral.client_details as Record<string, unknown> | null) ?? {};
-      const counterpart = profiles.get(String(referral.receiver_profile_id));
+      const counterpartId = String(referral.receiver_profile_id);
+      const counterpart = profiles.get(counterpartId);
       return {
         id: String(referral.id),
         direction: "outgoing" as const,
+        counterpartId,
         counterpartName: counterpart?.name ?? "Clinician",
         counterpartSlug: counterpart?.slug,
+        counterpartPhone: counterpart?.phone,
+        counterpartEmail: counterpart?.email,
         title: String(details.title ?? "Referral"),
         region: typeof details.regionWanted === "string" ? details.regionWanted : undefined,
         paymentModel: typeof details.paymentWanted === "string" ? getPaymentModelLabel(details.paymentWanted) : undefined,
         status: String(referral.status ?? "open") as FeedItem["status"],
         readAt: typeof referral.message_id === "string" ? messages.get(referral.message_id) : undefined,
+        createdAt: String(referral.created_at ?? ""),
         createdAtLabel: formatCreatedAtLabel(referral.created_at as string | null)
       };
     });
 
-  const sentTo = new Set(outgoing.map((item) => item.counterpartName));
-  const receivedFrom = new Set(incoming.map((item) => item.counterpartName));
-  const exchangedCount = [...sentTo].filter((name) => receivedFrom.has(name)).length;
+  const sentTo = new Set(outgoing.map((item) => item.counterpartId));
+  const receivedFrom = new Set(incoming.map((item) => item.counterpartId));
+  const exchangedCount = [...sentTo].filter((id) => receivedFrom.has(id)).length;
 
   return {
     sentCount: outgoing.length,
@@ -997,10 +1020,11 @@ export async function getMemberProfileForUser(profileId: string) {
     return null;
   }
 
-  const { therapistFields } = await getSupplementalTherapistFields([String(data.id)], [profileId]);
+  const { therapistFields, profileFields } = await getSupplementalTherapistFields([String(data.id)], [profileId]);
   return {
     ...(data as Record<string, unknown>),
-    ...therapistFields.get(String(data.id))
+    ...therapistFields.get(String(data.id)),
+    ...profileFields.get(profileId)
   } as Record<string, unknown>;
 }
 

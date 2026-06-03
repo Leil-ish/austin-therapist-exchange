@@ -93,11 +93,11 @@ const REGION_ALIASES: Record<(typeof AUSTIN_METRO_AREAS)[number], string[]> = {
 };
 
 export const LEVELS_OF_CARE = [
-  "Outpatient",
-  "Group",
-  "IOP",
-  "PHP",
-  "Residential"
+  "Weekly Therapy",
+  "Group Therapy",
+  "Intensive Outpatient (IOP)",
+  "Partial Hospitalization (PHP)",
+  "Residential Treatment"
 ] as const;
 
 export const CLIENT_TYPES = [
@@ -272,17 +272,17 @@ export function levelOfCareMatches(levelOfCare: string, therapistOfferings: stri
   const normalizedOfferings = therapistOfferings.map(normalizeForMatch);
   const normalizedBio = normalizeForMatch(therapistBio);
 
-  // Default to outpatient if no specific level mentioned
-  if (normalizedLevel === "outpatient") {
+  // Default to weekly therapy if no specific level mentioned
+  if (normalizedLevel === "weekly therapy") {
     return true;
   }
 
   // Check offerings and bio for specific level support
   const levelKeywords: Record<string, string[]> = {
-    "group": ["group therapy", "group sessions", "groups"],
-    "iop": ["intensive outpatient", "iop", "intensive program"],
-    "php": ["partial hospitalization", "php", "day treatment"],
-    "residential": ["residential", "inpatient", "treatment center"]
+    "group therapy": ["group therapy", "group sessions", "groups"],
+    "intensive outpatient (iop)": ["intensive outpatient", "iop", "intensive program"],
+    "partial hospitalization (php)": ["partial hospitalization", "php", "day treatment"],
+    "residential treatment": ["residential", "inpatient", "treatment center"]
   };
 
   const keywords = levelKeywords[normalizedLevel] || [];
@@ -319,21 +319,25 @@ export function presentingIssueMatches(presentingIssue: string, therapistSpecial
   const normalizedSpecialties = therapistSpecialties.map(normalizeForMatch);
 
   const issueMappings: Record<string, string[]> = {
-    "anxiety": ["anxiety", "panic"],
-    "depression": ["depression", "mood"],
-    "trauma": ["trauma", "ptsd", "post-traumatic"],
-    "ptsd": ["ptsd", "post-traumatic", "trauma"],
-    "ocd": ["ocd", "obsessive-compulsive"],
-    "sud": ["addiction", "substance", "alcohol", "drugs"],
-    "eating disorder": ["eating disorder", "eating", "anorexia", "bulimia"],
-    "infidelity": ["infidelity", "affairs", "betrayal"],
-    "parenting": ["parenting", "parent", "family"],
-    "self esteem": ["self-esteem", "self worth", "confidence"],
-    "grief loss": ["grief", "loss", "bereavement"],
-    "burnout": ["burnout", "stress", "work-life"],
-    "sleep": ["sleep", "insomnia"],
-    "bipolar disorder": ["bipolar", "mood disorder"],
-    "anger": ["anger", "rage", "aggression"]
+    "anxiety":         ["anxiety", "panic", "perfectionism", "phobia", "ocd", "social anxiety", "generalized anxiety"],
+    "depression":      ["depression", "mood disorder", "mood disorders", "dysthymia", "seasonal"],
+    "trauma":          ["trauma", "ptsd", "post-traumatic", "childhood trauma", "complex trauma",
+                        "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
+    "ptsd":            ["ptsd", "post-traumatic", "trauma / ptsd", "complex trauma", "childhood trauma"],
+    "ocd":             ["ocd", "obsessive-compulsive", "obsessive"],
+    "sud":             ["addiction", "substance", "alcohol", "drugs", "harm reduction",
+                        "relapse", "recovery", "process addiction", "substance use disorders"],
+    "eating disorder": ["eating disorder", "eating disorders", "eating", "anorexia",
+                        "bulimia", "body image", "body dysmorphia"],
+    "infidelity":      ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
+    "parenting":       ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
+    "self esteem":     ["self-esteem", "self esteem", "self worth", "confidence",
+                        "identity", "women's development", "religious deconstruction"],
+    "grief loss":      ["grief", "loss", "bereavement", "grief / loss"],
+    "burnout":         ["burnout", "stress", "work-life", "career discord", "perfectionism"],
+    "sleep":           ["sleep", "insomnia"],
+    "bipolar disorder":["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
+    "anger":           ["anger", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
   };
 
   const keywords = issueMappings[normalizedIssue] || [normalizedIssue];

@@ -216,6 +216,7 @@ export default async function MemberReferralsPage({
         </Card>
       </section>
 
+      {/* Referred-to therapist tracker */}
       <Card className="bg-white/90">
         <CardHeader>
           <CardTitle>Referred to</CardTitle>

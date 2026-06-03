@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useTransition, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useTransition, useState } from "react";
 import { ChevronDown, ChevronUp, Eye, MapPin, Pencil, Users, Target, Globe } from "lucide-react";
 
 import { sendDirectReferralInline } from "@/app-actions/member-actions";
 import type { ReferralSendState } from "@/app-actions/member-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { ReferralContactModal } from "@/components/domain/referral-contact-modal";
 import {
   calculateMatchConfidence,
   CLIENT_TYPES,
@@ -195,14 +195,14 @@ export function ReferralComposeForm({
 
   const getRequiredFields = () => {
     switch (levelOfCare) {
-      case "Group":
+      case "Group Therapy":
         return { clientType, groupFocus, format, payment, urgency };
-      case "IOP":
-      case "PHP":
+      case "Intensive Outpatient (IOP)":
+      case "Partial Hospitalization (PHP)":
         return { clientType, presentingIssue, insurance, urgency };
-      case "Residential":
+      case "Residential Treatment":
         return { clientType, presentingIssue, insurance, ageRange, urgency };
-      case "Outpatient":
+      case "Weekly Therapy":
       default:
         return { clientType, presentingIssue, payment, urgency };
     }
@@ -210,7 +210,7 @@ export function ReferralComposeForm({
 
   const requiredFieldsObj = getRequiredFields();
   const hasRequiredFields = Boolean(levelOfCare) && Object.values(requiredFieldsObj).every(Boolean);
-  const selectedPresentingIssue = levelOfCare === "Group" ? groupFocus : presentingIssue;
+  const selectedPresentingIssue = levelOfCare === "Group Therapy" ? groupFocus : presentingIssue;
   const criteria = {
     levelOfCare,
     urgency,
@@ -231,7 +231,10 @@ export function ReferralComposeForm({
       if (location && !locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) return false;
       if (
         insurance &&
-        (payment === "Insurance" || payment === "Both" || levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential") &&
+        (payment === "Insurance" || payment === "Both" ||
+          levelOfCare === "Intensive Outpatient (IOP)" ||
+          levelOfCare === "Partial Hospitalization (PHP)" ||
+          levelOfCare === "Residential Treatment") &&
         !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)
       ) {
         return false;
@@ -327,7 +330,6 @@ export function ReferralComposeForm({
     setFormOpen(true);
   };
 
-  // Compact summary tokens for collapsed form header
   const criteriaSummary = [
     levelOfCare,
     clientType,
@@ -435,10 +437,10 @@ export function ReferralComposeForm({
                     </select>
                   </div>
 
-                  {levelOfCare !== "Group" && (
+                  {levelOfCare !== "Group Therapy" && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground" htmlFor="presentingIssue">
-                        {levelOfCare === "Residential" || levelOfCare === "IOP" || levelOfCare === "PHP" ? "Primary Need" : "Presenting Issue"}
+                        {levelOfCare === "Residential Treatment" || levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" ? "Primary Need" : "Presenting Issue"}
                         <span className="text-red-500">*</span>
                       </label>
                       <select
@@ -458,7 +460,7 @@ export function ReferralComposeForm({
                     </div>
                   )}
 
-                  {levelOfCare === "Group" && (
+                  {levelOfCare === "Group Therapy" && (
                     <>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground" htmlFor="groupFocus">
@@ -521,7 +523,7 @@ export function ReferralComposeForm({
                     </select>
                   </div>
 
-                  {(levelOfCare === "Outpatient" || levelOfCare === "Group") && (
+                  {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground" htmlFor="payment">
                         Payment <span className="text-red-500">*</span>
@@ -543,20 +545,20 @@ export function ReferralComposeForm({
                     </div>
                   )}
 
-                  {((levelOfCare === "Outpatient" || levelOfCare === "Group") && (payment === "Insurance" || payment === "Both")) ||
-                  levelOfCare === "IOP" ||
-                  levelOfCare === "PHP" ||
-                  levelOfCare === "Residential" ? (
+                  {((levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Insurance" || payment === "Both")) ||
+                  levelOfCare === "Intensive Outpatient (IOP)" ||
+                  levelOfCare === "Partial Hospitalization (PHP)" ||
+                  levelOfCare === "Residential Treatment" ? (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground" htmlFor="insurance">
-                        Insurance {(levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential") && <span className="text-red-500">*</span>}
+                        Insurance {(levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment") && <span className="text-red-500">*</span>}
                       </label>
                       <select
                         className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                         id="insurance"
                         value={insurance}
                         onChange={(e) => setInsurance(e.target.value)}
-                        required={levelOfCare === "IOP" || levelOfCare === "PHP" || levelOfCare === "Residential"}
+                        required={levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment"}
                       >
                         <option value="">Select insurance</option>
                         {INSURANCE_CARRIERS.map((option) => (
@@ -568,7 +570,7 @@ export function ReferralComposeForm({
                     </div>
                   ) : null}
 
-                  {(levelOfCare === "Outpatient" || levelOfCare === "Group") && (payment === "Private Pay" || payment === "Both") && (
+                  {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Private Pay" || payment === "Both") && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground" htmlFor="privatePayMax">
                         Private Pay Max
@@ -583,7 +585,7 @@ export function ReferralComposeForm({
                     </div>
                   )}
 
-                  {levelOfCare === "Residential" && (
+                  {levelOfCare === "Residential Treatment" && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground" htmlFor="ageRange">
                         Age Range <span className="text-red-500">*</span>
@@ -803,6 +805,23 @@ function TherapistMatchCard({
     { status: "idle" }
   );
   const [isWhyExpanded, setIsWhyExpanded] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [isLogging, setIsLogging] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state.status === "success") {
+      setModalOpen(false);
+      setIsLogging(false);
+    } else if (state.status === "error") {
+      setIsLogging(false);
+    }
+  }, [state.status]);
+
+  function handleLogReferral() {
+    setIsLogging(true);
+    formRef.current?.requestSubmit();
+  }
 
   const confidenceLabel =
     confidence === "high" ? "High" : confidence === "medium" ? "Medium" : "Low";
@@ -863,7 +882,7 @@ function TherapistMatchCard({
             <p className="font-semibold text-foreground">{therapist.displayName}</p>
             <p className="text-sm text-muted-foreground">{therapist.title}</p>
           </div>
-          <span className="text-sm font-medium text-green-600">✓ Referral sent</span>
+          <span className="text-sm font-medium text-green-600">✓ Referral logged</span>
         </div>
         <Button
           className="mt-3 w-full"
@@ -880,53 +899,53 @@ function TherapistMatchCard({
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-5">
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <h3 className="font-semibold text-foreground">{therapist.displayName}</h3>
-            {trustBadges.map((badge) => (
+    <>
+      <div className="rounded-2xl border bg-white p-5">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h3 className="font-semibold text-foreground">{therapist.displayName}</h3>
+              {trustBadges.map((badge) => (
+                <span
+                  key={badge}
+                  className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary"
+                >
+                  <span className="text-[9px]" aria-hidden>○</span>
+                  {badge}
+                </span>
+              ))}
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+              <MapPin size={12} className="shrink-0" />
+              <span>
+                {therapist.neighborhoods[0] ?? therapist.city}
+                {therapist.telehealth ? " · Telehealth" : ""}
+              </span>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+            <span className={`text-sm font-semibold ${confidenceColor}`}>{confidenceLabel}</span>
+            <ConfidenceDots confidence={confidence} />
+          </div>
+        </div>
+
+        {/* Attribute chips */}
+        {attributeChips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {attributeChips.map((chip) => (
               <span
-                key={badge}
-                className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary"
+                key={chip}
+                className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
               >
-                <span className="text-[9px]" aria-hidden>○</span>
-                {badge}
+                {chip}
               </span>
             ))}
           </div>
-          <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin size={12} className="shrink-0" />
-            <span>
-              {therapist.neighborhoods[0] ?? therapist.city}
-              {therapist.telehealth ? " · Telehealth" : ""}
-            </span>
-          </div>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
-          <span className={`text-sm font-semibold ${confidenceColor}`}>{confidenceLabel}</span>
-          <ConfidenceDots confidence={confidence} />
-        </div>
-      </div>
+        )}
 
-      {/* Attribute chips */}
-      {attributeChips.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {attributeChips.map((chip) => (
-            <span
-              key={chip}
-              className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
-            >
-              {chip}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Action row */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <form action={formAction} className="min-w-[120px] flex-1">
+        {/* Hidden form — submitted programmatically via modal */}
+        <form ref={formRef} action={formAction} className="hidden">
           <input name="receiverProfileId" type="hidden" value={therapist.profileId} />
           <input name="title" type="hidden" value={referralTitle} />
           <input name="body" type="hidden" value={referralBody} />
@@ -940,53 +959,71 @@ function TherapistMatchCard({
           <input name="formatWanted" type="hidden" value={criteria.format} />
           <input name="privatePayMax" type="hidden" value={criteria.privatePayMax} />
           <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
-          <SubmitButton className="w-full" pendingLabel="Sending…">
-            Send Referral
-          </SubmitButton>
+          <button type="submit" />
         </form>
-        <Button
-          variant="outline"
-          className="min-w-[120px] flex-1"
-          onClick={() => {
-            window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-          }}
-        >
-          <Eye size={14} className="mr-1.5" />
-          View Profile
-        </Button>
-        <button
-          type="button"
-          onClick={() => setIsWhyExpanded((v) => !v)}
-          className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          {isWhyExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          Why this match?
-        </button>
+
+        {/* Action row */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button
+            className="min-w-[120px] flex-1"
+            onClick={() => setModalOpen(true)}
+          >
+            Contact &amp; log
+          </Button>
+          <Button
+            variant="outline"
+            className="min-w-[120px] flex-1"
+            onClick={() => {
+              window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+            }}
+          >
+            <Eye size={14} className="mr-1.5" />
+            View Profile
+          </Button>
+          <button
+            type="button"
+            onClick={() => setIsWhyExpanded((v) => !v)}
+            className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {isWhyExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            Why this match?
+          </button>
+        </div>
+
+        {state.status === "error" && (
+          <p className="mt-2 text-xs text-red-600">Couldn&apos;t log. Try again.</p>
+        )}
+
+        {/* Expandable "Why this match?" */}
+        {isWhyExpanded && (
+          <div className="mt-3 space-y-3 rounded-xl bg-muted/40 px-3 py-3">
+            {whyExplanations.length > 0 && (
+              <ul className="space-y-1.5">
+                {whyExplanations.map((explanation, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
+                    {explanation}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <MatchBreakdown
+              dimensions={dimensions}
+              availabilityStatus={therapist.availabilityStatus}
+            />
+          </div>
+        )}
       </div>
 
-      {state.status === "error" && (
-        <p className="mt-2 text-xs text-red-600">Couldn&apos;t send. Try again.</p>
+      {modalOpen && (
+        <ReferralContactModal
+          therapist={therapist}
+          criteria={criteria}
+          onLog={handleLogReferral}
+          onClose={() => setModalOpen(false)}
+          isLogging={isLogging}
+        />
       )}
-
-      {/* Expandable "Why this match?" */}
-      {isWhyExpanded && (
-        <div className="mt-3 space-y-3 rounded-xl bg-muted/40 px-3 py-3">
-          {whyExplanations.length > 0 && (
-            <ul className="space-y-1.5">
-              {whyExplanations.map((explanation, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
-                  {explanation}
-                </li>
-              ))}
-            </ul>
-          )}
-          <MatchBreakdown
-            dimensions={dimensions}
-            availabilityStatus={therapist.availabilityStatus}
-          />
-        </div>
-      )}
-    </div>
+    </>
   );
 }

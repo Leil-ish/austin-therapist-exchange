@@ -2,7 +2,7 @@ import { PageShell } from "@/components/layout/page-shell";
 import Link from "next/link";
 import { EmptyState } from "@/components/state/empty-state";
 import { TherapistCard } from "@/components/domain/therapist-card";
-import { getSession } from "@/lib/auth/session";
+import { requireMember } from "@/lib/auth/guards";
 import { getPublicTherapists } from "@/lib/data/live-data";
 import { AUSTIN_METRO_AREAS, regionMatches } from "@/lib/referral-matching";
 
@@ -19,7 +19,7 @@ export default async function DirectoryPage({
   }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
-  const session = await getSession();
+  const session = await requireMember("/directory");
 
   const query = params?.q?.trim() ?? "";
   const region = params?.region?.trim() ?? "";

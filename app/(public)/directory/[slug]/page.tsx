@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
-import { getSession } from "@/lib/auth/session";
+import { requireMember } from "@/lib/auth/guards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,11 +24,10 @@ export default async function TherapistProfilePage({
   const { slug } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const rawReturnTo = resolvedSearchParams.returnTo ?? resolvedSearchParams.from;
-  // Only allow back-links that point to internal referral pages
   const returnTo = rawReturnTo?.startsWith("/member/referrals") ? rawReturnTo : null;
   const fromReferrals = Boolean(returnTo);
-  const session = await getSession();
-  const therapist = await getPublicTherapistBySlug(slug, session?.userId);
+  const session = await requireMember(`/directory/${slug}`);
+  const therapist = await getPublicTherapistBySlug(slug, session.userId);
 
   if (!therapist) {
     notFound();
@@ -48,19 +48,32 @@ export default async function TherapistProfilePage({
       <section className="mx-auto grid max-w-5xl gap-8 px-6 py-16 md:grid-cols-[1.2fr_0.8fr]">
         <Card className="bg-white/90">
           <CardHeader className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
-              <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
+            <div className="flex items-start gap-5">
+              {therapist.avatarUrl ? (
+                <Image
+                  alt={therapist.displayName}
+                  className="rounded-full object-cover"
+                  height={80}
+                  src={therapist.avatarUrl}
+                  width={80}
+                />
+              ) : null}
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
+                  <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
+                </div>
+                <CardTitle className="text-4xl">{therapist.displayName}</CardTitle>
+                {therapist.headline ? <p className="text-base uppercase tracking-[0.18em] text-muted-foreground">{therapist.headline}</p> : null}
+                <p className="text-lg text-muted-foreground">{therapist.title}</p>
+              </div>
             </div>
-            <CardTitle className="text-4xl">{therapist.displayName}</CardTitle>
-            {therapist.headline ? <p className="text-base uppercase tracking-[0.18em] text-muted-foreground">{therapist.headline}</p> : null}
-            <p className="text-lg text-muted-foreground">{therapist.title}</p>
           </CardHeader>
           <CardContent className="space-y-6">
-            {session?.userId && session.userId !== therapist.profileId ? (
+            {session.userId !== therapist.profileId ? (
               <div className="flex flex-wrap gap-3">
                 <Button asChild>
-                  <Link href="/member/referrals">Make a referral</Link>
+                  <Link href={`/member/referrals/to/${therapist.slug}`}>Make a referral</Link>
                 </Button>
                 <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
                   <input name="followedProfileId" type="hidden" value={therapist.profileId} />
@@ -77,21 +90,8 @@ export default async function TherapistProfilePage({
                   </Button>
                 ) : null}
               </div>
-            ) : !session ? (
-              <div className="flex flex-wrap gap-3">
-                <Button asChild variant="outline">
-                  <Link href={`/login?returnTo=/directory/${therapist.slug}`}>Sign in to save</Link>
-                </Button>
-                {therapist.publicEmail ? (
-                  <Button asChild variant="outline">
-                    <a href={`mailto:${therapist.publicEmail}?subject=${encodeURIComponent(`Referral inquiry for ${therapist.displayName}`)}`}>
-                      Email clinician
-                    </a>
-                  </Button>
-                ) : null}
-              </div>
             ) : null}
-            {session?.userId && session.userId !== therapist.profileId ? (
+            {session.userId !== therapist.profileId ? (
               <p className="text-sm text-muted-foreground">Save therapists you want to keep close by for future referrals.</p>
             ) : null}
             <p className="leading-7 text-muted-foreground">{therapist.bio}</p>
