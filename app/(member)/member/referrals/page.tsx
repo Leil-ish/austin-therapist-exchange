@@ -7,8 +7,9 @@ import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSession } from "@/lib/auth/session";
+import { requireMember } from "@/lib/auth/guards";
 import { getDirectReferralActivity, getReferralCandidateTherapists } from "@/lib/data/live-data";
+import type { DirectReferralActivityItem } from "@/types";
 
 function getStatusCopy(sent?: string, error?: string, responded?: string) {
   if (sent === "1") {
@@ -43,15 +44,41 @@ export default async function MemberReferralsPage({
 }: {
   searchParams?: Promise<{ directReferralSent?: string; directReferralError?: string; referralResponded?: string }>;
 }) {
-  const session = await getSession();
+  const session = await requireMember();
   const params = searchParams ? await searchParams : undefined;
   const statusCopy = getStatusCopy(params?.directReferralSent, params?.directReferralError, params?.referralResponded);
   const [therapists, directReferrals] = await Promise.all([
-    getReferralCandidateTherapists(session?.userId),
-    session
-      ? getDirectReferralActivity(session.userId)
-      : Promise.resolve({ sentCount: 0, receivedCount: 0, exchangedCount: 0, incoming: [], outgoing: [] })
+    getReferralCandidateTherapists(session.userId),
+    getDirectReferralActivity(session.userId)
   ]);
+
+  // Group outgoing referrals by therapist for the "Referred to" tracker
+  const referredToMap = new Map<string, {
+    key: string;
+    name: string;
+    slug?: string;
+    referrals: DirectReferralActivityItem[];
+    lastReferralLabel: string;
+  }>();
+  for (const item of directReferrals.outgoing) {
+    const key = item.counterpartSlug ?? item.counterpartName;
+    const existing = referredToMap.get(key);
+    if (!existing) {
+      referredToMap.set(key, {
+        key,
+        name: item.counterpartName,
+        slug: item.counterpartSlug,
+        referrals: [item],
+        lastReferralLabel: item.createdAtLabel
+      });
+    } else {
+      existing.referrals.push(item);
+      existing.lastReferralLabel = item.createdAtLabel;
+    }
+  }
+  const referredTo = [...referredToMap.values()].sort(
+    (a, b) => b.referrals.length - a.referrals.length
+  );
 
   const unreadMessageIds = directReferrals.incoming
     .filter(item => item.messageId && !item.readAt)
@@ -188,6 +215,45 @@ export default async function MemberReferralsPage({
           </CardContent>
         </Card>
       </section>
+
+      <Card className="bg-white/90">
+        <CardHeader>
+          <CardTitle>Referred to</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {referredTo.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {referredTo.map((entry) => (
+                <div key={entry.key} className="rounded-2xl border bg-background p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      {entry.slug ? (
+                        <Link
+                          className="font-medium text-foreground hover:text-primary truncate block"
+                          href={`/directory/${entry.slug}`}
+                        >
+                          {entry.name}
+                        </Link>
+                      ) : (
+                        <p className="font-medium text-foreground truncate">{entry.name}</p>
+                      )}
+                    </div>
+                    <Badge variant="outline" className="shrink-0 tabular-nums">
+                      {entry.referrals.length} referral{entry.referrals.length === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Last referral {entry.lastReferralLabel}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No referrals logged yet"
+              description="Therapists you refer to will appear here with their contact info for easy follow-up."
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
