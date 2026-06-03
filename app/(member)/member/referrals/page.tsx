@@ -5,7 +5,6 @@ import { MarkReferralsRead } from "@/components/domain/mark-referrals-read";
 import { ReferralComposeForm } from "@/components/domain/referral-compose-form";
 import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
@@ -69,7 +68,7 @@ export default async function MemberReferralsPage({
           <p className="text-sm text-muted-foreground">
             Start with structured referral criteria and see therapist matches before reviewing referral activity.
           </p>
-          <ReferralComposeForm senderEmail={session?.email} statusCopy={statusCopy} therapists={therapists} />
+          <ReferralComposeForm statusCopy={statusCopy} therapists={therapists} />
         </CardContent>
       </Card>
 
