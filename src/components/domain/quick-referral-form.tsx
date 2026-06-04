@@ -276,7 +276,7 @@ export function QuickReferralForm({ therapist }: { therapist: QuickReferralThera
       </div>
 
       {state.status === "error" && (
-        <p className="text-sm text-red-600">Couldn't log referral. Please try again.</p>
+        <p className="text-sm text-red-600">Couldn&apos;t log referral. Please try again.</p>
       )}
 
       <p className="text-xs text-muted-foreground">
