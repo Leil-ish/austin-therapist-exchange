@@ -11,10 +11,10 @@ const publicNav = [
 ] as const;
 
 const memberNav = [
-  { href: "/directory", label: "Directory" },
   { href: "/member/referrals", label: "Referrals" },
   { href: "/member/network", label: "Network" },
-  { href: "/member/profile", label: "Profile" }
+  { href: "/member/profile", label: "Profile" },
+  { href: "/directory", label: "Directory" }
 ] as const;
 
 export async function SiteHeader() {
