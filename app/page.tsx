@@ -87,7 +87,7 @@ export default async function HomePage({
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="bg-white/90">
             <CardContent className="space-y-3 pt-6 text-sm leading-7 text-muted-foreground">
-              <p><strong>See current availability</strong> — Know who's accepting new clients right now, not months later when you ask.</p>
+              <p><strong>See current availability</strong> — Know who&apos;s accepting new clients right now, not months later when you ask.</p>
             </CardContent>
           </Card>
           <Card className="bg-white/90">

@@ -2,11 +2,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
-import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
 import { requireMember } from "@/lib/auth/guards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrustToggleButton } from "@/components/domain/trust-toggle-button";
 import { PageShell } from "@/components/layout/page-shell";
 import {
   getAvailabilityLabel,
@@ -75,13 +75,11 @@ export default async function TherapistProfilePage({
                 <Button asChild>
                   <Link href={`/member/referrals/to/${therapist.slug}`}>Make a referral</Link>
                 </Button>
-                <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
-                  <input name="followedProfileId" type="hidden" value={therapist.profileId} />
-                  <input name="returnTo" type="hidden" value={`/directory/${therapist.slug}`} />
-                  <Button type="submit" variant="outline">
-                    {therapist.isFollowed ? "Saved" : "Save"}
-                  </Button>
-                </form>
+                <TrustToggleButton
+                  followedProfileId={therapist.profileId}
+                  initialIsFollowed={therapist.isFollowed ?? false}
+                  size="default"
+                />
                 {therapist.publicEmail ? (
                   <Button asChild variant="outline">
                     <a href={`mailto:${therapist.publicEmail}?subject=${encodeURIComponent(`Referral inquiry for ${therapist.displayName}`)}`}>
