@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useRef, useTransition, useState } from "react";
-import { ChevronDown, ChevronUp, Eye, MapPin, Pencil, Users, Target, Globe } from "lucide-react";
+import { useEffect, useMemo, useTransition, useState } from "react";
+import { ChevronDown, ChevronUp, ClipboardCopy, Eye, MapPin, Pencil, RefreshCw, Users, Target, Globe } from "lucide-react";
 
-import { sendDirectReferralInline } from "@/app-actions/member-actions";
-import type { ReferralSendState } from "@/app-actions/member-actions";
+import { logReferralContact } from "@/app-actions/member-actions";
+import type { LogReferralContactResult } from "@/app-actions/member-actions";
+import { mintReferralCode } from "@/lib/referral-code";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ReferralContactModal } from "@/components/domain/referral-contact-modal";
 import {
   calculateMatchConfidence,
   CLIENT_TYPES,
@@ -127,10 +127,12 @@ function MatchBreakdown({
 
 export function ReferralComposeForm({
   statusCopy,
-  therapists
+  therapists,
+  senderName = ""
 }: {
   statusCopy?: string | null;
   therapists: PublicTherapistSummary[];
+  senderName?: string;
 }) {
   const [levelOfCare, setLevelOfCare] = useState("");
   const [urgency, setUrgency] = useState("");
@@ -146,6 +148,8 @@ export function ReferralComposeForm({
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [formOpen, setFormOpen] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [currentCaseId, setCurrentCaseId] = useState<string | undefined>(undefined);
+  const [currentCode, setCurrentCode] = useState<string | undefined>(undefined);
 
   // Restore state from URL on mount
   useEffect(() => {
@@ -637,6 +641,24 @@ export function ReferralComposeForm({
 
       {submitted ? (
         <div className="space-y-6">
+          {/* Active case banner + start-new-client control */}
+          {currentCode && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+              <p className="text-sm text-foreground">
+                Active case: <span className="font-mono font-semibold">{currentCode}</span>
+                <span className="ml-2 text-xs text-muted-foreground">— record this code in your chart</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => { setCurrentCaseId(undefined); setCurrentCode(undefined); }}
+                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
+              >
+                <RefreshCw size={11} />
+                Start new client
+              </button>
+            </div>
+          )}
+
           {rankedTherapists.length === 0 ? (
             <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
               No therapists match these criteria yet. Try adjusting your filters or check back as more providers join.
@@ -650,6 +672,10 @@ export function ReferralComposeForm({
                   count={topMatches.length}
                   matches={topMatches}
                   criteria={criteria}
+                  senderName={senderName}
+                  currentCaseId={currentCaseId}
+                  currentCode={currentCode}
+                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
                 />
               )}
               {trustedNetworkMatches.length > 0 && (
@@ -659,6 +685,10 @@ export function ReferralComposeForm({
                   count={trustedNetworkMatches.length}
                   matches={trustedNetworkMatches}
                   criteria={criteria}
+                  senderName={senderName}
+                  currentCaseId={currentCaseId}
+                  currentCode={currentCode}
+                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
                 />
               )}
               {broaderMatches.length > 0 && (
@@ -668,6 +698,10 @@ export function ReferralComposeForm({
                   count={broaderMatches.length}
                   matches={broaderMatches}
                   criteria={criteria}
+                  senderName={senderName}
+                  currentCaseId={currentCaseId}
+                  currentCode={currentCode}
+                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
                 />
               )}
             </>
@@ -680,6 +714,10 @@ export function ReferralComposeForm({
                   count={effectiveTopMatches.length}
                   matches={effectiveTopMatches}
                   criteria={criteria}
+                  senderName={senderName}
+                  currentCaseId={currentCaseId}
+                  currentCode={currentCode}
+                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
                 />
               )}
               {effectiveBroader.length > 0 && (
@@ -689,6 +727,10 @@ export function ReferralComposeForm({
                   count={effectiveBroader.length}
                   matches={effectiveBroader}
                   criteria={criteria}
+                  senderName={senderName}
+                  currentCaseId={currentCaseId}
+                  currentCode={currentCode}
+                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
                 />
               )}
             </>
@@ -708,7 +750,11 @@ function MatchSection({
   title,
   count,
   matches,
-  criteria
+  criteria,
+  senderName,
+  currentCaseId,
+  currentCode,
+  onCaseCreated,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -731,6 +777,10 @@ function MatchSection({
     format: string;
     additionalNotes: string;
   };
+  senderName: string;
+  currentCaseId?: string;
+  currentCode?: string;
+  onCaseCreated: (caseId: string, code: string) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? matches : matches.slice(0, SECTION_DEFAULT_SHOW);
@@ -753,6 +803,10 @@ function MatchSection({
             confidence={confidence}
             dimensions={dimensions}
             criteria={criteria}
+            senderName={senderName}
+            currentCaseId={currentCaseId}
+            currentCode={currentCode}
+            onCaseCreated={onCaseCreated}
           />
         ))}
       </div>
@@ -778,50 +832,116 @@ function MatchSection({
   );
 }
 
+type ContactCriteria = {
+  levelOfCare: string;
+  urgency: string;
+  clientType: string;
+  presentingIssue: string;
+  payment: string;
+  location: string;
+  insurance: string;
+  privatePayMax: string;
+  format: string;
+  additionalNotes: string;
+};
+
+function buildMailtoBody(
+  therapistName: string,
+  senderName: string,
+  code: string,
+  criteria: ContactCriteria
+): string {
+  const lines: string[] = [];
+
+  lines.push(`Hi ${therapistName},`);
+  lines.push("");
+  lines.push(
+    "I came across your profile on Austin Therapist Exchange and think you may be a good fit for a client I'm hoping to refer. Here's what I can share:"
+  );
+  lines.push("");
+
+  if (criteria.levelOfCare) lines.push(`- Level of care: ${criteria.levelOfCare}`);
+  if (criteria.clientType) lines.push(`- Client type: ${criteria.clientType}`);
+  if (criteria.presentingIssue) lines.push(`- Presenting concern: ${criteria.presentingIssue}`);
+
+  const paymentParts: string[] = [];
+  if (criteria.payment) paymentParts.push(criteria.payment);
+  if (criteria.insurance && (criteria.payment === "Insurance" || criteria.payment === "Both")) {
+    paymentParts.push(criteria.insurance);
+  }
+  if (paymentParts.length > 0) lines.push(`- Payment: ${paymentParts.join(" – ")}`);
+
+  const formatParts: string[] = [];
+  if (criteria.format) formatParts.push(criteria.format);
+  if (criteria.location) formatParts.push(criteria.location);
+  if (formatParts.length > 0) lines.push(`- Format & area: ${formatParts.join(", ")}`);
+
+  if (criteria.urgency) lines.push(`- Timing: ${criteria.urgency}`);
+
+  lines.push("");
+  lines.push(
+    "Would you be able to take this client on? If you have availability, I'll share the specifics directly through a secure channel."
+  );
+  lines.push("");
+  lines.push(
+    `Reference: ${code} — including this so we can both keep track of where this referral lands.`
+  );
+  lines.push("");
+  lines.push(
+    "About Austin Therapist Exchange: a private, invite-only referral network for Austin-area clinicians, built to make trusted therapist-to-therapist referrals simple. More at austintherapistexchange.com."
+  );
+  lines.push("");
+  lines.push("Thanks so much,");
+  if (senderName) lines.push(senderName);
+
+  return lines.join("\r\n");
+}
+
+function buildMailto(
+  email: string,
+  therapistName: string,
+  senderName: string,
+  code: string,
+  criteria: ContactCriteria
+): string {
+  const subject = "Referral for You - Via Austin Therapist Exchange";
+  const body = buildMailtoBody(therapistName, senderName, code, criteria);
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 function TherapistMatchCard({
   therapist,
   confidence,
   dimensions,
-  criteria
+  criteria,
+  senderName,
+  currentCaseId,
+  currentCode,
+  onCaseCreated,
 }: {
   therapist: PublicTherapistSummary;
   confidence: "high" | "medium" | "low";
   dimensions: MatchDimension[];
-  criteria: {
-    levelOfCare: string;
-    urgency: string;
-    clientType: string;
-    presentingIssue: string;
-    payment: string;
-    location: string;
-    insurance: string;
-    privatePayMax: string;
-    format: string;
-    additionalNotes: string;
-  };
+  criteria: ContactCriteria;
+  senderName: string;
+  currentCaseId?: string;
+  currentCode?: string;
+  onCaseCreated: (caseId: string, code: string) => void;
 }) {
-  const [state, formAction] = useActionState<ReferralSendState, FormData>(
-    sendDirectReferralInline,
-    { status: "idle" }
-  );
   const [isWhyExpanded, setIsWhyExpanded] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [isLogging, setIsLogging] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [logState, setLogState] = useState<LogReferralContactResult | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (state.status === "success") {
-      setModalOpen(false);
-      setIsLogging(false);
-    } else if (state.status === "error") {
-      setIsLogging(false);
-    }
-  }, [state.status]);
+  // Pre-mint a code at render time so the mailto href is fully built before any click.
+  // If an active case already exists (currentCode), use that code instead.
+  const [pendingCode] = useState(() => mintReferralCode());
+  const activeCode = currentCode ?? pendingCode;
 
-  function handleLogReferral() {
-    setIsLogging(true);
-    formRef.current?.requestSubmit();
-  }
+  const mailtoHref = therapist.publicEmail
+    ? buildMailto(therapist.publicEmail, therapist.displayName, senderName, activeCode, criteria)
+    : undefined;
 
   const confidenceLabel =
     confidence === "high" ? "High" : confidence === "medium" ? "Medium" : "Low";
@@ -865,165 +985,227 @@ function TherapistMatchCard({
     therapist
   );
 
-  const referralTitle = [
-    "Referral",
-    criteria.clientType,
-    criteria.presentingIssue ? `for ${criteria.presentingIssue}` : ""
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const referralBody = criteria.additionalNotes || "Structured referral request from referral search.";
+  function handleLog() {
+    startTransition(async () => {
+      const result = await logReferralContact({
+        caseId: currentCaseId,
+        clientReference: currentCaseId ? undefined : activeCode,
+        criteria: {
+          levelOfCare: criteria.levelOfCare,
+          urgency: criteria.urgency,
+          clientType: criteria.clientType,
+          presentingIssue: criteria.presentingIssue,
+          payment: criteria.payment,
+          location: criteria.location,
+          insurance: criteria.insurance,
+        },
+        referredProfileId: therapist.profileId,
+        contactMethod: therapist.publicEmail ? "email" : "manual",
+      });
+      setLogState(result);
+      if (result.ok) {
+        onCaseCreated(result.caseId, result.clientReference);
+      }
+    });
+  }
 
-  if (state.status === "success") {
-    return (
-      <div className="rounded-2xl border bg-white p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="font-semibold text-foreground">{therapist.displayName}</p>
-            <p className="text-sm text-muted-foreground">{therapist.title}</p>
+  function handleCopyEmail() {
+    if (therapist.publicEmail) {
+      navigator.clipboard.writeText(therapist.publicEmail);
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    }
+  }
+
+  function handleCopyTemplate() {
+    const code = logState?.ok ? logState.clientReference : activeCode;
+    navigator.clipboard.writeText(
+      buildMailtoBody(therapist.displayName, senderName, code, criteria)
+    );
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  const hasEmail = Boolean(therapist.publicEmail);
+  const alreadyLogged = logState?.ok === true;
+
+  return (
+    <div className="rounded-2xl border bg-white p-5">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h3 className="font-semibold text-foreground">{therapist.displayName}</h3>
+            {trustBadges.map((badge) => (
+              <span
+                key={badge}
+                className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary"
+              >
+                <span className="text-[9px]" aria-hidden>○</span>
+                {badge}
+              </span>
+            ))}
           </div>
-          <span className="text-sm font-medium text-green-600">✓ Referral logged</span>
+          <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+            <MapPin size={12} className="shrink-0" />
+            <span>
+              {therapist.neighborhoods[0] ?? therapist.city}
+              {therapist.telehealth ? " · Telehealth" : ""}
+            </span>
+          </div>
         </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+          <span className={`text-sm font-semibold ${confidenceColor}`}>{confidenceLabel}</span>
+          <ConfidenceDots confidence={confidence} />
+        </div>
+      </div>
+
+      {/* Attribute chips */}
+      {attributeChips.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {attributeChips.map((chip) => (
+            <span
+              key={chip}
+              className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Success confirmation */}
+      {alreadyLogged && logState.ok && (
+        <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 text-sm">
+          <p className="font-medium text-green-700">
+            Logged · <span className="font-mono">{logState.clientReference}</span>
+          </p>
+          <p className="text-xs text-green-600">Record this code in your chart — it is not stored in the email.</p>
+          {!hasEmail && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyTemplate}
+                className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 transition-colors"
+              >
+                <ClipboardCopy size={12} />
+                {copied ? "Copied!" : "Copy inquiry template"}
+              </button>
+              {therapist.bookingUrl && (
+                <a
+                  href={therapist.bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium text-primary hover:underline underline-offset-4"
+                >
+                  Booking page →
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action row */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {!alreadyLogged && (
+          mailtoHref ? (
+            // Native anchor — browser opens mail client without any JavaScript gate
+            <Button asChild className="min-w-[120px] flex-1">
+              <a href={mailtoHref} onClick={handleLog}>
+                {isPending ? "Logging…" : "Contact & log"}
+              </a>
+            </Button>
+          ) : (
+            // No email on file — log only
+            <Button
+              className="min-w-[120px] flex-1"
+              disabled={isPending}
+              onClick={handleLog}
+            >
+              {isPending ? "Logging…" : "Log contact"}
+            </Button>
+          )
+        )}
+
+        {/* Always-visible fallback: copy the address, copy the message body */}
+        {hasEmail && (
+          <>
+            <button
+              type="button"
+              onClick={handleCopyEmail}
+              title="Copy email address"
+              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600 hover:border-primary hover:text-primary transition-colors"
+            >
+              <ClipboardCopy size={11} className="shrink-0" />
+              {copiedEmail ? "Copied!" : therapist.publicEmail}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyTemplate}
+              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
+            >
+              <ClipboardCopy size={12} />
+              {copied ? "Copied!" : "Copy message"}
+            </button>
+          </>
+        )}
+
+        {/* No-email fallback: copy the inquiry template */}
+        {!hasEmail && (
+          <button
+            type="button"
+            onClick={handleCopyTemplate}
+            className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
+          >
+            <ClipboardCopy size={12} />
+            {copied ? "Copied!" : "Copy template"}
+          </button>
+        )}
+
         <Button
-          className="mt-3 w-full"
           variant="outline"
-          size="sm"
+          className="min-w-[120px] flex-1"
           onClick={() => {
             window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
           }}
         >
-          View profile
+          <Eye size={14} className="mr-1.5" />
+          View Profile
         </Button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="rounded-2xl border bg-white p-5">
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <h3 className="font-semibold text-foreground">{therapist.displayName}</h3>
-              {trustBadges.map((badge) => (
-                <span
-                  key={badge}
-                  className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary"
-                >
-                  <span className="text-[9px]" aria-hidden>○</span>
-                  {badge}
-                </span>
-              ))}
-            </div>
-            <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-              <MapPin size={12} className="shrink-0" />
-              <span>
-                {therapist.neighborhoods[0] ?? therapist.city}
-                {therapist.telehealth ? " · Telehealth" : ""}
-              </span>
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
-            <span className={`text-sm font-semibold ${confidenceColor}`}>{confidenceLabel}</span>
-            <ConfidenceDots confidence={confidence} />
-          </div>
-        </div>
-
-        {/* Attribute chips */}
-        {attributeChips.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {attributeChips.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Hidden form — submitted programmatically via modal */}
-        <form ref={formRef} action={formAction} className="hidden">
-          <input name="receiverProfileId" type="hidden" value={therapist.profileId} />
-          <input name="title" type="hidden" value={referralTitle} />
-          <input name="body" type="hidden" value={referralBody} />
-          <input name="levelOfCare" type="hidden" value={criteria.levelOfCare} />
-          <input name="urgencyLevel" type="hidden" value={criteria.urgency} />
-          <input name="clientType" type="hidden" value={criteria.clientType} />
-          <input name="presentingIssue" type="hidden" value={criteria.presentingIssue} />
-          <input name="payment" type="hidden" value={criteria.payment} />
-          <input name="location" type="hidden" value={criteria.location} />
-          <input name="insuranceWanted" type="hidden" value={criteria.insurance} />
-          <input name="formatWanted" type="hidden" value={criteria.format} />
-          <input name="privatePayMax" type="hidden" value={criteria.privatePayMax} />
-          <input name="additionalNotes" type="hidden" value={criteria.additionalNotes} />
-          <button type="submit" />
-        </form>
-
-        {/* Action row */}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button
-            className="min-w-[120px] flex-1"
-            onClick={() => setModalOpen(true)}
-          >
-            Contact &amp; log
-          </Button>
-          <Button
-            variant="outline"
-            className="min-w-[120px] flex-1"
-            onClick={() => {
-              window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-            }}
-          >
-            <Eye size={14} className="mr-1.5" />
-            View Profile
-          </Button>
-          <button
-            type="button"
-            onClick={() => setIsWhyExpanded((v) => !v)}
-            className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {isWhyExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            Why this match?
-          </button>
-        </div>
-
-        {state.status === "error" && (
-          <p className="mt-2 text-xs text-red-600">Couldn&apos;t log. Try again.</p>
-        )}
-
-        {/* Expandable "Why this match?" */}
-        {isWhyExpanded && (
-          <div className="mt-3 space-y-3 rounded-xl bg-muted/40 px-3 py-3">
-            {whyExplanations.length > 0 && (
-              <ul className="space-y-1.5">
-                {whyExplanations.map((explanation, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
-                    {explanation}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <MatchBreakdown
-              dimensions={dimensions}
-              availabilityStatus={therapist.availabilityStatus}
-            />
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={() => setIsWhyExpanded((v) => !v)}
+          className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {isWhyExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          Why this match?
+        </button>
       </div>
 
-      {modalOpen && (
-        <ReferralContactModal
-          therapist={therapist}
-          criteria={criteria}
-          onLog={handleLogReferral}
-          onClose={() => setModalOpen(false)}
-          isLogging={isLogging}
-        />
+      {logState?.ok === false && (
+        <p className="mt-2 text-xs text-red-600">Couldn&apos;t log. Try again.</p>
       )}
-    </>
+
+      {/* Expandable "Why this match?" */}
+      {isWhyExpanded && (
+        <div className="mt-3 space-y-3 rounded-xl bg-muted/40 px-3 py-3">
+          {whyExplanations.length > 0 && (
+            <ul className="space-y-1.5">
+              {whyExplanations.map((explanation, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
+                  {explanation}
+                </li>
+              ))}
+            </ul>
+          )}
+          <MatchBreakdown
+            dimensions={dimensions}
+            availabilityStatus={therapist.availabilityStatus}
+          />
+        </div>
+      )}
+    </div>
   );
 }
