@@ -44,6 +44,7 @@ export interface PublicTherapistSummary {
   curatedListTitles: string[];
   publicEmail?: string;
   publicPhone?: string;
+  bookingUrl?: string;
   isFollowed?: boolean;
   trustedByViewer?: boolean;
   membershipTier: MembershipTier;

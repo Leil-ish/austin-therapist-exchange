@@ -1,11 +1,13 @@
 import Link from "next/link";
 
 import { EmptyState } from "@/components/state/empty-state";
+import { ReferralTracker } from "@/components/domain/referral-tracker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
 import { getAvailabilityLabel, getDirectReferralActivity, getFollowedClinicians, getPublicTherapists } from "@/lib/data/live-data";
+import { getReferralTracking } from "@/lib/data/referral-tracking";
 
 function getThisMonthCount(items: Array<{ createdAtLabel: string }>) {
   // createdAtLabel is relative ("2 days ago", "3 months ago"). Instead we track
@@ -51,12 +53,13 @@ function getTrustStrengthLabel(count: number): { label: string; color: string } 
 
 export default async function MemberNetworkPage() {
   const session = await getSession();
-  const [following, directReferrals, { therapists }] = await Promise.all([
+  const [following, directReferrals, { therapists }, referralCases] = await Promise.all([
     session ? getFollowedClinicians(session.userId) : Promise.resolve([]),
     session
       ? getDirectReferralActivity(session.userId)
       : Promise.resolve({ sentCount: 0, receivedCount: 0, exchangedCount: 0, incoming: [], outgoing: [] }),
-    getPublicTherapists(session?.userId, 60, 0)
+    getPublicTherapists(session?.userId, 60, 0),
+    getReferralTracking(session?.userId),
   ]);
 
   const suggestions = therapists
@@ -190,6 +193,24 @@ export default async function MemberNetworkPage() {
             />
           )}
         </div>
+      </section>
+
+      {/* Referral case tracker */}
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h3 className="font-serif text-2xl text-foreground">Referral log</h3>
+          <p className="text-sm text-muted-foreground">
+            Logged referrals from your matcher — each case tracks the therapists you contacted for a single client.
+          </p>
+        </div>
+        {referralCases.length > 0 ? (
+          <ReferralTracker cases={referralCases} />
+        ) : (
+          <EmptyState
+            title="No referrals logged yet"
+            description='Use "Contact & log" from the referral matcher to start tracking cases here.'
+          />
+        )}
       </section>
 
       {/* People you may want to trust */}

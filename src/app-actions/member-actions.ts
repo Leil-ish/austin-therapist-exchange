@@ -765,6 +765,140 @@ export async function updateAvatarUrl(formData: FormData) {
   return { success: true };
 }
 
+// ── Case-based referral logging ───────────────────────────────────────────────
+
+export type LogReferralContactResult =
+  | { ok: true; caseId: string; clientReference: string }
+  | { ok: false; error: string };
+
+export async function logReferralContact(input: {
+  caseId?: string;
+  clientReference?: string;
+  criteria: {
+    levelOfCare: string;
+    urgency: string;
+    clientType: string;
+    presentingIssue: string;
+    payment: string;
+    location: string;
+    insurance: string;
+  };
+  referredProfileId: string;
+  contactMethod?: "email" | "manual";
+}): Promise<LogReferralContactResult> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  let caseId = input.caseId;
+  let clientReference = "";
+
+  if (!caseId) {
+    if (input.clientReference) {
+      clientReference = input.clientReference;
+    } else {
+      const { mintReferralCode } = await import("@/lib/referral-code");
+      clientReference = mintReferralCode();
+    }
+    const { data: newCase, error: caseError } = await admin
+      .from("client_cases")
+      .insert({
+        owner_profile_id: session.userId,
+        client_reference: clientReference,
+        level_of_care: input.criteria.levelOfCare || null,
+        presenting_issue: input.criteria.presentingIssue || null,
+        client_type: input.criteria.clientType || null,
+        payment_model: input.criteria.payment || null,
+        insurance: input.criteria.insurance || null,
+        neighborhood: input.criteria.location || null,
+        urgency: input.criteria.urgency || null,
+        status: "open",
+      })
+      .select("id, client_reference")
+      .single();
+
+    if (caseError || !newCase) {
+      return { ok: false, error: caseError?.message ?? "Failed to create case" };
+    }
+    caseId = newCase.id as string;
+    clientReference = newCase.client_reference as string;
+  } else {
+    const { data: existing } = await admin
+      .from("client_cases")
+      .select("client_reference")
+      .eq("id", caseId)
+      .eq("owner_profile_id", session.userId)
+      .single();
+    clientReference = (existing?.client_reference as string | undefined) ?? "";
+  }
+
+  const { error: referralError } = await admin.from("case_referrals").insert({
+    case_id: caseId,
+    owner_profile_id: session.userId,
+    referred_profile_id: input.referredProfileId,
+    contact_method: input.contactMethod ?? "email",
+    status: "open",
+  });
+
+  if (referralError && referralError.code !== "23505") {
+    return { ok: false, error: referralError.message };
+  }
+
+  revalidatePath("/member/network");
+  return { ok: true, caseId, clientReference };
+}
+
+export type UpdateReferralResponseResult = { ok: true } | { ok: false; error: string };
+
+export async function updateReferralResponse(
+  caseReferralId: string,
+  status: "open" | "accepted" | "declined" | "closed" | "completed"
+): Promise<UpdateReferralResponseResult> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const { data: row, error: fetchError } = await admin
+    .from("case_referrals")
+    .select("id, case_id, owner_profile_id")
+    .eq("id", caseReferralId)
+    .eq("owner_profile_id", session.userId)
+    .single();
+
+  if (fetchError || !row) {
+    return { ok: false, error: "Not found or not authorized" };
+  }
+
+  const { error: updateError } = await admin
+    .from("case_referrals")
+    .update({
+      status,
+      responded_at: status !== "open" ? new Date().toISOString() : null,
+    })
+    .eq("id", caseReferralId);
+
+  if (updateError) {
+    return { ok: false, error: updateError.message };
+  }
+
+  // When placed or accepting: move parent case to "placed" and close other open referrals.
+  if (status === "completed" || status === "accepted") {
+    await admin
+      .from("client_cases")
+      .update({ status: "placed" })
+      .eq("id", row.case_id as string)
+      .eq("owner_profile_id", session.userId);
+
+    await admin
+      .from("case_referrals")
+      .update({ status: "closed", responded_at: new Date().toISOString() })
+      .eq("case_id", row.case_id as string)
+      .eq("status", "open")
+      .neq("id", caseReferralId);
+  }
+
+  revalidatePath("/member/network");
+  return { ok: true };
+}
+
 export async function respondToDirectReferral(formData: FormData) {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();

@@ -318,6 +318,7 @@ function mapTherapistSummary(
     curatedListTitles: curatedListTitles.get(therapistProfileId) ?? [],
     publicEmail: typeof row.public_email === "string" ? row.public_email : undefined,
     publicPhone: typeof row.public_phone === "string" ? row.public_phone : undefined,
+    bookingUrl: typeof row.booking_url === "string" && row.booking_url ? row.booking_url : undefined,
     avatarUrl: typeof row.avatar_url === "string" && row.avatar_url ? row.avatar_url : undefined,
     isFollowed: followedProfileIds.has(profileId),
     trustedByViewer: viewerProfileId ? trustedConnections.some((connection) => connection.id === viewerProfileId) : false,
