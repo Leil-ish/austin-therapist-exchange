@@ -1,9 +1,8 @@
 import Link from "next/link";
 
-import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TrustToggleButton } from "@/components/domain/trust-toggle-button";
 import { getAvailabilityLabel, getPaymentModelLabelForUi } from "@/lib/data/live-data";
 import type { PublicTherapistSummary } from "@/types";
 
@@ -93,12 +92,10 @@ function TherapistAvatar({
 
 export function TherapistCard({
   therapist,
-  currentProfileId,
-  returnTo = "/directory"
+  currentProfileId
 }: {
   therapist: PublicTherapistSummary;
   currentProfileId?: string;
-  returnTo?: string;
 }) {
   const canFollow = currentProfileId && currentProfileId !== therapist.profileId;
   const trustContext = getTrustContext(therapist, !!currentProfileId);
@@ -153,13 +150,10 @@ export function TherapistCard({
         {/* Actions */}
         <div className="flex items-center gap-3 pt-1">
           {canFollow ? (
-            <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
-              <input name="followedProfileId" type="hidden" value={therapist.profileId} />
-              <input name="returnTo" type="hidden" value={returnTo} />
-              <Button size="sm" type="submit" variant={therapist.isFollowed ? "outline" : "ghost"}>
-                {therapist.isFollowed ? "Saved" : "Save"}
-              </Button>
-            </form>
+            <TrustToggleButton
+              followedProfileId={therapist.profileId}
+              initialIsFollowed={therapist.isFollowed ?? false}
+            />
           ) : null}
           <Link className="text-sm font-medium text-primary hover:text-primary/80" href={`/directory/${therapist.slug}`}>
             View profile

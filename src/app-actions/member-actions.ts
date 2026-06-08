@@ -610,14 +610,12 @@ export async function createEndorsement(formData: FormData) {
   redirect("/member/endorsements?saved=1");
 }
 
-export async function followClinician(formData: FormData) {
+export async function followClinician(followedProfileId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
-  const followedProfileId = String(formData.get("followedProfileId") ?? "").trim();
-  const returnTo = String(formData.get("returnTo") ?? "/directory").trim();
 
   if (!followedProfileId || followedProfileId === session.userId) {
-    redirect(returnTo as never);
+    return { ok: false, error: "Invalid therapist." };
   }
 
   const { error } = await admin.from("follows").insert({
@@ -627,37 +625,41 @@ export async function followClinician(formData: FormData) {
 
   // 23505 = unique_violation: already following — treat as success
   if (error && error.code !== "23505") {
-    redirect(`${returnTo}?followError=1` as never);
+    return { ok: false, error: "Could not save. Please try again." };
   }
 
   revalidatePath("/directory");
   revalidatePath("/member");
   revalidatePath("/member/feed");
   revalidatePath("/member/following");
-  redirect(returnTo as never);
+  revalidatePath("/member/network");
+  return { ok: true };
 }
 
-export async function unfollowClinician(formData: FormData) {
+export async function unfollowClinician(followedProfileId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
-  const followedProfileId = String(formData.get("followedProfileId") ?? "").trim();
-  const returnTo = String(formData.get("returnTo") ?? "/member/following").trim();
 
   if (!followedProfileId) {
-    redirect(returnTo as never);
+    return { ok: false, error: "Invalid therapist." };
   }
 
-  await admin
+  const { error } = await admin
     .from("follows")
     .delete()
     .eq("follower_profile_id", session.userId)
     .eq("followed_profile_id", followedProfileId);
 
+  if (error) {
+    return { ok: false, error: "Could not remove. Please try again." };
+  }
+
   revalidatePath("/directory");
   revalidatePath("/member");
   revalidatePath("/member/feed");
   revalidatePath("/member/following");
-  redirect(returnTo as never);
+  revalidatePath("/member/network");
+  return { ok: true };
 }
 
 export async function saveCuratedList(formData: FormData) {

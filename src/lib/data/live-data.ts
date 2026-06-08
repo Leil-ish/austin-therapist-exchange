@@ -1052,23 +1052,40 @@ export async function getFollowedClinicians(profileId: string) {
     return [] as FollowedClinicianSummary[];
   }
 
-  const { therapists } = await getPublicTherapists(profileId, 1000, 0);
-  const byProfileId = new Map(therapists.map((therapist) => [therapist.profileId, therapist]));
+  // Query therapist_profiles and profiles directly so that therapists with
+  // is_public=false (filtered out of the public directory view) are still included.
+  const [{ data: rawTherapistProfiles }, { data: rawProfiles }] = await Promise.all([
+    admin
+      .from("therapist_profiles")
+      .select("profile_id, public_display_name, credentials, title, specialties, availability_status")
+      .in("profile_id", followedProfileIds),
+    admin
+      .from("profiles")
+      .select("id, slug")
+      .in("id", followedProfileIds)
+  ]);
+
+  const therapistByProfileId = new Map(
+    ((rawTherapistProfiles ?? []) as Array<Record<string, unknown>>).map((tp) => [String(tp.profile_id), tp])
+  );
+  const slugByProfileId = new Map(
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [String(p.id), String(p.slug ?? "")])
+  );
 
   return ((rawFollows ?? []) as Array<Record<string, unknown>>)
     .map((follow) => {
-      const therapist = byProfileId.get(String(follow.followed_profile_id));
-      if (!therapist) {
+      const pid = String(follow.followed_profile_id);
+      const tp = therapistByProfileId.get(pid);
+      if (!tp) {
         return null;
       }
 
       return {
-        profileId: therapist.profileId,
-        slug: therapist.slug,
-        displayName: therapist.displayName,
-        title: therapist.title,
-        headline: therapist.headline,
-        availabilityStatus: therapist.availabilityStatus,
+        profileId: pid,
+        slug: slugByProfileId.get(pid) ?? "",
+        displayName: String(tp.public_display_name ?? "Therapist"),
+        title: buildTherapistTitle(tp),
+        availabilityStatus: (tp.availability_status as AvailabilityStatus | null) ?? "waitlist",
         followedAtLabel: formatCreatedAtLabel(follow.created_at as string | null)
       } satisfies FollowedClinicianSummary;
     })
