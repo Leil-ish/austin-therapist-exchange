@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useTransition, useState } from "react";
-import { ChevronDown, ChevronUp, ClipboardCopy, Eye, MapPin, Pencil, RefreshCw, Users, Target, Globe } from "lucide-react";
+import { ChevronDown, ChevronUp, ClipboardCopy, Eye, MapPin, Pencil, RefreshCw, Users, Target, Globe, X } from "lucide-react";
 
-import { logReferralContact } from "@/app-actions/member-actions";
-import type { LogReferralContactResult } from "@/app-actions/member-actions";
+import { logReferralContact, logReferralContacts } from "@/app-actions/member-actions";
+import type { LogReferralContactResult, LogReferralContactsResult } from "@/app-actions/member-actions";
 import { mintReferralCode } from "@/lib/referral-code";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,14 +125,157 @@ function MatchBreakdown({
   );
 }
 
+type ContactCriteria = {
+  levelOfCare: string;
+  urgency: string;
+  clientType: string;
+  presentingIssue: string;
+  payment: string;
+  location: string;
+  insurance: string;
+  privatePayMax: string;
+  format: string;
+  additionalNotes: string;
+};
+
+function buildMailtoBody(
+  therapistName: string,
+  senderName: string,
+  code: string,
+  criteria: ContactCriteria
+): string {
+  const lines: string[] = [];
+
+  lines.push(`Hi ${therapistName},`);
+  lines.push("");
+  lines.push(
+    "I came across your profile on Austin Therapist Exchange and think you may be a good fit for a client I'm hoping to refer. Here's what I can share:"
+  );
+  lines.push("");
+
+  if (criteria.levelOfCare) lines.push(`- Level of care: ${criteria.levelOfCare}`);
+  if (criteria.clientType) lines.push(`- Client type: ${criteria.clientType}`);
+  if (criteria.presentingIssue) lines.push(`- Presenting concern: ${criteria.presentingIssue}`);
+
+  const paymentParts: string[] = [];
+  if (criteria.payment) paymentParts.push(criteria.payment);
+  if (criteria.insurance && (criteria.payment === "Insurance" || criteria.payment === "Both")) {
+    paymentParts.push(criteria.insurance);
+  }
+  if (paymentParts.length > 0) lines.push(`- Payment: ${paymentParts.join(" – ")}`);
+
+  const formatParts: string[] = [];
+  if (criteria.format) formatParts.push(criteria.format);
+  if (criteria.location) formatParts.push(criteria.location);
+  if (formatParts.length > 0) lines.push(`- Format & area: ${formatParts.join(", ")}`);
+
+  if (criteria.urgency) lines.push(`- Timing: ${criteria.urgency}`);
+
+  lines.push("");
+  lines.push(
+    "Would you be able to take this client on? If you have availability, I'll share the specifics directly through a secure channel."
+  );
+  lines.push("");
+  lines.push(
+    `Reference: ${code} — including this so we can both keep track of where this referral lands.`
+  );
+  lines.push("");
+  lines.push(
+    "About Austin Therapist Exchange: a private, invite-only referral network for Austin-area clinicians, built to make trusted therapist-to-therapist referrals simple. More at austintherapistexchange.com."
+  );
+  lines.push("");
+  lines.push("Thanks so much,");
+  if (senderName) lines.push(senderName);
+
+  return lines.join("\r\n");
+}
+
+function buildMailto(
+  email: string,
+  therapistName: string,
+  senderName: string,
+  code: string,
+  criteria: ContactCriteria
+): string {
+  const subject = "Referral for You - Via Austin Therapist Exchange";
+  const body = buildMailtoBody(therapistName, senderName, code, criteria);
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function buildBatchMailtoBody(senderName: string, code: string, criteria: ContactCriteria): string {
+  const lines: string[] = [];
+
+  lines.push("Hello,");
+  lines.push("");
+  lines.push(
+    "I came across your profile on Austin Therapist Exchange and think you may be a good fit for a client I'm hoping to refer. Here's what I can share:"
+  );
+  lines.push("");
+
+  if (criteria.levelOfCare) lines.push(`- Level of care: ${criteria.levelOfCare}`);
+  if (criteria.clientType) lines.push(`- Client type: ${criteria.clientType}`);
+  if (criteria.presentingIssue) lines.push(`- Presenting concern: ${criteria.presentingIssue}`);
+
+  const paymentParts: string[] = [];
+  if (criteria.payment) paymentParts.push(criteria.payment);
+  if (criteria.insurance && (criteria.payment === "Insurance" || criteria.payment === "Both")) {
+    paymentParts.push(criteria.insurance);
+  }
+  if (paymentParts.length > 0) lines.push(`- Payment: ${paymentParts.join(" – ")}`);
+
+  const formatParts: string[] = [];
+  if (criteria.format) formatParts.push(criteria.format);
+  if (criteria.location) formatParts.push(criteria.location);
+  if (formatParts.length > 0) lines.push(`- Format & area: ${formatParts.join(", ")}`);
+
+  if (criteria.urgency) lines.push(`- Timing: ${criteria.urgency}`);
+
+  lines.push("");
+  lines.push(
+    "Would you be able to take this client on? If you have availability, I'll share the specifics directly through a secure channel."
+  );
+  lines.push("");
+  lines.push(
+    `Reference: ${code} — including this so we can both keep track of where this referral lands.`
+  );
+  lines.push("");
+  lines.push(
+    "About Austin Therapist Exchange: a private, invite-only referral network for Austin-area clinicians, built to make trusted therapist-to-therapist referrals simple. More at austintherapistexchange.com."
+  );
+  lines.push("");
+  lines.push("Thanks so much,");
+  if (senderName) lines.push(senderName);
+
+  return lines.join("\r\n");
+}
+
+function buildBatchMailto(
+  senderEmail: string,
+  bccEmails: string[],
+  senderName: string,
+  code: string,
+  criteria: ContactCriteria
+): string {
+  const subject = "Referral for You - Via Austin Therapist Exchange";
+  const body = buildBatchMailtoBody(senderName, code, criteria);
+  const parts: string[] = [];
+  if (bccEmails.length > 0) parts.push(`bcc=${encodeURIComponent(bccEmails.join(","))}`);
+  parts.push(`subject=${encodeURIComponent(subject)}`);
+  parts.push(`body=${encodeURIComponent(body)}`);
+  const to = senderEmail ? encodeURIComponent(senderEmail) : "";
+  return `mailto:${to}?${parts.join("&")}`;
+}
+
 export function ReferralComposeForm({
   statusCopy,
   therapists,
-  senderName = ""
+  senderName = "",
+  senderEmail = ""
 }: {
   statusCopy?: string | null;
   therapists: PublicTherapistSummary[];
   senderName?: string;
+  senderEmail?: string;
 }) {
   const [levelOfCare, setLevelOfCare] = useState("");
   const [urgency, setUrgency] = useState("");
@@ -150,6 +293,14 @@ export function ReferralComposeForm({
   const [submitted, setSubmitted] = useState(false);
   const [currentCaseId, setCurrentCaseId] = useState<string | undefined>(undefined);
   const [currentCode, setCurrentCode] = useState<string | undefined>(undefined);
+
+  // Multi-select state
+  const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(new Set());
+  const [batchPendingCode] = useState(() => mintReferralCode());
+  const [batchLogState, setBatchLogState] = useState<{ loggedCount: number; code: string } | null>(null);
+  const [isBatchPending, startBatchTransition] = useTransition();
+
+  const activeBatchCode = currentCode ?? batchPendingCode;
 
   // Restore state from URL on mount
   useEffect(() => {
@@ -343,6 +494,93 @@ export function ReferralComposeForm({
   ]
     .filter(Boolean)
     .join(" · ");
+
+  // Derive selected therapist objects from rankedTherapists
+  const selectedTherapists = useMemo(() =>
+    rankedTherapists
+      .map((m) => m.therapist)
+      .filter((t) => selectedProfileIds.has(t.profileId)),
+    [rankedTherapists, selectedProfileIds]
+  );
+  const selectedWithEmail = selectedTherapists.filter((t) => Boolean(t.publicEmail));
+  const selectedWithoutEmail = selectedTherapists.filter((t) => !t.publicEmail);
+
+  const batchMailtoHref = selectedWithEmail.length > 0
+    ? buildBatchMailto(
+        senderEmail,
+        selectedWithEmail.map((t) => t.publicEmail as string),
+        senderName,
+        activeBatchCode,
+        criteria
+      )
+    : undefined;
+
+  function handleToggleSelect(profileId: string) {
+    setSelectedProfileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(profileId)) next.delete(profileId);
+      else next.add(profileId);
+      return next;
+    });
+  }
+
+  function handleClearSelection() {
+    setSelectedProfileIds(new Set());
+    setBatchLogState(null);
+  }
+
+  function logBatch() {
+    startBatchTransition(async () => {
+      const emailIds = selectedWithEmail.map((t) => t.profileId);
+      const manualIds = selectedWithoutEmail.map((t) => t.profileId);
+
+      const firstIds = emailIds.length ? emailIds : manualIds;
+      const firstMethod = emailIds.length ? ("email" as const) : ("manual" as const);
+
+      const result = await logReferralContacts({
+        caseId: currentCaseId,
+        clientReference: activeBatchCode,
+        criteria: {
+          levelOfCare: criteria.levelOfCare,
+          urgency: criteria.urgency,
+          clientType: criteria.clientType,
+          presentingIssue: criteria.presentingIssue,
+          payment: criteria.payment,
+          location: criteria.location,
+          insurance: criteria.insurance,
+        },
+        referredProfileIds: firstIds,
+        contactMethod: firstMethod,
+      });
+
+      if (!result.ok) return;
+
+      setCurrentCaseId(result.caseId);
+      setCurrentCode(result.clientReference);
+      let total = result.loggedCount;
+
+      if (emailIds.length > 0 && manualIds.length > 0) {
+        const manualResult = await logReferralContacts({
+          caseId: result.caseId,
+          clientReference: result.clientReference,
+          criteria: {
+            levelOfCare: criteria.levelOfCare,
+            urgency: criteria.urgency,
+            clientType: criteria.clientType,
+            presentingIssue: criteria.presentingIssue,
+            payment: criteria.payment,
+            location: criteria.location,
+            insurance: criteria.insurance,
+          },
+          referredProfileIds: manualIds,
+          contactMethod: "manual",
+        });
+        if (manualResult.ok) total += manualResult.loggedCount;
+      }
+
+      setBatchLogState({ loggedCount: total, code: result.clientReference });
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -659,6 +897,63 @@ export function ReferralComposeForm({
             </div>
           )}
 
+          {/* Multi-select action bar */}
+          {selectedProfileIds.size > 0 && (
+            <div className="sticky top-4 z-10 rounded-2xl border border-primary/30 bg-white shadow-md px-4 py-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-semibold text-foreground">
+                  {selectedProfileIds.size} selected
+                </span>
+
+                {batchMailtoHref ? (
+                  <a
+                    href={batchMailtoHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={logBatch}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
+                  >
+                    {isBatchPending ? "Logging…" : "Contact selected"}
+                  </a>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    No email addresses on file for selected therapists — log manually below.
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleClearSelection}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={12} />
+                  Clear selection
+                </button>
+              </div>
+
+              {/* No-email notice */}
+              {selectedWithoutEmail.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <span className="font-medium">No email on file — contact manually: </span>
+                  {selectedWithoutEmail.map((t) => t.displayName).join(", ")}
+                  {". "}
+                  These will still be logged as referrals under the shared code.
+                </div>
+              )}
+
+              {/* Batch log confirmation */}
+              {batchLogState && (
+                <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+                  <span className="font-medium">
+                    Logged {batchLogState.loggedCount} referral{batchLogState.loggedCount === 1 ? "" : "s"} ·{" "}
+                    <span className="font-mono">{batchLogState.code}</span>
+                  </span>
+                  <span className="ml-1">— record this code in your chart.</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {rankedTherapists.length === 0 ? (
             <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
               No therapists match these criteria yet. Try adjusting your filters or check back as more providers join.
@@ -676,6 +971,8 @@ export function ReferralComposeForm({
                   currentCaseId={currentCaseId}
                   currentCode={currentCode}
                   onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
+                  selectedProfileIds={selectedProfileIds}
+                  onToggleSelect={handleToggleSelect}
                 />
               )}
               {trustedNetworkMatches.length > 0 && (
@@ -689,6 +986,8 @@ export function ReferralComposeForm({
                   currentCaseId={currentCaseId}
                   currentCode={currentCode}
                   onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
+                  selectedProfileIds={selectedProfileIds}
+                  onToggleSelect={handleToggleSelect}
                 />
               )}
               {broaderMatches.length > 0 && (
@@ -702,6 +1001,8 @@ export function ReferralComposeForm({
                   currentCaseId={currentCaseId}
                   currentCode={currentCode}
                   onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
+                  selectedProfileIds={selectedProfileIds}
+                  onToggleSelect={handleToggleSelect}
                 />
               )}
             </>
@@ -718,6 +1019,8 @@ export function ReferralComposeForm({
                   currentCaseId={currentCaseId}
                   currentCode={currentCode}
                   onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
+                  selectedProfileIds={selectedProfileIds}
+                  onToggleSelect={handleToggleSelect}
                 />
               )}
               {effectiveBroader.length > 0 && (
@@ -731,6 +1034,8 @@ export function ReferralComposeForm({
                   currentCaseId={currentCaseId}
                   currentCode={currentCode}
                   onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
+                  selectedProfileIds={selectedProfileIds}
+                  onToggleSelect={handleToggleSelect}
                 />
               )}
             </>
@@ -755,6 +1060,8 @@ function MatchSection({
   currentCaseId,
   currentCode,
   onCaseCreated,
+  selectedProfileIds,
+  onToggleSelect,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -765,22 +1072,13 @@ function MatchSection({
     dimensions: MatchDimension[];
     score: number;
   }>;
-  criteria: {
-    levelOfCare: string;
-    urgency: string;
-    clientType: string;
-    presentingIssue: string;
-    payment: string;
-    location: string;
-    insurance: string;
-    privatePayMax: string;
-    format: string;
-    additionalNotes: string;
-  };
+  criteria: ContactCriteria;
   senderName: string;
   currentCaseId?: string;
   currentCode?: string;
   onCaseCreated: (caseId: string, code: string) => void;
+  selectedProfileIds: Set<string>;
+  onToggleSelect: (profileId: string) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? matches : matches.slice(0, SECTION_DEFAULT_SHOW);
@@ -807,6 +1105,8 @@ function MatchSection({
             currentCaseId={currentCaseId}
             currentCode={currentCode}
             onCaseCreated={onCaseCreated}
+            isSelected={selectedProfileIds.has(therapist.profileId)}
+            onToggleSelect={onToggleSelect}
           />
         ))}
       </div>
@@ -832,83 +1132,6 @@ function MatchSection({
   );
 }
 
-type ContactCriteria = {
-  levelOfCare: string;
-  urgency: string;
-  clientType: string;
-  presentingIssue: string;
-  payment: string;
-  location: string;
-  insurance: string;
-  privatePayMax: string;
-  format: string;
-  additionalNotes: string;
-};
-
-function buildMailtoBody(
-  therapistName: string,
-  senderName: string,
-  code: string,
-  criteria: ContactCriteria
-): string {
-  const lines: string[] = [];
-
-  lines.push(`Hi ${therapistName},`);
-  lines.push("");
-  lines.push(
-    "I came across your profile on Austin Therapist Exchange and think you may be a good fit for a client I'm hoping to refer. Here's what I can share:"
-  );
-  lines.push("");
-
-  if (criteria.levelOfCare) lines.push(`- Level of care: ${criteria.levelOfCare}`);
-  if (criteria.clientType) lines.push(`- Client type: ${criteria.clientType}`);
-  if (criteria.presentingIssue) lines.push(`- Presenting concern: ${criteria.presentingIssue}`);
-
-  const paymentParts: string[] = [];
-  if (criteria.payment) paymentParts.push(criteria.payment);
-  if (criteria.insurance && (criteria.payment === "Insurance" || criteria.payment === "Both")) {
-    paymentParts.push(criteria.insurance);
-  }
-  if (paymentParts.length > 0) lines.push(`- Payment: ${paymentParts.join(" – ")}`);
-
-  const formatParts: string[] = [];
-  if (criteria.format) formatParts.push(criteria.format);
-  if (criteria.location) formatParts.push(criteria.location);
-  if (formatParts.length > 0) lines.push(`- Format & area: ${formatParts.join(", ")}`);
-
-  if (criteria.urgency) lines.push(`- Timing: ${criteria.urgency}`);
-
-  lines.push("");
-  lines.push(
-    "Would you be able to take this client on? If you have availability, I'll share the specifics directly through a secure channel."
-  );
-  lines.push("");
-  lines.push(
-    `Reference: ${code} — including this so we can both keep track of where this referral lands.`
-  );
-  lines.push("");
-  lines.push(
-    "About Austin Therapist Exchange: a private, invite-only referral network for Austin-area clinicians, built to make trusted therapist-to-therapist referrals simple. More at austintherapistexchange.com."
-  );
-  lines.push("");
-  lines.push("Thanks so much,");
-  if (senderName) lines.push(senderName);
-
-  return lines.join("\r\n");
-}
-
-function buildMailto(
-  email: string,
-  therapistName: string,
-  senderName: string,
-  code: string,
-  criteria: ContactCriteria
-): string {
-  const subject = "Referral for You - Via Austin Therapist Exchange";
-  const body = buildMailtoBody(therapistName, senderName, code, criteria);
-  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
 function TherapistMatchCard({
   therapist,
   confidence,
@@ -918,6 +1141,8 @@ function TherapistMatchCard({
   currentCaseId,
   currentCode,
   onCaseCreated,
+  isSelected,
+  onToggleSelect,
 }: {
   therapist: PublicTherapistSummary;
   confidence: "high" | "medium" | "low";
@@ -927,6 +1152,8 @@ function TherapistMatchCard({
   currentCaseId?: string;
   currentCode?: string;
   onCaseCreated: (caseId: string, code: string) => void;
+  isSelected: boolean;
+  onToggleSelect: (profileId: string) => void;
 }) {
   const [isWhyExpanded, setIsWhyExpanded] = useState(false);
   const [logState, setLogState] = useState<LogReferralContactResult | null>(null);
@@ -1030,9 +1257,20 @@ function TherapistMatchCard({
   const alreadyLogged = logState?.ok === true;
 
   return (
-    <div className="rounded-2xl border bg-white p-5">
+    <div className={`rounded-2xl border bg-white p-5 transition-colors ${isSelected ? "border-primary/50 ring-1 ring-primary/20" : ""}`}>
       {/* Header row */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        {/* Selection checkbox */}
+        <div className="pt-1 shrink-0">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(therapist.profileId)}
+            aria-label={`Select ${therapist.displayName}`}
+            className="h-4 w-4 rounded accent-primary cursor-pointer"
+          />
+        </div>
+
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="font-semibold text-foreground">{therapist.displayName}</h3>
