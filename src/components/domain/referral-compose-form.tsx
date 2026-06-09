@@ -1112,7 +1112,7 @@ function TherapistMatchCard({
           mailtoHref ? (
             // Native anchor — browser opens mail client without any JavaScript gate
             <Button asChild className="min-w-[120px] flex-1">
-              <a href={mailtoHref} onClick={handleLog}>
+              <a href={mailtoHref} target="_blank" rel="noopener noreferrer" onClick={handleLog}>
                 {isPending ? "Logging…" : "Contact & log"}
               </a>
             </Button>
