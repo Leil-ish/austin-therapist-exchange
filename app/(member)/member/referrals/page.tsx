@@ -1,14 +1,14 @@
 import Link from "next/link";
 
-import { respondToDirectReferral } from "@/app-actions/member-actions";
+import { IncomingReferrals } from "@/components/domain/incoming-referrals";
 import { MarkReferralsRead } from "@/components/domain/mark-referrals-read";
 import { ReferralComposeForm } from "@/components/domain/referral-compose-form";
 import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireMember } from "@/lib/auth/guards";
 import { getDirectReferralActivity, getReferralCandidateTherapists } from "@/lib/data/live-data";
+import { getIncomingReferrals } from "@/lib/data/referral-tracking";
 import type { DirectReferralActivityItem } from "@/types";
 
 function getStatusCopy(sent?: string, error?: string, responded?: string) {
@@ -47,9 +47,10 @@ export default async function MemberReferralsPage({
   const session = await requireMember();
   const params = searchParams ? await searchParams : undefined;
   const statusCopy = getStatusCopy(params?.directReferralSent, params?.directReferralError, params?.referralResponded);
-  const [therapists, directReferrals] = await Promise.all([
+  const [therapists, directReferrals, incomingReferrals] = await Promise.all([
     getReferralCandidateTherapists(session.userId),
-    getDirectReferralActivity(session.userId)
+    getDirectReferralActivity(session.userId),
+    getIncomingReferrals(session.userId),
   ]);
 
   // Group outgoing referrals by therapist for the "Referred to" tracker
@@ -108,7 +109,7 @@ export default async function MemberReferralsPage({
         </Card>
         <Card className="bg-white/90">
           <CardHeader className="pb-2">
-            <CardTitle className="text-3xl">{directReferrals.incoming.length}</CardTitle>
+            <CardTitle className="text-3xl">{incomingReferrals.length}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">Incoming referrals</CardContent>
         </Card>
@@ -165,51 +166,13 @@ export default async function MemberReferralsPage({
           <CardHeader>
             <CardTitle>Incoming referrals</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {directReferrals.incoming.length > 0 ? (
-              directReferrals.incoming.slice(0, 6).map((item) => (
-                <div className="rounded-2xl border bg-background p-4" key={item.id}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-foreground">{item.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        From{" "}
-                        {item.counterpartSlug ? (
-                          <Link className="underline-offset-4 hover:underline" href={`/directory/${item.counterpartSlug}`}>
-                            {item.counterpartName}
-                          </Link>
-                        ) : (
-                          item.counterpartName
-                        )}
-                      </p>
-                    </div>
-                    <Badge variant="outline">{getReferralStage(item.status, item.readAt)}</Badge>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
-                    {item.region ? <span>{item.region}</span> : null}
-                    {item.paymentModel ? <span>{item.paymentModel}</span> : null}
-                    <span>{item.createdAtLabel}</span>
-                  </div>
-                  {item.status === "open" && (
-                    <div className="mt-3 flex gap-2">
-                      <form action={respondToDirectReferral}>
-                        <input name="referralId" type="hidden" value={item.id} />
-                        <input name="decision" type="hidden" value="accepted" />
-                        <SubmitButton pendingLabel="Accepting…" size="sm">Accept</SubmitButton>
-                      </form>
-                      <form action={respondToDirectReferral}>
-                        <input name="referralId" type="hidden" value={item.id} />
-                        <input name="decision" type="hidden" value="declined" />
-                        <SubmitButton pendingLabel="Declining…" size="sm" variant="outline">Decline</SubmitButton>
-                      </form>
-                    </div>
-                  )}
-                </div>
-              ))
+          <CardContent>
+            {incomingReferrals.length > 0 ? (
+              <IncomingReferrals referrals={incomingReferrals} />
             ) : (
               <EmptyState
                 title="No incoming referrals yet"
-                description="When another clinician refers to you, it will appear here."
+                description="When a colleague flags a possible referral for you, it will appear here."
               />
             )}
           </CardContent>

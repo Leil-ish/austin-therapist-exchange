@@ -226,6 +226,22 @@ export const MOCK_REFERRAL_CASES: ClientCase[] = [
   },
 ];
 
+export interface IncomingReferral {
+  caseReferralId: string;
+  clientReference: string;
+  referringClinicianName: string;
+  levelOfCare: ClientCase["levelOfCare"];
+  presentingIssue: string;
+  clientType: string;
+  paymentModel: ClientCase["paymentModel"];
+  insurance: string;
+  neighborhood: string;
+  urgency: ClientCase["urgency"];
+  status: ReferralStatus;
+  receivedAtLabel: string;
+  respondedAtLabel?: string;
+}
+
 function relativeLabel(ts: string | null | undefined): string {
   if (!ts) return "";
   const diff = Date.now() - new Date(ts).getTime();
@@ -239,6 +255,61 @@ function relativeLabel(ts: string | null | undefined): string {
   const months = Math.floor(days / 30);
   if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
   return `${Math.floor(months / 12)} year${Math.floor(months / 12) === 1 ? "" : "s"} ago`;
+}
+
+export async function getIncomingReferrals(profileId: string): Promise<IncomingReferral[]> {
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createSupabaseAdminClient();
+
+  const { data: rows, error } = await admin
+    .from("case_referrals")
+    .select(`
+      id,
+      status,
+      responded_at,
+      created_at,
+      client_cases (
+        client_reference,
+        level_of_care,
+        presenting_issue,
+        client_type,
+        payment_model,
+        insurance,
+        neighborhood,
+        urgency,
+        owner_profile_id,
+        profiles:owner_profile_id (
+          therapist_profiles ( public_display_name )
+        )
+      )
+    `)
+    .eq("referred_profile_id", profileId)
+    .order("created_at", { ascending: false });
+
+  if (error || !rows) return [];
+
+  return rows
+    .filter((r) => r.client_cases != null)
+    .map((r) => {
+      const c = r.client_cases as unknown as Record<string, unknown>;
+      const ownerProfile = c.profiles as { therapist_profiles?: { public_display_name?: string | null } | null } | null;
+      const referringClinicianName = ownerProfile?.therapist_profiles?.public_display_name ?? "A colleague";
+      return {
+        caseReferralId: String(r.id),
+        clientReference: String(c.client_reference ?? ""),
+        referringClinicianName,
+        levelOfCare: ((c.level_of_care as string) ?? "outpatient") as ClientCase["levelOfCare"],
+        presentingIssue: String(c.presenting_issue ?? ""),
+        clientType: String(c.client_type ?? ""),
+        paymentModel: ((c.payment_model as string) ?? "both") as ClientCase["paymentModel"],
+        insurance: String(c.insurance ?? ""),
+        neighborhood: String(c.neighborhood ?? ""),
+        urgency: ((c.urgency as string) ?? "medium") as ClientCase["urgency"],
+        status: ((r.status as ReferralStatus) ?? "open"),
+        receivedAtLabel: relativeLabel(r.created_at),
+        respondedAtLabel: r.responded_at ? relativeLabel(r.responded_at) : undefined,
+      };
+    });
 }
 
 export async function getReferralTracking(profileId?: string): Promise<ClientCase[]> {
