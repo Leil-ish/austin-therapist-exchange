@@ -978,6 +978,45 @@ export async function logReferralContacts(input: {
   return { ok: true, caseId: caseId as string, clientReference, loggedCount };
 }
 
+export type RespondToIncomingReferralResult = { ok: true } | { ok: false; error: string };
+
+export async function respondToIncomingReferral(
+  caseReferralId: string,
+  response: "accepted" | "declined" | "dismissed"
+): Promise<RespondToIncomingReferralResult> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const { data: row, error: fetchError } = await admin
+    .from("case_referrals")
+    .select("id, referred_profile_id")
+    .eq("id", caseReferralId)
+    .single();
+
+  if (fetchError || !row) {
+    return { ok: false, error: "Not found" };
+  }
+
+  if (String(row.referred_profile_id) !== session.userId) {
+    return { ok: false, error: "Not authorized" };
+  }
+
+  const status = response === "dismissed" ? "closed" : response;
+
+  const { error: updateError } = await admin
+    .from("case_referrals")
+    .update({ status, responded_at: new Date().toISOString() })
+    .eq("id", caseReferralId);
+
+  if (updateError) {
+    return { ok: false, error: updateError.message };
+  }
+
+  revalidatePath("/member/referrals");
+  revalidatePath("/member/network");
+  return { ok: true };
+}
+
 export async function respondToDirectReferral(formData: FormData) {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
