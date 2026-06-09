@@ -899,6 +899,85 @@ export async function updateReferralResponse(
   return { ok: true };
 }
 
+export type LogReferralContactsResult =
+  | { ok: true; caseId: string; clientReference: string; loggedCount: number }
+  | { ok: false; error: string };
+
+export async function logReferralContacts(input: {
+  caseId?: string;
+  clientReference: string;
+  criteria: {
+    levelOfCare: string;
+    urgency: string;
+    clientType: string;
+    presentingIssue: string;
+    payment: string;
+    location: string;
+    insurance: string;
+  };
+  referredProfileIds: string[];
+  contactMethod?: "email" | "manual";
+}): Promise<LogReferralContactsResult> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  if (!input.referredProfileIds.length) {
+    return { ok: false, error: "No profiles to log" };
+  }
+
+  let caseId = input.caseId;
+  let clientReference = input.clientReference;
+
+  if (!caseId) {
+    const { data: newCase, error: caseError } = await admin
+      .from("client_cases")
+      .insert({
+        owner_profile_id: session.userId,
+        client_reference: clientReference,
+        level_of_care: input.criteria.levelOfCare || null,
+        presenting_issue: input.criteria.presentingIssue || null,
+        client_type: input.criteria.clientType || null,
+        payment_model: input.criteria.payment || null,
+        insurance: input.criteria.insurance || null,
+        neighborhood: input.criteria.location || null,
+        urgency: input.criteria.urgency || null,
+        status: "open",
+      })
+      .select("id, client_reference")
+      .single();
+
+    if (caseError || !newCase) {
+      return { ok: false, error: caseError?.message ?? "Failed to create case" };
+    }
+    caseId = newCase.id as string;
+    clientReference = newCase.client_reference as string;
+  } else {
+    const { data: existing } = await admin
+      .from("client_cases")
+      .select("client_reference")
+      .eq("id", caseId)
+      .eq("owner_profile_id", session.userId)
+      .single();
+    clientReference = (existing?.client_reference as string | undefined) ?? clientReference;
+  }
+
+  let loggedCount = 0;
+  for (const profileId of input.referredProfileIds) {
+    const { error } = await admin.from("case_referrals").insert({
+      case_id: caseId,
+      owner_profile_id: session.userId,
+      referred_profile_id: profileId,
+      contact_method: input.contactMethod ?? "email",
+      status: "open",
+    });
+    if (!error || error.code === "23505") loggedCount++;
+  }
+
+  revalidatePath("/member/network");
+  revalidatePath("/member/referrals");
+  return { ok: true, caseId: caseId as string, clientReference, loggedCount };
+}
+
 export async function respondToDirectReferral(formData: FormData) {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();

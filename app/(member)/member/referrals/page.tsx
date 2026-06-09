@@ -95,7 +95,7 @@ export default async function MemberReferralsPage({
           <p className="text-sm text-muted-foreground">
             Start with structured referral criteria and see therapist matches before reviewing referral activity.
           </p>
-          <ReferralComposeForm statusCopy={statusCopy} therapists={therapists} senderName={session.fullName ?? ""} />
+          <ReferralComposeForm statusCopy={statusCopy} therapists={therapists} senderName={session.fullName ?? ""} senderEmail={session.email ?? ""} />
         </CardContent>
       </Card>
 
