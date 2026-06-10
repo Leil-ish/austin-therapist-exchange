@@ -17,6 +17,7 @@ import type {
   ReferralMessage
 } from "@/types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { AVAILABILITY_STALE_DAYS } from "@/lib/referral-matching";
 
 function asArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
@@ -24,7 +25,7 @@ function asArray(value: unknown): string[] {
 
 function formatRelativeDateLabel(value?: string | null) {
   if (!value) {
-    return "Updated recently";
+    return "Not yet confirmed";
   }
 
   const then = new Date(value);
@@ -33,22 +34,22 @@ function formatRelativeDateLabel(value?: string | null) {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays <= 0) {
-    return "Updated today";
+    return "Confirmed today";
   }
 
   if (diffDays === 1) {
-    return "Updated yesterday";
+    return "Confirmed yesterday";
   }
 
   if (diffDays < 7) {
-    return `Updated ${diffDays} days ago`;
+    return `Confirmed ${diffDays} days ago`;
   }
 
   if (diffDays < 14) {
-    return "Updated last week";
+    return "Confirmed last week";
   }
 
-  return `Updated ${Math.floor(diffDays / 7)} weeks ago`;
+  return `Confirmed ${Math.floor(diffDays / 7)} weeks ago`;
 }
 
 function formatCreatedAtLabel(value?: string | null) {
@@ -276,17 +277,25 @@ async function getSupplementalTherapistFields(
   return { therapistFields, profileFields };
 }
 
+function isAvailabilityStale(isoDate: string | null | undefined): boolean {
+  if (!isoDate) return false;
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24)) > AVAILABILITY_STALE_DAYS;
+}
+
 function mapTherapistSummary(
   row: Record<string, unknown>,
   trustedBy: Map<string, { id: string; name: string; slug: string }[]>,
   followedProfileIds: Set<string>,
   curatedListTitles: Map<string, string[]>,
-  viewerProfileId?: string
+  viewerProfileId?: string,
+  recentlyReportedFull: boolean = false
 ): PublicTherapistSummary {
   const profileId = String(row.profile_id);
   const paymentModel = (row.payment_model as PaymentModel | null) ?? "both";
   const therapistProfileId = String(row.therapist_profile_id);
   const trustedConnections = trustedBy.get(profileId) ?? [];
+  const availabilityUpdatedAt = typeof row.availability_updated_at === "string" ? row.availability_updated_at : null;
 
   return {
     id: therapistProfileId,
@@ -309,7 +318,10 @@ function mapTherapistSummary(
     city: String(row.city ?? "Austin"),
     marketName: "Austin",
     availabilityStatus: (row.availability_status as AvailabilityStatus | null) ?? "waitlist",
-    availabilityUpdatedAtLabel: formatRelativeDateLabel(row.availability_updated_at as string | null),
+    availabilityUpdatedAtLabel: formatRelativeDateLabel(availabilityUpdatedAt),
+    availabilityUpdatedAt,
+    availabilityIsStale: isAvailabilityStale(availabilityUpdatedAt),
+    recentlyReportedFull,
     inPerson: Boolean(row.offers_in_person),
     telehealth: Boolean(row.offers_telehealth),
     trustedBy: trustedConnections,
@@ -410,10 +422,13 @@ export async function getPublicTherapists(
           return trustB - trustA;
         }
 
-        const availabilityRank = { accepting: 2, waitlist: 1, full: 0 } as const;
-        if (availabilityRank[a.availabilityStatus] !== availabilityRank[b.availabilityStatus]) {
-          return availabilityRank[b.availabilityStatus] - availabilityRank[a.availabilityStatus];
-        }
+        const effectiveAvailScore = (t: PublicTherapistSummary) => {
+          const base = ({ accepting: 2, waitlist: 1, full: 0 } as const)[t.availabilityStatus];
+          return (t.availabilityIsStale || t.recentlyReportedFull) ? Math.max(base - 1, 0) : base;
+        };
+        const scoreA = effectiveAvailScore(a);
+        const scoreB = effectiveAvailScore(b);
+        if (scoreA !== scoreB) return scoreB - scoreA;
 
         return b.endorsementCount - a.endorsementCount;
       }),
@@ -482,15 +497,39 @@ export async function getReferralCandidateTherapists(
 
   const rows = (rawTherapistProfiles ?? []) as Array<Record<string, unknown>>;
   const profileById = new Map(profiles.map((profile) => [String(profile.id), profile]));
-  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
+  const rowProfileIds = rows.map((row) => String(row.profile_id));
+
+  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles, rawResponses] = await Promise.all([
     getSupplementalTherapistFields(
       rows.map((row) => String(row.id)),
-      rows.map((row) => String(row.profile_id))
+      rowProfileIds
     ),
-    getEndorserConnections(rows.map((row) => String(row.profile_id))),
+    getEndorserConnections(rowProfileIds),
     getFollowedProfileIds(viewerProfileId),
-    getPublicCuratedListTitles(rows.map((row) => String(row.id)))
+    getPublicCuratedListTitles(rows.map((row) => String(row.id))),
+    rowProfileIds.length
+      ? admin
+          .from("case_referrals")
+          .select("referred_profile_id, status, responded_at")
+          .in("referred_profile_id", rowProfileIds)
+          .not("responded_at", "is", null)
+          .order("responded_at", { ascending: false })
+      : Promise.resolve({ data: [] as unknown[], error: null })
   ]);
+
+  // Build most-recent-response map (aggregate, anonymous — status + date only)
+  const recentResponseByProfileId = new Map<string, { status: string; responded_at: string }>();
+  for (const resp of ((rawResponses.data ?? []) as Array<Record<string, unknown>>)) {
+    const pid = String(resp.referred_profile_id);
+    if (!recentResponseByProfileId.has(pid)) {
+      recentResponseByProfileId.set(pid, {
+        status: String(resp.status),
+        responded_at: String(resp.responded_at)
+      });
+    }
+  }
+
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
   return rows
     .map((row) => {
@@ -499,6 +538,17 @@ export async function getReferralCandidateTherapists(
       if (!profile) {
         return null;
       }
+
+      // Compute soft-signal: declined recently AND more recent than self-reported update
+      const recentResp = recentResponseByProfileId.get(String(row.profile_id));
+      const availabilityUpdatedAt = typeof row.availability_updated_at === "string" ? row.availability_updated_at : null;
+      const recentlyReportedFull = (() => {
+        if (!recentResp || recentResp.status !== "declined") return false;
+        const respondedMs = new Date(recentResp.responded_at).getTime();
+        if (Date.now() - respondedMs > thirtyDaysMs) return false;
+        if (availabilityUpdatedAt && new Date(availabilityUpdatedAt).getTime() > respondedMs) return false;
+        return true;
+      })();
 
       return mapTherapistSummary(
         {
@@ -514,7 +564,8 @@ export async function getReferralCandidateTherapists(
         trustedBy,
         followedProfileIds,
         curatedListTitles,
-        viewerProfileId
+        viewerProfileId,
+        recentlyReportedFull
       );
     })
     .filter((therapist): therapist is PublicTherapistSummary => Boolean(therapist))
@@ -526,10 +577,13 @@ export async function getReferralCandidateTherapists(
         return trustB - trustA;
       }
 
-      const availabilityRank = { accepting: 2, waitlist: 1, full: 0 } as const;
-      if (availabilityRank[a.availabilityStatus] !== availabilityRank[b.availabilityStatus]) {
-        return availabilityRank[b.availabilityStatus] - availabilityRank[a.availabilityStatus];
-      }
+      const effectiveAvailScore = (t: PublicTherapistSummary) => {
+        const base = ({ accepting: 2, waitlist: 1, full: 0 } as const)[t.availabilityStatus];
+        return (t.availabilityIsStale || t.recentlyReportedFull) ? Math.max(base - 1, 0) : base;
+      };
+      const scoreA = effectiveAvailScore(a);
+      const scoreB = effectiveAvailScore(b);
+      if (scoreA !== scoreB) return scoreB - scoreA;
 
       return b.trustedBy.length - a.trustedBy.length;
     });
@@ -1012,7 +1066,7 @@ export async function getMemberProfileForUser(profileId: string) {
   const { data } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, payment_model"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, availability_updated_at, accepting_referrals, is_public, payment_model"
     )
     .eq("profile_id", profileId)
     .maybeSingle();

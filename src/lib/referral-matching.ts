@@ -1,5 +1,7 @@
 import type { PublicTherapistSummary } from "@/types";
 
+export const AVAILABILITY_STALE_DAYS = 60;
+
 export const AUSTIN_METRO_AREAS = [
   "North Austin",
   "Central Austin",

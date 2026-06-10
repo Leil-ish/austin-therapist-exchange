@@ -537,6 +537,7 @@ export async function saveMemberProfile(formData: FormData) {
       featured_links: featuredLinks,
       offerings: session.membershipTier === "premium" ? offerings : [],
       availability_status: availabilityStatus,
+      availability_updated_at: new Date().toISOString(),
       offers_in_person: offersInPerson,
       offers_telehealth: offersTelehealth,
       accepting_referrals: availabilityStatus !== "full",
@@ -1014,6 +1015,33 @@ export async function respondToIncomingReferral(
 
   revalidatePath("/member/referrals");
   revalidatePath("/member/network");
+  return { ok: true };
+}
+
+export async function confirmAvailability(
+  status: "accepting" | "not_accepting"
+): Promise<{ ok: boolean }> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const availabilityStatus: AvailabilityStatus = status === "accepting" ? "accepting" : "full";
+
+  const { error } = await admin
+    .from("therapist_profiles")
+    .update({
+      availability_status: availabilityStatus,
+      availability_updated_at: new Date().toISOString(),
+      accepting_referrals: status === "accepting"
+    })
+    .eq("profile_id", session.userId);
+
+  if (error) {
+    return { ok: false };
+  }
+
+  revalidatePath("/directory");
+  revalidatePath("/member/profile");
+  revalidatePath("/member/referrals");
   return { ok: true };
 }
 

@@ -36,6 +36,9 @@ export interface PublicTherapistSummary {
   marketName: string;
   availabilityStatus: AvailabilityStatus;
   availabilityUpdatedAtLabel: string;
+  availabilityUpdatedAt?: string | null;
+  availabilityIsStale: boolean;
+  recentlyReportedFull: boolean;
   inPerson: boolean;
   telehealth: boolean;
   trustedBy: TrustedByConnection[];

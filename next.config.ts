@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: [
+        "orange-halibut-q7wpq546gx5phxrq4-3333.app.github.dev",
+        "localhost:3333",
         "orange-halibut-q7wpq546gx5phxrq4-3335.app.github.dev",
         "localhost:3335",
         "orange-halibut-q7wpq546gx5phxrq4-3000.app.github.dev",

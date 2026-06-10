@@ -416,7 +416,8 @@ export function ReferralComposeForm({
           Number(Boolean(therapist.trustedByViewer)) * 8 +
           Number(Boolean(therapist.isFollowed)) * 5 +
           Math.min(therapist.trustedBy.length, 3) * 2;
-        const availabilityScore = getAvailabilityRank(therapist.availabilityStatus);
+        const availabilityScore = getAvailabilityRank(therapist.availabilityStatus)
+          - (therapist.availabilityIsStale || therapist.recentlyReportedFull ? 1 : 0);
         const confidenceScore = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
 
         return { therapist, confidence, dimensions, score: trustScore + availabilityScore + confidenceScore + urgencyBoost };
@@ -1192,7 +1193,7 @@ function TherapistMatchCard({
   if (therapist.populations.length > 0) {
     attributeChips.push(`Works with ${therapist.populations[0]}`);
   }
-  if (therapist.telehealth && therapist.availabilityStatus === "accepting") {
+  if (therapist.telehealth && therapist.availabilityStatus === "accepting" && !therapist.availabilityIsStale) {
     attributeChips.push("Available via Telehealth");
   } else if (therapist.telehealth) {
     attributeChips.push("Telehealth");
@@ -1201,6 +1202,19 @@ function TherapistMatchCard({
     attributeChips.push(`Located in ${therapist.neighborhoods[0]}`);
   }
   attributeChips.push(getPaymentModelLabel(therapist.paymentModel));
+
+  const availabilityChipLabel = (() => {
+    if (therapist.availabilityStatus === "accepting" && therapist.availabilityIsStale) {
+      return "Availability unconfirmed";
+    }
+    const base =
+      therapist.availabilityStatus === "accepting" ? "Accepting" :
+      therapist.availabilityStatus === "waitlist" ? "Waitlist" : "Full";
+    if (!therapist.availabilityUpdatedAt) return base;
+    const diffDays = Math.floor((Date.now() - new Date(therapist.availabilityUpdatedAt).getTime()) / 86400000);
+    const age = diffDays <= 0 ? "today" : diffDays === 1 ? "yesterday" : diffDays < 7 ? `${diffDays}d ago` : `${Math.floor(diffDays / 7)}w ago`;
+    return `${base} · ${age}`;
+  })();
 
   const whyExplanations = generateMatchExplanation(
     criteria.levelOfCare,
@@ -1309,7 +1323,23 @@ function TherapistMatchCard({
               {chip}
             </span>
           ))}
+          <span
+            className={
+              therapist.availabilityIsStale || therapist.recentlyReportedFull
+                ? "rounded-md border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500"
+                : therapist.availabilityStatus === "accepting"
+                  ? "rounded-md border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs text-green-700"
+                  : therapist.availabilityStatus === "waitlist"
+                    ? "rounded-md border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-xs text-yellow-700"
+                    : "rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-500"
+            }
+          >
+            {availabilityChipLabel}
+          </span>
         </div>
+      )}
+      {therapist.recentlyReportedFull && (
+        <p className="mt-2 text-xs text-amber-600">Recently reported full by a colleague</p>
       )}
 
       {/* Success confirmation */}
