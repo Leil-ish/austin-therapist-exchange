@@ -48,6 +48,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 348-7820",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -82,6 +84,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 273-3816",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -116,6 +120,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(210) 695-0717",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -150,6 +156,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 688-4303",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -184,6 +192,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 626-3298",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -218,6 +228,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 761-6358",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -252,6 +264,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(325) 267-0608",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -286,6 +300,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "512-766-0558",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -320,6 +336,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(352) 262-8184",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -354,6 +372,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 264-5558",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -388,6 +408,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 921-9022",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -422,6 +444,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 413-2346",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -456,6 +480,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(310) 497-6176",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -490,6 +516,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 540-8640",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -524,6 +552,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(703) 297-6003",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -558,6 +588,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 439-9808",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -592,6 +624,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(737) 367-3040",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -626,6 +660,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 609-0890",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -660,6 +696,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 808-0483",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -694,6 +732,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 979-6708",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -728,6 +768,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 240-2753",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -762,6 +804,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 270-6170",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -796,6 +840,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 730-1186",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -830,6 +876,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 387-1398",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -864,6 +912,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 829-1066",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -898,6 +948,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(512) 920-3654",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -932,6 +984,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "(972) 526-5306",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   },
   {
@@ -966,6 +1020,8 @@ export const therapists: PublicTherapistSummary[] = [
     publicPhone: "512-402-3037",
     membershipTier: "free",
     trustedBy: [],
+    availabilityIsStale: false,
+    recentlyReportedFull: false,
     sponsorName: undefined
   }
 ];

@@ -6,6 +6,13 @@ import { TrustToggleButton } from "@/components/domain/trust-toggle-button";
 import { getAvailabilityLabel, getPaymentModelLabelForUi } from "@/lib/data/live-data";
 import type { PublicTherapistSummary } from "@/types";
 
+function getAvailabilityBadge(therapist: PublicTherapistSummary): { label: string; stale: boolean } {
+  if (therapist.availabilityIsStale) {
+    return { label: "Availability unconfirmed", stale: true };
+  }
+  return { label: getAvailabilityLabel(therapist.availabilityStatus), stale: false };
+}
+
 export function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
@@ -104,6 +111,8 @@ export function TherapistCard({
     ...therapist.specialties.slice(0, 2),
   ];
 
+  const { label: availLabel, stale: availStale } = getAvailabilityBadge(therapist);
+
   return (
     <Card className="h-full bg-white/90">
       <CardHeader className="pb-3">
@@ -113,9 +122,14 @@ export function TherapistCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <p className="text-lg font-semibold leading-tight">{therapist.displayName}</p>
-              <Badge className="shrink-0 text-xs">{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
+              <Badge variant={availStale ? "muted" : "default"} className="shrink-0 text-xs">
+                {availLabel}
+              </Badge>
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">{therapist.title}</p>
+            {therapist.recentlyReportedFull && (
+              <p className="mt-1 text-xs text-amber-600">Recently reported full by a colleague</p>
+            )}
           </div>
         </div>
 

@@ -157,7 +157,6 @@ export async function bootstrapProfileForUser(user: User) {
       id: user.id,
       role: "therapist",
       membership_state: joinRequest?.status ?? "pending",
-      membership_tier: "free",
       full_name: nextName,
       slug: fallbackSlug,
       country_code: "US",

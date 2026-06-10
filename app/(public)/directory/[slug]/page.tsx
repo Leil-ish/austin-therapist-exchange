@@ -60,7 +60,9 @@ export default async function TherapistProfilePage({
               ) : null}
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex flex-wrap gap-2">
-                  <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
+                  <Badge variant={therapist.availabilityIsStale ? "muted" : "default"}>
+                    {therapist.availabilityIsStale ? "Availability unconfirmed" : getAvailabilityLabel(therapist.availabilityStatus)}
+                  </Badge>
                   <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
                 </div>
                 <CardTitle className="text-4xl">{therapist.displayName}</CardTitle>

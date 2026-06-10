@@ -2,6 +2,7 @@ import { saveMemberProfile } from "@/app-actions/member-actions";
 import { updatePassword } from "@/app-actions/auth-actions";
 import { COMMUNITIES } from "@/lib/referral-matching";
 import { AvatarUpload } from "@/components/domain/avatar-upload";
+import { AvailabilityFreshnessBanner } from "@/components/domain/availability-freshness-banner";
 import { EmptyState } from "@/components/state/empty-state";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -67,6 +68,10 @@ export default async function MemberProfilePage({
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      <AvailabilityFreshnessBanner
+        availabilityStatus={String(profile.availability_status ?? "waitlist")}
+        availabilityUpdatedAt={typeof profile.availability_updated_at === "string" ? profile.availability_updated_at : null}
+      />
       <Card className="bg-white/90 lg:col-span-2">
         <CardHeader>
           <CardTitle>Professional profile</CardTitle>
