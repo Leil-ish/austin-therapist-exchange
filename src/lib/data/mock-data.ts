@@ -50,6 +50,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -86,6 +89,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -122,6 +128,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -158,6 +167,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -194,6 +206,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -230,6 +245,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -266,6 +284,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -302,6 +323,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -338,6 +362,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -374,6 +401,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -410,6 +440,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -446,6 +479,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -482,6 +518,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -518,6 +557,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -554,6 +596,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -590,6 +635,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -626,6 +674,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -662,6 +713,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -698,6 +752,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -734,6 +791,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -770,6 +830,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -806,6 +869,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -842,6 +908,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -878,6 +947,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -914,6 +986,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -950,6 +1025,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -986,6 +1064,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   },
   {
@@ -1022,6 +1103,9 @@ export const therapists: PublicTherapistSummary[] = [
     trustedBy: [],
     availabilityIsStale: false,
     recentlyReportedFull: false,
+    modalities: [],
+    languages: [],
+    slidingScale: false,
     sponsorName: undefined
   }
 ];

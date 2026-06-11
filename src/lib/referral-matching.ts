@@ -117,8 +117,18 @@ export const PRESENTING_ISSUES = [
   "PTSD",
   "OCD",
   "SUD",
+  "Substance Use",
   "Eating Disorder",
   "Infidelity",
+  "Relationship Conflict",
+  "Communication Issues",
+  "Separation / Divorce",
+  "Premarital",
+  "Intimacy / Sexual Issues",
+  "ADHD",
+  "Autism / Neurodivergence",
+  "Postpartum / Perinatal",
+  "Life Transitions",
   "Parenting",
   "Self Esteem",
   "Grief Loss",
@@ -189,6 +199,53 @@ export const INSURANCE_CARRIERS = [
 ] as const;
 
 export const URGENCY_LEVELS = ["Low", "Medium", "High", "Urgent"] as const;
+
+export const LANGUAGES = [
+  "English",
+  "Spanish",
+  "Mandarin",
+  "Vietnamese",
+  "Korean",
+  "Hindi/Urdu",
+  "ASL",
+  "Other"
+] as const;
+
+export const GENDERS = ["Female", "Male", "Non-binary"] as const;
+
+export type ClientType = (typeof CLIENT_TYPES)[number];
+
+/** Drives conditional UI — which presenting issues and modalities to surface per client type.
+ *  Empty arrays for Adult Individual = no restriction (all options shown). */
+export const CLIENT_TYPE_RELEVANCE: Record<ClientType, { issues: string[]; modalities: string[] }> = {
+  "Adult Individual": {
+    issues: [],
+    modalities: []
+  },
+  "Child Individual": {
+    issues: ["Anxiety", "Depression", "Parenting", "Trauma", "ADHD", "Autism / Neurodivergence"],
+    modalities: ["CBT", "DBT", "Family systems"]
+  },
+  "Adolescent Individual": {
+    issues: ["Anxiety", "Depression", "Parenting", "Trauma", "ADHD", "Autism / Neurodivergence"],
+    modalities: ["CBT", "DBT", "Family systems"]
+  },
+  "Couples": {
+    issues: [
+      "Relationship Conflict",
+      "Communication Issues",
+      "Infidelity",
+      "Separation / Divorce",
+      "Premarital",
+      "Intimacy / Sexual Issues"
+    ],
+    modalities: ["Gottman", "EFT", "Relational", "Attachment-based"]
+  },
+  "Families": {
+    issues: ["Parenting", "Communication Issues", "Relationship Conflict"],
+    modalities: ["Family systems"]
+  }
+};
 
 export function normalizeForMatch(value: string) {
   return value.trim().toLowerCase();
@@ -321,25 +378,42 @@ export function presentingIssueMatches(presentingIssue: string, therapistSpecial
   const normalizedSpecialties = therapistSpecialties.map(normalizeForMatch);
 
   const issueMappings: Record<string, string[]> = {
-    "anxiety":         ["anxiety", "panic", "perfectionism", "phobia", "ocd", "social anxiety", "generalized anxiety"],
-    "depression":      ["depression", "mood disorder", "mood disorders", "dysthymia", "seasonal"],
-    "trauma":          ["trauma", "ptsd", "post-traumatic", "childhood trauma", "complex trauma",
-                        "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
-    "ptsd":            ["ptsd", "post-traumatic", "trauma / ptsd", "complex trauma", "childhood trauma"],
-    "ocd":             ["ocd", "obsessive-compulsive", "obsessive"],
-    "sud":             ["addiction", "substance", "alcohol", "drugs", "harm reduction",
-                        "relapse", "recovery", "process addiction", "substance use disorders"],
-    "eating disorder": ["eating disorder", "eating disorders", "eating", "anorexia",
-                        "bulimia", "body image", "body dysmorphia"],
-    "infidelity":      ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
-    "parenting":       ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
-    "self esteem":     ["self-esteem", "self esteem", "self worth", "confidence",
-                        "identity", "women's development", "religious deconstruction"],
-    "grief loss":      ["grief", "loss", "bereavement", "grief / loss"],
-    "burnout":         ["burnout", "stress", "work-life", "career discord", "perfectionism"],
-    "sleep":           ["sleep", "insomnia"],
-    "bipolar disorder":["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
-    "anger":           ["anger", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
+    "anxiety":                   ["anxiety", "panic", "perfectionism", "phobia", "ocd", "social anxiety", "generalized anxiety"],
+    "depression":                ["depression", "mood disorder", "mood disorders", "dysthymia", "seasonal"],
+    "trauma":                    ["trauma", "ptsd", "post-traumatic", "childhood trauma", "complex trauma",
+                                  "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
+    "ptsd":                      ["ptsd", "post-traumatic", "trauma / ptsd", "complex trauma", "childhood trauma"],
+    "ocd":                       ["ocd", "obsessive-compulsive", "obsessive"],
+    "sud":                       ["addiction", "substance", "alcohol", "drugs", "harm reduction",
+                                  "relapse", "recovery", "process addiction", "substance use disorders"],
+    "substance use":             ["substance", "addiction", "alcohol", "drugs", "harm reduction",
+                                  "relapse", "recovery", "process addiction", "substance use"],
+    "eating disorder":           ["eating disorder", "eating disorders", "eating", "anorexia",
+                                  "bulimia", "body image", "body dysmorphia"],
+    "infidelity":                ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
+    "relationship conflict":     ["relationship conflict", "conflict", "communication", "couple", "couples",
+                                  "marital", "relationship issues", "interpersonal"],
+    "communication issues":      ["communication", "conflict", "interpersonal", "relationship", "communication issues"],
+    "separation / divorce":      ["separation", "divorce", "co-parenting", "co parenting", "separation/divorce"],
+    "premarital":                ["premarital", "pre-marital", "premarriage", "marriage preparation",
+                                  "engaged", "premarital counseling"],
+    "intimacy / sexual issues":  ["intimacy", "sexual", "sex therapy", "sexuality", "desire",
+                                  "dysfunction", "intimacy issues"],
+    "adhd":                      ["adhd", "attention deficit", "add", "executive function", "focus", "attention"],
+    "autism / neurodivergence":  ["autism", "autistic", "asd", "neurodivergent", "neurodivergence",
+                                  "spectrum", "asperger"],
+    "postpartum / perinatal":    ["postpartum", "perinatal", "postnatal", "maternal", "pregnancy",
+                                  "new mom", "new parent", "birth trauma"],
+    "life transitions":          ["life transition", "life transitions", "transition", "career",
+                                  "relocation", "retirement", "major life change"],
+    "parenting":                 ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
+    "self esteem":               ["self-esteem", "self esteem", "self worth", "confidence",
+                                  "identity", "women's development", "religious deconstruction"],
+    "grief loss":                ["grief", "loss", "bereavement", "grief / loss"],
+    "burnout":                   ["burnout", "stress", "work-life", "career discord", "perfectionism"],
+    "sleep":                     ["sleep", "insomnia"],
+    "bipolar disorder":          ["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
+    "anger":                     ["anger", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
   };
 
   const keywords = issueMappings[normalizedIssue] || [normalizedIssue];
@@ -609,6 +683,88 @@ export function getDynamicDropdownOptions() {
     clientTypes: Array.from(CLIENT_TYPES).sort(),
     levelsOfCare: Array.from(LEVELS_OF_CARE).sort(),
     paymentOptions: Array.from(PAYMENT_OPTIONS).sort(),
-    insuranceOptions: Array.from(INSURANCE_CARRIERS).sort()
+    insuranceOptions: Array.from(INSURANCE_CARRIERS).sort(),
+    languages: Array.from(LANGUAGES).sort(),
+    genders: Array.from(GENDERS).sort()
   };
+}
+
+/** Criteria beyond the core six that can narrow or boost matches. All fields optional; omitted = no filter. */
+export interface ExtendedCriteria {
+  /** Soft — communities the client identifies with; matched against therapist.communities */
+  communities?: string[];
+  /** Soft — therapeutic modalities preferred; matched against therapist.modalities */
+  modalities?: string[];
+  /** Soft — language(s) the client needs; matched against therapist.languages */
+  languages?: string[];
+  /** Soft — additional population signals; matched against therapist.populations */
+  populations?: string[];
+  /** Hard — "Telehealth" | "In person" | "Both"; empty/omitted = no filter */
+  format?: string;
+  /** Hard — therapist gender preference; empty / "No preference" / omitted = no filter */
+  gender?: string;
+  /** Hard — true = only therapists offering sliding scale */
+  slidingScale?: boolean;
+  /** Hard — true = only therapists currently accepting new clients */
+  acceptingNow?: boolean;
+}
+
+/**
+ * Returns false if any hard criterion is set and the therapist fails it.
+ * Call this as a pre-filter before scoring; excluded therapists skip scoring entirely.
+ */
+export function passesHardFilters(
+  criteria: ExtendedCriteria,
+  therapist: PublicTherapistSummary
+): boolean {
+  const { format, gender, slidingScale, acceptingNow } = criteria;
+
+  if (format) {
+    const f = normalizeForMatch(format);
+    if (f === "telehealth" && !therapist.telehealth) return false;
+    if (f === "in person" && !therapist.inPerson) return false;
+    if (f === "both" && !(therapist.telehealth && therapist.inPerson)) return false;
+  }
+
+  if (gender && normalizeForMatch(gender) !== "no preference") {
+    if (therapist.gender && normalizeForMatch(therapist.gender) !== normalizeForMatch(gender)) {
+      return false;
+    }
+  }
+
+  if (slidingScale === true && !therapist.slidingScale) return false;
+
+  if (acceptingNow === true && therapist.availabilityStatus !== "accepting") return false;
+
+  return true;
+}
+
+/**
+ * Returns a non-negative integer bonus to add to a therapist's total rank score.
+ * Each overlapping term in any soft-overlap dimension contributes +1.
+ * Add this to trustScore + availabilityScore + confidenceScore in the compose form.
+ */
+export function softOverlapScore(
+  criteria: ExtendedCriteria,
+  therapist: PublicTherapistSummary
+): number {
+  let bonus = 0;
+
+  if (criteria.communities?.length) {
+    bonus += countOverlappingTerms(criteria.communities, therapist.communities);
+  }
+
+  if (criteria.modalities?.length) {
+    bonus += countOverlappingTerms(criteria.modalities, therapist.modalities);
+  }
+
+  if (criteria.languages?.length) {
+    bonus += countOverlappingTerms(criteria.languages, therapist.languages);
+  }
+
+  if (criteria.populations?.length) {
+    bonus += countOverlappingTerms(criteria.populations, therapist.populations);
+  }
+
+  return bonus;
 }
