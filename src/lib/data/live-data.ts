@@ -1070,7 +1070,7 @@ export async function getMemberProfileForUser(profileId: string) {
   const { data } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, availability_updated_at, accepting_referrals, is_public, payment_model"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, availability_updated_at, accepting_referrals, is_public, payment_model, gender, languages, offers_sliding_scale"
     )
     .eq("profile_id", profileId)
     .maybeSingle();

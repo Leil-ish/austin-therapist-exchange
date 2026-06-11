@@ -502,10 +502,14 @@ export async function saveMemberProfile(formData: FormData) {
   const approachSummary = String(formData.get("approachSummary") ?? "").trim();
   const publicEmail = normalizeEmail(String(formData.get("publicEmail") ?? ""));
   const publicPhone = String(formData.get("publicPhone") ?? "").trim();
-  const specialties = parseCommaSeparatedList(formData.get("specialties"), 5);
-  const neighborhoods = parseCommaSeparatedList(formData.get("neighborhoods"), 3);
+  const specialties = (formData.getAll("specialties") as string[]).filter(Boolean).slice(0, 5);
+  const neighborhoods = (formData.getAll("neighborhoods") as string[]).filter(Boolean);
   const communities = (formData.getAll("communities") as string[]).filter(Boolean);
-  const insuranceAccepted = parseCommaSeparatedList(formData.get("insuranceAccepted"), 5);
+  const modalities = (formData.getAll("modalities") as string[]).filter(Boolean);
+  const languages = (formData.getAll("languages") as string[]).filter(Boolean);
+  const gender = String(formData.get("gender") ?? "").trim() || null;
+  const offersSlidingScale = formData.get("offersSlidingScale") === "on";
+  const insuranceAccepted = (formData.getAll("insurance") as string[]).filter(Boolean);
   const featuredLinks = parseLineSeparatedList(formData.get("featuredLinks"), session.membershipTier === "premium" ? 5 : 2);
   const offerings = parseLineSeparatedList(formData.get("offerings"), session.membershipTier === "premium" ? 8 : 0);
   const availabilityStatus = String(formData.get("availabilityStatus") ?? "waitlist").trim() as AvailabilityStatus;
@@ -525,7 +529,6 @@ export async function saveMemberProfile(formData: FormData) {
     .update({
       public_display_name: publicDisplayName,
       credentials,
-      headline: headline || null,
       bio,
       approach_summary: approachSummary || null,
       public_email: publicEmail || null,
@@ -533,9 +536,11 @@ export async function saveMemberProfile(formData: FormData) {
       specialties,
       neighborhoods,
       communities,
+      modalities,
+      languages,
+      gender,
+      offers_sliding_scale: offersSlidingScale,
       insurance_accepted: insuranceAccepted,
-      featured_links: featuredLinks,
-      offerings: session.membershipTier === "premium" ? offerings : [],
       availability_status: availabilityStatus,
       availability_updated_at: new Date().toISOString(),
       offers_in_person: offersInPerson,

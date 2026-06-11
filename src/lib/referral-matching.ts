@@ -193,9 +193,7 @@ export const INSURANCE_CARRIERS = [
   "Oscar",
   "Sendero",
   "Medicaid",
-  "Medicare",
-  "Out of network",
-  "Not sure"
+  "Medicare"
 ] as const;
 
 export const URGENCY_LEVELS = ["Low", "Medium", "High", "Urgent"] as const;
