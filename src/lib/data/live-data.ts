@@ -249,7 +249,7 @@ async function getSupplementalTherapistFields(
     therapistProfileIds.length
       ? admin
           .from("therapist_profiles")
-          .select("id, public_email, public_phone, communities")
+          .select("id, public_email, public_phone, communities, modalities")
           .in("id", therapistProfileIds)
       : Promise.resolve({ data: [] as unknown[], error: null }),
     profileIds.length
@@ -322,6 +322,10 @@ function mapTherapistSummary(
     availabilityUpdatedAt,
     availabilityIsStale: isAvailabilityStale(availabilityUpdatedAt),
     recentlyReportedFull,
+    modalities: asArray(row.modalities),
+    gender: typeof row.gender === "string" && row.gender ? row.gender : undefined,
+    languages: asArray(row.languages),
+    slidingScale: Boolean(row.offers_sliding_scale),
     inPerson: Boolean(row.offers_in_person),
     telehealth: Boolean(row.offers_telehealth),
     trustedBy: trustedConnections,
@@ -491,7 +495,7 @@ export async function getReferralCandidateTherapists(
   const { data: rawTherapistProfiles, error: tpError } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, communities"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, communities, modalities"
     )
     .in("profile_id", profileIds);
 

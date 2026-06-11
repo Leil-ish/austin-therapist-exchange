@@ -39,6 +39,10 @@ export interface PublicTherapistSummary {
   availabilityUpdatedAt?: string | null;
   availabilityIsStale: boolean;
   recentlyReportedFull: boolean;
+  modalities: string[];
+  gender?: string;
+  languages: string[];
+  slidingScale: boolean;
   inPerson: boolean;
   telehealth: boolean;
   trustedBy: TrustedByConnection[];

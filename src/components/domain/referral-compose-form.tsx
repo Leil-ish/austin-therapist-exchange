@@ -1,40 +1,49 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useTransition, useState } from "react";
-import { ChevronDown, ChevronUp, ClipboardCopy, Eye, MapPin, Pencil, RefreshCw, Users, Target, Globe, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ClipboardCopy, Eye, Filter, MapPin, Pencil, RefreshCw, Users, Target, Globe, X } from "lucide-react";
 
 import { logReferralContact, logReferralContacts } from "@/app-actions/member-actions";
-import type { LogReferralContactResult, LogReferralContactsResult } from "@/app-actions/member-actions";
+import type { LogReferralContactResult } from "@/app-actions/member-actions";
 import { mintReferralCode } from "@/lib/referral-code";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calculateMatchConfidence,
+  CLIENT_TYPE_RELEVANCE,
   CLIENT_TYPES,
+  COMMUNITIES,
   generateMatchExplanation,
   getMatchDimensions,
+  GENDERS,
   insuranceMatches,
   INSURANCE_CARRIERS,
+  LANGUAGES,
   levelOfCareMatches,
   LEVELS_OF_CARE,
   LOCATION_OPTIONS,
   locationMatches,
-  PAYMENT_OPTIONS,
+  MODALITIES,
+  passesHardFilters,
   paymentModelMatchesFilter,
-  PRESENTING_ISSUES
+  PAYMENT_OPTIONS,
+  presentingIssueMatches,
+  PRESENTING_ISSUES,
+  softOverlapScore,
 } from "@/lib/referral-matching";
-import type { MatchDimension } from "@/lib/referral-matching";
+import type { ClientType, ExtendedCriteria, MatchDimension } from "@/lib/referral-matching";
 import type { PublicTherapistSummary } from "@/types";
 
 const URGENCY_OPTIONS = [
   "Urgent - needs care in the next few days",
   "Moderately Urgent - needs care in the next week",
-  "Low Urgency - needs care in the next few weeks"
+  "Low Urgency - needs care in the next few weeks",
 ] as const;
 
-const FORMAT_OPTIONS = ["In person", "Telehealth", "Hybrid"] as const;
+const GROUP_FORMAT_OPTIONS = ["In person", "Telehealth", "Hybrid"] as const;
 const AGE_RANGE_OPTIONS = ["Child (0-12)", "Adolescent (13-17)", "Adult (18+)"] as const;
+// Format is now the source of truth for telehealth vs in-person — drop "Telehealth Only" from location
+const LOCATION_FILTER_OPTIONS = LOCATION_OPTIONS.filter((o) => o !== "Telehealth Only");
 
 function getUrgencyColor(urgency: string) {
   if (urgency.includes("Urgent") && !urgency.includes("Moderately")) return "bg-red-100 border-red-300 text-red-900";
@@ -57,19 +66,11 @@ function getAvailabilityRank(status: PublicTherapistSummary["availabilityStatus"
 function ConfidenceDots({ confidence }: { confidence: "high" | "medium" | "low" }) {
   const count = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
   const filledColor =
-    confidence === "high"
-      ? "bg-green-500"
-      : confidence === "medium"
-        ? "bg-amber-400"
-        : "bg-red-400";
-
+    confidence === "high" ? "bg-green-500" : confidence === "medium" ? "bg-amber-400" : "bg-red-400";
   return (
     <div className="flex items-center gap-1">
       {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className={`h-2 w-2 rounded-full ${i <= count ? filledColor : "bg-gray-200"}`}
-        />
+        <div key={i} className={`h-2 w-2 rounded-full ${i <= count ? filledColor : "bg-gray-200"}`} />
       ))}
     </div>
   );
@@ -77,15 +78,13 @@ function ConfidenceDots({ confidence }: { confidence: "high" | "medium" | "low" 
 
 function MatchBreakdown({
   dimensions,
-  availabilityStatus
+  availabilityStatus,
 }: {
   dimensions: MatchDimension[];
   availabilityStatus: "accepting" | "waitlist" | "full";
 }) {
   if (dimensions.length === 0) return null;
-
   const matchCount = dimensions.filter((d) => d.status === "match").length;
-
   return (
     <div className="space-y-2 rounded-xl bg-muted/40 px-3 py-2.5">
       <div className="flex flex-wrap gap-1.5">
@@ -111,16 +110,95 @@ function MatchBreakdown({
                 : "inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
           }
         >
-          {availabilityStatus === "accepting"
-            ? "✓ Available"
-            : availabilityStatus === "waitlist"
-              ? "~ Waitlist"
-              : "✗ Full"}
+          {availabilityStatus === "accepting" ? "✓ Available" : availabilityStatus === "waitlist" ? "~ Waitlist" : "✗ Full"}
         </span>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {matchCount} of {dimensions.length} criteria matched
-      </p>
+      <p className="text-xs text-muted-foreground">{matchCount} of {dimensions.length} criteria matched</p>
+    </div>
+  );
+}
+
+/** Toggleable multi-select chip grid with optional prioritization and progressive disclosure. */
+function MultiSelectChips({
+  label,
+  required,
+  options,
+  selected,
+  onToggle,
+  prioritized = [],
+  placeholder,
+}: {
+  label?: string;
+  required?: boolean;
+  options: readonly string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  prioritized?: string[];
+  placeholder?: string;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const allOptions = Array.from(options);
+  const prioritySet = new Set(prioritized);
+
+  let visibleOptions: string[];
+  let hiddenCount = 0;
+
+  if (prioritized.length > 0 && !showAll) {
+    const prioritizedVisible = prioritized.filter((o) => allOptions.includes(o));
+    // Always keep user-selected items visible even if outside the prioritized set
+    const extraSelected = allOptions.filter((o) => !prioritySet.has(o) && selected.includes(o));
+    visibleOptions = [...prioritizedVisible, ...extraSelected];
+    hiddenCount = allOptions.filter((o) => !prioritySet.has(o) && !selected.includes(o)).length;
+  } else {
+    visibleOptions = allOptions;
+  }
+
+  return (
+    <div className="space-y-2">
+      {label && (
+        <span className="text-sm font-medium text-foreground">
+          {label}
+          {required && <span className="ml-1 text-red-500">*</span>}
+        </span>
+      )}
+      <div className="flex flex-wrap gap-1.5">
+        {visibleOptions.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onToggle(opt)}
+            aria-pressed={selected.includes(opt)}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              selected.includes(opt)
+                ? "bg-primary text-white shadow-sm"
+                : "border border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary"
+            }`}
+          >
+            {opt}
+          </button>
+        ))}
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            +{hiddenCount} more
+          </button>
+        )}
+        {showAll && prioritized.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAll(false)}
+            className="rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          >
+            Show less
+          </button>
+        )}
+      </div>
+      {selected.length === 0 && placeholder && (
+        <p className="text-xs text-muted-foreground">{placeholder}</p>
+      )}
     </div>
   );
 }
@@ -145,40 +223,32 @@ function buildMailtoBody(
   criteria: ContactCriteria
 ): string {
   const lines: string[] = [];
-
   lines.push(`Hi ${therapistName},`);
   lines.push("");
   lines.push(
     "I came across your profile on Austin Therapist Exchange and think you may be a good fit for a client I'm hoping to refer. Here's what I can share:"
   );
   lines.push("");
-
   if (criteria.levelOfCare) lines.push(`- Level of care: ${criteria.levelOfCare}`);
   if (criteria.clientType) lines.push(`- Client type: ${criteria.clientType}`);
   if (criteria.presentingIssue) lines.push(`- Presenting concern: ${criteria.presentingIssue}`);
-
   const paymentParts: string[] = [];
   if (criteria.payment) paymentParts.push(criteria.payment);
   if (criteria.insurance && (criteria.payment === "Insurance" || criteria.payment === "Both")) {
     paymentParts.push(criteria.insurance);
   }
   if (paymentParts.length > 0) lines.push(`- Payment: ${paymentParts.join(" – ")}`);
-
   const formatParts: string[] = [];
   if (criteria.format) formatParts.push(criteria.format);
   if (criteria.location) formatParts.push(criteria.location);
   if (formatParts.length > 0) lines.push(`- Format & area: ${formatParts.join(", ")}`);
-
   if (criteria.urgency) lines.push(`- Timing: ${criteria.urgency}`);
-
   lines.push("");
   lines.push(
     "Would you be able to take this client on? If you have availability, I'll share the specifics directly through a secure channel."
   );
   lines.push("");
-  lines.push(
-    `Reference: ${code} — including this so we can both keep track of where this referral lands.`
-  );
+  lines.push(`Reference: ${code} — including this so we can both keep track of where this referral lands.`);
   lines.push("");
   lines.push(
     "About Austin Therapist Exchange: a private, invite-only referral network for Austin-area clinicians, built to make trusted therapist-to-therapist referrals simple. More at austintherapistexchange.com."
@@ -186,7 +256,6 @@ function buildMailtoBody(
   lines.push("");
   lines.push("Thanks so much,");
   if (senderName) lines.push(senderName);
-
   return lines.join("\r\n");
 }
 
@@ -204,40 +273,32 @@ function buildMailto(
 
 function buildBatchMailtoBody(senderName: string, code: string, criteria: ContactCriteria): string {
   const lines: string[] = [];
-
   lines.push("Hello,");
   lines.push("");
   lines.push(
     "I came across your profile on Austin Therapist Exchange and think you may be a good fit for a client I'm hoping to refer. Here's what I can share:"
   );
   lines.push("");
-
   if (criteria.levelOfCare) lines.push(`- Level of care: ${criteria.levelOfCare}`);
   if (criteria.clientType) lines.push(`- Client type: ${criteria.clientType}`);
   if (criteria.presentingIssue) lines.push(`- Presenting concern: ${criteria.presentingIssue}`);
-
   const paymentParts: string[] = [];
   if (criteria.payment) paymentParts.push(criteria.payment);
   if (criteria.insurance && (criteria.payment === "Insurance" || criteria.payment === "Both")) {
     paymentParts.push(criteria.insurance);
   }
   if (paymentParts.length > 0) lines.push(`- Payment: ${paymentParts.join(" – ")}`);
-
   const formatParts: string[] = [];
   if (criteria.format) formatParts.push(criteria.format);
   if (criteria.location) formatParts.push(criteria.location);
   if (formatParts.length > 0) lines.push(`- Format & area: ${formatParts.join(", ")}`);
-
   if (criteria.urgency) lines.push(`- Timing: ${criteria.urgency}`);
-
   lines.push("");
   lines.push(
     "Would you be able to take this client on? If you have availability, I'll share the specifics directly through a secure channel."
   );
   lines.push("");
-  lines.push(
-    `Reference: ${code} — including this so we can both keep track of where this referral lands.`
-  );
+  lines.push(`Reference: ${code} — including this so we can both keep track of where this referral lands.`);
   lines.push("");
   lines.push(
     "About Austin Therapist Exchange: a private, invite-only referral network for Austin-area clinicians, built to make trusted therapist-to-therapist referrals simple. More at austintherapistexchange.com."
@@ -245,7 +306,6 @@ function buildBatchMailtoBody(senderName: string, code: string, criteria: Contac
   lines.push("");
   lines.push("Thanks so much,");
   if (senderName) lines.push(senderName);
-
   return lines.join("\r\n");
 }
 
@@ -270,31 +330,43 @@ export function ReferralComposeForm({
   statusCopy,
   therapists,
   senderName = "",
-  senderEmail = ""
+  senderEmail = "",
 }: {
   statusCopy?: string | null;
   therapists: PublicTherapistSummary[];
   senderName?: string;
   senderEmail?: string;
 }) {
+  // ── Core criteria ────────────────────────────────────────────────────────
   const [levelOfCare, setLevelOfCare] = useState("");
   const [urgency, setUrgency] = useState("");
   const [clientType, setClientType] = useState("");
-  const [presentingIssue, setPresentingIssue] = useState("");
+  const [presentingIssues, setPresentingIssues] = useState<string[]>([]);
+  const [groupFocus, setGroupFocus] = useState("");
   const [location, setLocation] = useState("");
   const [payment, setPayment] = useState("");
   const [insurance, setInsurance] = useState("");
   const [privatePayMax, setPrivatePayMax] = useState("");
   const [format, setFormat] = useState("");
-  const [groupFocus, setGroupFocus] = useState("");
   const [ageRange, setAgeRange] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
+
+  // ── Extended / "More filters" criteria ───────────────────────────────────
+  const [communities, setCommunities] = useState<string[]>([]);
+  const [modalities, setModalities] = useState<string[]>([]);
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [gender, setGender] = useState("");
+  const [slidingScale, setSlidingScale] = useState(false);
+  const [acceptingNow, setAcceptingNow] = useState(false);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+
+  // ── UI state ─────────────────────────────────────────────────────────────
   const [formOpen, setFormOpen] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [currentCaseId, setCurrentCaseId] = useState<string | undefined>(undefined);
   const [currentCode, setCurrentCode] = useState<string | undefined>(undefined);
 
-  // Multi-select state
+  // ── Multi-select / batch ─────────────────────────────────────────────────
   const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(new Set());
   const [batchPendingCode] = useState(() => mintReferralCode());
   const [batchLogState, setBatchLogState] = useState<{ loggedCount: number; code: string } | null>(null);
@@ -302,12 +374,14 @@ export function ReferralComposeForm({
 
   const activeBatchCode = currentCode ?? batchPendingCode;
 
-  // Restore state from URL on mount
+  // ── URL persistence ───────────────────────────────────────────────────────
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const loc = p.get("loc") ?? "";
     const urg = p.get("urg") ?? "";
     const ct = p.get("ct") ?? "";
+    // pis = multi-select issues (new); pi = legacy single issue
+    const pis = p.get("pis") ?? "";
     const pi = p.get("pi") ?? "";
     const region = p.get("region") ?? "";
     const pay = p.get("pay") ?? "";
@@ -315,38 +389,60 @@ export function ReferralComposeForm({
     const fmt = p.get("fmt") ?? "";
     const gf = p.get("gf") ?? "";
     const age = p.get("age") ?? "";
+    const cms = p.get("cms") ?? "";
+    const mods = p.get("mods") ?? "";
+    const langs = p.get("langs") ?? "";
+    const gen = p.get("gen") ?? "";
+    const ss = p.get("ss") === "1";
+    const an = p.get("an") === "1";
     const sub = p.get("sub") === "1";
+
     if (loc) setLevelOfCare(loc);
     if (urg) setUrgency(urg);
     if (ct) setClientType(ct);
-    if (pi) setPresentingIssue(pi);
+    if (pis) setPresentingIssues(pis.split(",").filter(Boolean));
+    else if (pi) setPresentingIssues([pi]);
     if (region) setLocation(region);
     if (pay) setPayment(pay);
     if (ins) setInsurance(ins);
     if (fmt) setFormat(fmt);
     if (gf) setGroupFocus(gf);
     if (age) setAgeRange(age);
+    if (cms) setCommunities(cms.split(",").filter(Boolean));
+    if (mods) setModalities(mods.split(",").filter(Boolean));
+    if (langs) setLanguages(langs.split(",").filter(Boolean));
+    if (gen) setGender(gen);
+    if (ss) setSlidingScale(true);
+    if (an) setAcceptingNow(true);
     if (sub) { setSubmitted(true); setFormOpen(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Write state to URL on every change (no router — avoids re-renders)
   useEffect(() => {
     const p = new URLSearchParams();
     if (levelOfCare) p.set("loc", levelOfCare);
     if (urgency) p.set("urg", urgency);
     if (clientType) p.set("ct", clientType);
-    if (presentingIssue) p.set("pi", presentingIssue);
+    if (presentingIssues.length) p.set("pis", presentingIssues.join(","));
     if (location) p.set("region", location);
     if (payment) p.set("pay", payment);
     if (insurance) p.set("ins", insurance);
     if (format) p.set("fmt", format);
     if (groupFocus) p.set("gf", groupFocus);
     if (ageRange) p.set("age", ageRange);
+    if (communities.length) p.set("cms", communities.join(","));
+    if (modalities.length) p.set("mods", modalities.join(","));
+    if (languages.length) p.set("langs", languages.join(","));
+    if (gender) p.set("gen", gender);
+    if (slidingScale) p.set("ss", "1");
+    if (acceptingNow) p.set("an", "1");
     if (submitted) p.set("sub", "1");
     const qs = p.toString();
     window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
-  }, [levelOfCare, urgency, clientType, presentingIssue, location, payment, insurance, format, groupFocus, ageRange, submitted]);
+  }, [levelOfCare, urgency, clientType, presentingIssues, location, payment, insurance, format, groupFocus, ageRange, communities, modalities, languages, gender, slidingScale, acceptingNow, submitted]);
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const primaryIssue = levelOfCare === "Group Therapy" ? groupFocus : (presentingIssues[0] ?? "");
 
   const getRequiredFields = () => {
     switch (levelOfCare) {
@@ -354,30 +450,47 @@ export function ReferralComposeForm({
         return { clientType, groupFocus, format, payment, urgency };
       case "Intensive Outpatient (IOP)":
       case "Partial Hospitalization (PHP)":
-        return { clientType, presentingIssue, insurance, urgency };
+        return { clientType, presentingIssue: presentingIssues[0] ?? "", insurance, urgency };
       case "Residential Treatment":
-        return { clientType, presentingIssue, insurance, ageRange, urgency };
-      case "Weekly Therapy":
-      default:
-        return { clientType, presentingIssue, payment, urgency };
+        return { clientType, presentingIssue: presentingIssues[0] ?? "", insurance, ageRange, urgency };
+      default: // Weekly Therapy
+        return { clientType, presentingIssue: presentingIssues[0] ?? "", payment, urgency };
     }
   };
 
-  const requiredFieldsObj = getRequiredFields();
-  const hasRequiredFields = Boolean(levelOfCare) && Object.values(requiredFieldsObj).every(Boolean);
-  const selectedPresentingIssue = levelOfCare === "Group Therapy" ? groupFocus : presentingIssue;
-  const criteria = {
+  const hasRequiredFields = Boolean(levelOfCare) && Object.values(getRequiredFields()).every(Boolean);
+
+  const criteria: ContactCriteria = {
     levelOfCare,
     urgency,
     clientType,
-    presentingIssue: selectedPresentingIssue,
+    presentingIssue: levelOfCare === "Group Therapy" ? groupFocus : presentingIssues.join(", "),
     payment,
     location,
     insurance,
     privatePayMax,
     format,
-    additionalNotes
+    additionalNotes,
   };
+
+  // ── Relevant issues/modalities for current client type ────────────────────
+  const relevantIssues = clientType
+    ? (CLIENT_TYPE_RELEVANCE[clientType as ClientType]?.issues ?? [])
+    : [];
+  const relevantModalities = clientType
+    ? (CLIENT_TYPE_RELEVANCE[clientType as ClientType]?.modalities ?? [])
+    : [];
+
+  // ── Hard-filter + rank memos ──────────────────────────────────────────────
+  const extended: ExtendedCriteria = useMemo(() => ({
+    format: format || undefined,
+    gender: gender || undefined,
+    slidingScale: slidingScale || undefined,
+    acceptingNow: acceptingNow || undefined,
+    communities: communities.length ? communities : undefined,
+    modalities: modalities.length ? modalities : undefined,
+    languages: languages.length ? languages : undefined,
+  }), [format, gender, slidingScale, acceptingNow, communities, modalities, languages]);
 
   const filteredTherapists = useMemo(() =>
     therapists.filter((therapist) => {
@@ -391,19 +504,18 @@ export function ReferralComposeForm({
           levelOfCare === "Partial Hospitalization (PHP)" ||
           levelOfCare === "Residential Treatment") &&
         !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)
-      ) {
-        return false;
-      }
+      ) return false;
+      if (!passesHardFilters(extended, therapist)) return false;
       return true;
     }),
-    [therapists, levelOfCare, payment, location, insurance]
+    [therapists, levelOfCare, payment, location, insurance, extended]
   );
 
   const rankedTherapists = useMemo(() =>
     filteredTherapists
       .map((therapist) => {
-        const confidence = calculateMatchConfidence(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
-        const dimensions = getMatchDimensions(levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, therapist);
+        const confidence = calculateMatchConfidence(levelOfCare, clientType, primaryIssue, payment, location, insurance, therapist);
+        const dimensions = getMatchDimensions(levelOfCare, clientType, primaryIssue, payment, location, insurance, therapist);
 
         let urgencyBoost = 0;
         if (urgency.includes("Urgent") && !urgency.includes("Moderately") && therapist.availabilityStatus === "accepting") {
@@ -416,32 +528,41 @@ export function ReferralComposeForm({
           Number(Boolean(therapist.trustedByViewer)) * 8 +
           Number(Boolean(therapist.isFollowed)) * 5 +
           Math.min(therapist.trustedBy.length, 3) * 2;
-        const availabilityScore = getAvailabilityRank(therapist.availabilityStatus)
-          - (therapist.availabilityIsStale || therapist.recentlyReportedFull ? 1 : 0);
+        const availabilityScore =
+          getAvailabilityRank(therapist.availabilityStatus) -
+          (therapist.availabilityIsStale || therapist.recentlyReportedFull ? 1 : 0);
         const confidenceScore = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
 
-        return { therapist, confidence, dimensions, score: trustScore + availabilityScore + confidenceScore + urgencyBoost };
+        // Soft overlap bonus from extended criteria
+        const overlapBonus = softOverlapScore(extended, therapist);
+
+        // Multi-issue bonus: each additional selected issue that matches adds +1
+        const issueBonus = presentingIssues
+          .slice(1)
+          .reduce((acc, issue) => acc + (presentingIssueMatches(issue, therapist.specialties) ? 1 : 0), 0);
+
+        return {
+          therapist,
+          confidence,
+          dimensions,
+          score: trustScore + availabilityScore + confidenceScore + urgencyBoost + overlapBonus + issueBonus,
+        };
       })
       .sort((a, b) => b.score - a.score),
-    [filteredTherapists, levelOfCare, clientType, selectedPresentingIssue, payment, location, insurance, urgency]
+    [filteredTherapists, levelOfCare, clientType, primaryIssue, presentingIssues, payment, location, insurance, urgency, extended]
   );
 
   const { topMatches, trustedNetworkMatches, broaderMatches, effectiveTopMatches, effectiveBroader, hasAnyNetwork } =
     useMemo(() => {
       const inNetwork = (t: PublicTherapistSummary) => t.trustedByViewer || t.isFollowed || t.trustedBy.length > 0;
-
       const top = rankedTherapists.filter((m) => m.confidence === "high" && inNetwork(m.therapist));
       const topIds = new Set(top.map((m) => m.therapist.profileId));
-
       const trusted = rankedTherapists.filter((m) => !topIds.has(m.therapist.profileId) && inNetwork(m.therapist));
       const trustedIds = new Set(trusted.map((m) => m.therapist.profileId));
-
       const broader = rankedTherapists.filter((m) => !topIds.has(m.therapist.profileId) && !trustedIds.has(m.therapist.profileId));
-
       const effectiveTop = top.length > 0 ? top : rankedTherapists.filter((m) => m.confidence === "high");
       const effectiveTopIds = new Set(effectiveTop.map((m) => m.therapist.profileId));
       const effectiveBroad = rankedTherapists.filter((m) => !effectiveTopIds.has(m.therapist.profileId));
-
       return {
         topMatches: top,
         trustedNetworkMatches: trusted,
@@ -452,9 +573,10 @@ export function ReferralComposeForm({
       };
     }, [rankedTherapists]);
 
+  // ── Event handlers ────────────────────────────────────────────────────────
   const handleLevelOfCareChange = (level: string) => {
     setLevelOfCare(level);
-    setPresentingIssue("");
+    setPresentingIssues([]);
     setLocation("");
     setPayment("");
     setInsurance("");
@@ -465,11 +587,39 @@ export function ReferralComposeForm({
     setSubmitted(false);
   };
 
+  const handleFormatChange = (newFormat: string) => {
+    setFormat(newFormat);
+    // If switching to in-person and location was telehealth-only, clear it
+    if (newFormat === "In person" && location === "Telehealth Only") setLocation("");
+    setSubmitted(false);
+  };
+
   const handlePaymentChange = (newPayment: string) => {
     setPayment(newPayment);
     if (newPayment !== "Insurance" && newPayment !== "Both") setInsurance("");
     if (newPayment !== "Private Pay" && newPayment !== "Both") setPrivatePayMax("");
     setSubmitted(false);
+  };
+
+  const toggleMulti = (
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+    value: string
+  ) => {
+    setter((prev) => (prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]));
+    setSubmitted(false);
+  };
+
+  const handleClearAll = () => {
+    handleLevelOfCareChange("");
+    setUrgency("");
+    setClientType("");
+    setCommunities([]);
+    setModalities([]);
+    setLanguages([]);
+    setGender("");
+    setSlidingScale(false);
+    setAcceptingNow(false);
+    setAdditionalNotes("");
   };
 
   const [isPending, startTransition] = useTransition();
@@ -486,34 +636,50 @@ export function ReferralComposeForm({
     setFormOpen(true);
   };
 
-  const criteriaSummary = [
-    levelOfCare,
-    clientType,
-    selectedPresentingIssue,
-    location || null,
-    payment || null
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // ── Active filter chips ───────────────────────────────────────────────────
+  const activeFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; value: string; onRemove: () => void }> = [];
+    if (levelOfCare) chips.push({ key: "loc", label: "Level", value: levelOfCare, onRemove: () => handleLevelOfCareChange("") });
+    if (urgency) chips.push({ key: "urg", label: "Urgency", value: urgency.split(" - ")[0], onRemove: () => { setUrgency(""); setSubmitted(false); } });
+    if (clientType) chips.push({ key: "ct", label: "Client", value: clientType, onRemove: () => { setClientType(""); setSubmitted(false); } });
+    presentingIssues.forEach((issue) =>
+      chips.push({ key: `pi-${issue}`, label: "Issue", value: issue, onRemove: () => { setPresentingIssues((p) => p.filter((i) => i !== issue)); setSubmitted(false); } })
+    );
+    if (groupFocus) chips.push({ key: "gf", label: "Focus", value: groupFocus, onRemove: () => { setGroupFocus(""); setSubmitted(false); } });
+    if (format) chips.push({ key: "fmt", label: "Format", value: format, onRemove: () => handleFormatChange("") });
+    if (location) chips.push({ key: "region", label: "Area", value: location, onRemove: () => { setLocation(""); setSubmitted(false); } });
+    if (payment) chips.push({ key: "pay", label: "Payment", value: payment, onRemove: () => handlePaymentChange("") });
+    if (insurance) chips.push({ key: "ins", label: "Insurance", value: insurance, onRemove: () => { setInsurance(""); setSubmitted(false); } });
+    if (ageRange) chips.push({ key: "age", label: "Age", value: ageRange, onRemove: () => { setAgeRange(""); setSubmitted(false); } });
+    communities.forEach((c) =>
+      chips.push({ key: `cm-${c}`, label: "Community", value: c, onRemove: () => { setCommunities((p) => p.filter((x) => x !== c)); setSubmitted(false); } })
+    );
+    modalities.forEach((m) =>
+      chips.push({ key: `mod-${m}`, label: "Modality", value: m, onRemove: () => { setModalities((p) => p.filter((x) => x !== m)); setSubmitted(false); } })
+    );
+    languages.forEach((l) =>
+      chips.push({ key: `lang-${l}`, label: "Language", value: l, onRemove: () => { setLanguages((p) => p.filter((x) => x !== l)); setSubmitted(false); } })
+    );
+    if (gender) chips.push({ key: "gen", label: "Gender", value: gender, onRemove: () => { setGender(""); setSubmitted(false); } });
+    if (slidingScale) chips.push({ key: "ss", label: "Filter", value: "Sliding scale", onRemove: () => { setSlidingScale(false); setSubmitted(false); } });
+    if (acceptingNow) chips.push({ key: "an", label: "Filter", value: "Accepting now", onRemove: () => { setAcceptingNow(false); setSubmitted(false); } });
+    return chips;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelOfCare, urgency, clientType, presentingIssues, groupFocus, format, location, payment, insurance, ageRange, communities, modalities, languages, gender, slidingScale, acceptingNow]);
 
-  // Derive selected therapist objects from rankedTherapists
+  const moreFilterCount = communities.length + modalities.length + languages.length +
+    (gender ? 1 : 0) + (slidingScale ? 1 : 0) + (acceptingNow ? 1 : 0);
+
+  // ── Multi-select / batch helpers ──────────────────────────────────────────
   const selectedTherapists = useMemo(() =>
-    rankedTherapists
-      .map((m) => m.therapist)
-      .filter((t) => selectedProfileIds.has(t.profileId)),
+    rankedTherapists.map((m) => m.therapist).filter((t) => selectedProfileIds.has(t.profileId)),
     [rankedTherapists, selectedProfileIds]
   );
   const selectedWithEmail = selectedTherapists.filter((t) => Boolean(t.publicEmail));
   const selectedWithoutEmail = selectedTherapists.filter((t) => !t.publicEmail);
 
   const batchMailtoHref = selectedWithEmail.length > 0
-    ? buildBatchMailto(
-        senderEmail,
-        selectedWithEmail.map((t) => t.publicEmail as string),
-        senderName,
-        activeBatchCode,
-        criteria
-      )
+    ? buildBatchMailto(senderEmail, selectedWithEmail.map((t) => t.publicEmail as string), senderName, activeBatchCode, criteria)
     : undefined;
 
   function handleToggleSelect(profileId: string) {
@@ -534,10 +700,8 @@ export function ReferralComposeForm({
     startBatchTransition(async () => {
       const emailIds = selectedWithEmail.map((t) => t.profileId);
       const manualIds = selectedWithoutEmail.map((t) => t.profileId);
-
       const firstIds = emailIds.length ? emailIds : manualIds;
       const firstMethod = emailIds.length ? ("email" as const) : ("manual" as const);
-
       const result = await logReferralContacts({
         caseId: currentCaseId,
         clientReference: activeBatchCode,
@@ -553,13 +717,10 @@ export function ReferralComposeForm({
         referredProfileIds: firstIds,
         contactMethod: firstMethod,
       });
-
       if (!result.ok) return;
-
       setCurrentCaseId(result.caseId);
       setCurrentCode(result.clientReference);
       let total = result.loggedCount;
-
       if (emailIds.length > 0 && manualIds.length > 0) {
         const manualResult = await logReferralContacts({
           caseId: result.caseId,
@@ -578,11 +739,11 @@ export function ReferralComposeForm({
         });
         if (manualResult.ok) total += manualResult.loggedCount;
       }
-
       setBatchLogState({ loggedCount: total, code: result.clientReference });
     });
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {statusCopy && (
@@ -599,20 +760,51 @@ export function ReferralComposeForm({
               <button
                 type="button"
                 onClick={handleEditSearch}
-                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
+                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-primary hover:text-primary"
               >
                 <Pencil size={12} />
                 Edit Search
               </button>
             )}
           </div>
-          {submitted && !formOpen && criteriaSummary && (
-            <p className="mt-1 text-sm text-muted-foreground">{criteriaSummary}</p>
+
+          {/* Active filter chips — shown when form is collapsed */}
+          {submitted && !formOpen && activeFilterChips.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {activeFilterChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
+                >
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{chip.label}</span>
+                  {chip.value}
+                  <button
+                    type="button"
+                    onClick={chip.onRemove}
+                    aria-label={`Remove ${chip.label}: ${chip.value}`}
+                    className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-primary/10"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+              {activeFilterChips.length > 1 && (
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="rounded-full border border-slate-200 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-red-300 hover:text-red-600"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           )}
         </CardHeader>
 
         {formOpen && (
           <CardContent className="space-y-6">
+
+            {/* Level of Care */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-foreground">
                 Level of Care <span className="text-red-500">*</span>
@@ -639,6 +831,7 @@ export function ReferralComposeForm({
 
             {levelOfCare && (
               <>
+                {/* Urgency */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground" htmlFor="urgency">
                     Urgency <span className="text-red-500">*</span>
@@ -647,19 +840,20 @@ export function ReferralComposeForm({
                     className={`w-full rounded-2xl border px-4 py-3 text-sm transition ${urgency ? getUrgencyColor(urgency) : "bg-white text-slate-900"}`}
                     id="urgency"
                     value={urgency}
-                    onChange={(e) => setUrgency(e.target.value)}
+                    onChange={(e) => { setUrgency(e.target.value); setSubmitted(false); }}
                     required
                   >
                     <option value="">Select urgency level</option>
-                    {URGENCY_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
+                    {URGENCY_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                {/* ── Primary filters ─────────────────────────────────────── */}
+                <div className="space-y-4">
+
+                  {/* Client Type */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground" htmlFor="clientType">
                       Client Type <span className="text-red-500">*</span>
@@ -668,63 +862,88 @@ export function ReferralComposeForm({
                       className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                       id="clientType"
                       value={clientType}
-                      onChange={(e) => setClientType(e.target.value)}
+                      onChange={(e) => { setClientType(e.target.value); setSubmitted(false); }}
                       required
                     >
                       <option value="">Select client type</option>
                       {CLIENT_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
+                        <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Presenting Issues (multi-select chips) — not for Group Therapy */}
                   {levelOfCare !== "Group Therapy" && (
+                    <MultiSelectChips
+                      key={`issues-${clientType}`}
+                      label={
+                        levelOfCare === "Residential Treatment" ||
+                        levelOfCare === "Intensive Outpatient (IOP)" ||
+                        levelOfCare === "Partial Hospitalization (PHP)"
+                          ? "Primary Need"
+                          : "Presenting Issue(s)"
+                      }
+                      required
+                      options={PRESENTING_ISSUES}
+                      selected={presentingIssues}
+                      onToggle={(v) => toggleMulti(setPresentingIssues, v)}
+                      prioritized={relevantIssues}
+                      placeholder="Select one or more presenting concerns"
+                    />
+                  )}
+
+                  {/* Group Focus (Group Therapy only) */}
+                  {levelOfCare === "Group Therapy" && (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground" htmlFor="presentingIssue">
-                        {levelOfCare === "Residential Treatment" || levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" ? "Primary Need" : "Presenting Issue"}
-                        <span className="text-red-500">*</span>
+                      <label className="text-sm font-medium text-foreground" htmlFor="groupFocus">
+                        Group Focus <span className="text-red-500">*</span>
                       </label>
                       <select
                         className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                        id="presentingIssue"
-                        value={presentingIssue}
-                        onChange={(e) => setPresentingIssue(e.target.value)}
+                        id="groupFocus"
+                        value={groupFocus}
+                        onChange={(e) => { setGroupFocus(e.target.value); setSubmitted(false); }}
                         required
                       >
-                        <option value="">Select issue</option>
+                        <option value="">Select focus</option>
                         {PRESENTING_ISSUES.map((issue) => (
-                          <option key={issue} value={issue}>
-                            {issue}
-                          </option>
+                          <option key={issue} value={issue}>{issue}</option>
                         ))}
                       </select>
                     </div>
                   )}
 
-                  {levelOfCare === "Group Therapy" && (
-                    <>
+                  {/* Format row */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {/* Format — 3-way toggle for non-GT; dropdown for GT */}
+                    {levelOfCare !== "Group Therapy" ? (
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground" htmlFor="groupFocus">
-                          Group Focus <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                          id="groupFocus"
-                          value={groupFocus}
-                          onChange={(e) => setGroupFocus(e.target.value)}
-                          required
-                        >
-                          <option value="">Select focus</option>
-                          {PRESENTING_ISSUES.map((issue) => (
-                            <option key={issue} value={issue}>
-                              {issue}
-                            </option>
+                        <label className="text-sm font-medium text-foreground">Format</label>
+                        <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                          {[
+                            { value: "", label: "Either" },
+                            { value: "In person", label: "In person" },
+                            { value: "Telehealth", label: "Telehealth" },
+                          ].map(({ value, label }, idx, arr) => (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() => handleFormatChange(value)}
+                              aria-pressed={format === value}
+                              className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                                idx < arr.length - 1 ? "border-r border-slate-200" : ""
+                              } ${
+                                format === value
+                                  ? "bg-primary text-white"
+                                  : "bg-white text-slate-600 hover:bg-slate-50"
+                              }`}
+                            >
+                              {label}
+                            </button>
                           ))}
-                        </select>
+                        </div>
                       </div>
-
+                    ) : (
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-foreground" htmlFor="format">
                           Format <span className="text-red-500">*</span>
@@ -733,124 +952,241 @@ export function ReferralComposeForm({
                           className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                           id="format"
                           value={format}
-                          onChange={(e) => setFormat(e.target.value)}
+                          onChange={(e) => handleFormatChange(e.target.value)}
                           required
                         >
                           <option value="">Select format</option>
-                          {FORMAT_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
+                          {GROUP_FORMAT_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
                       </div>
-                    </>
-                  )}
+                    )}
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="location">
-                      Location
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                      id="location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    >
-                      <option value="">Any location</option>
-                      {LOCATION_OPTIONS.map((loc) => (
-                        <option key={loc} value={loc}>
-                          {loc}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Location */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground" htmlFor="location">
+                        Location
+                      </label>
+                      <select
+                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                        id="location"
+                        value={location}
+                        onChange={(e) => { setLocation(e.target.value); setSubmitted(false); }}
+                      >
+                        <option value="">Any location</option>
+                        {LOCATION_FILTER_OPTIONS.map((loc) => (
+                          <option key={loc} value={loc}>{loc}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
+                  {/* Payment row */}
                   {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground" htmlFor="payment">
-                        Payment <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                        id="payment"
-                        value={payment}
-                        onChange={(e) => handlePaymentChange(e.target.value)}
-                        required
-                      >
-                        <option value="">Select payment type</option>
-                        {PAYMENT_OPTIONS.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground" htmlFor="payment">
+                          Payment <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                          id="payment"
+                          value={payment}
+                          onChange={(e) => handlePaymentChange(e.target.value)}
+                          required
+                        >
+                          <option value="">Select payment type</option>
+                          {PAYMENT_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Insurance — inline when Payment = Insurance or Both */}
+                      {(payment === "Insurance" || payment === "Both") && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground" htmlFor="insurance">
+                            Insurance carrier
+                          </label>
+                          <select
+                            className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                            id="insurance"
+                            value={insurance}
+                            onChange={(e) => { setInsurance(e.target.value); setSubmitted(false); }}
+                          >
+                            <option value="">Select carrier</option>
+                            {INSURANCE_CARRIERS.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {(payment === "Private Pay" || payment === "Both") && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground" htmlFor="privatePayMax">
+                            Private Pay Max
+                          </label>
+                          <input
+                            className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                            id="privatePayMax"
+                            placeholder="e.g. $200"
+                            value={privatePayMax}
+                            onChange={(e) => { setPrivatePayMax(e.target.value); setSubmitted(false); }}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {((levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Insurance" || payment === "Both")) ||
-                  levelOfCare === "Intensive Outpatient (IOP)" ||
-                  levelOfCare === "Partial Hospitalization (PHP)" ||
-                  levelOfCare === "Residential Treatment" ? (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground" htmlFor="insurance">
-                        Insurance {(levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment") && <span className="text-red-500">*</span>}
-                      </label>
-                      <select
-                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                        id="insurance"
-                        value={insurance}
-                        onChange={(e) => setInsurance(e.target.value)}
-                        required={levelOfCare === "Intensive Outpatient (IOP)" || levelOfCare === "Partial Hospitalization (PHP)" || levelOfCare === "Residential Treatment"}
-                      >
-                        <option value="">Select insurance</option>
-                        {INSURANCE_CARRIERS.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : null}
+                  {/* IOP / PHP / Residential insurance */}
+                  {(levelOfCare === "Intensive Outpatient (IOP)" ||
+                    levelOfCare === "Partial Hospitalization (PHP)" ||
+                    levelOfCare === "Residential Treatment") && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground" htmlFor="insurance">
+                          Insurance <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                          id="insurance"
+                          value={insurance}
+                          onChange={(e) => { setInsurance(e.target.value); setSubmitted(false); }}
+                          required
+                        >
+                          <option value="">Select insurance</option>
+                          {INSURANCE_CARRIERS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  {(levelOfCare === "Weekly Therapy" || levelOfCare === "Group Therapy") && (payment === "Private Pay" || payment === "Both") && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground" htmlFor="privatePayMax">
-                        Private Pay Max
-                      </label>
-                      <input
-                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                        id="privatePayMax"
-                        placeholder="e.g. $200"
-                        value={privatePayMax}
-                        onChange={(e) => setPrivatePayMax(e.target.value)}
-                      />
-                    </div>
-                  )}
-
-                  {levelOfCare === "Residential Treatment" && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground" htmlFor="ageRange">
-                        Age Range <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                        id="ageRange"
-                        value={ageRange}
-                        onChange={(e) => setAgeRange(e.target.value)}
-                        required
-                      >
-                        <option value="">Select age range</option>
-                        {AGE_RANGE_OPTIONS.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
+                      {levelOfCare === "Residential Treatment" && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground" htmlFor="ageRange">
+                            Age Range <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                            id="ageRange"
+                            value={ageRange}
+                            onChange={(e) => { setAgeRange(e.target.value); setSubmitted(false); }}
+                            required
+                          >
+                            <option value="">Select age range</option>
+                            {AGE_RANGE_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
+                {/* ── More filters (collapsible) ───────────────────────────── */}
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setMoreFiltersOpen((v) => !v)}
+                    aria-expanded={moreFiltersOpen}
+                    className="flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Filter size={14} />
+                    More filters
+                    {moreFilterCount > 0 && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                        {moreFilterCount}
+                      </span>
+                    )}
+                    {moreFiltersOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+
+                  {moreFiltersOpen && (
+                    <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+
+                      {/* Communities */}
+                      <MultiSelectChips
+                        label="Communities / affirming"
+                        options={COMMUNITIES}
+                        selected={communities}
+                        onToggle={(v) => toggleMulti(setCommunities, v)}
+                        placeholder="e.g. LGBTQ+, BIPOC, Veterans…"
+                      />
+
+                      {/* Modalities */}
+                      <MultiSelectChips
+                        key={`mods-${clientType}`}
+                        label="Modality / approach"
+                        options={MODALITIES}
+                        selected={modalities}
+                        onToggle={(v) => toggleMulti(setModalities, v)}
+                        prioritized={relevantModalities}
+                        placeholder="e.g. EMDR, CBT, Gottman…"
+                      />
+
+                      {/* Therapist gender preference */}
+                      <div className="space-y-2">
+                        <span className="text-sm font-medium text-foreground">Therapist gender</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {["No preference", ...GENDERS].map((opt) => {
+                            const isActive = opt === "No preference" ? gender === "" : gender === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => { setGender(opt === "No preference" ? "" : opt); setSubmitted(false); }}
+                                aria-pressed={isActive}
+                                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                                  isActive
+                                    ? "bg-primary text-white shadow-sm"
+                                    : "border border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary"
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Languages */}
+                      <MultiSelectChips
+                        label="Language"
+                        options={LANGUAGES}
+                        selected={languages}
+                        onToggle={(v) => toggleMulti(setLanguages, v)}
+                        placeholder="e.g. Spanish, ASL…"
+                      />
+
+                      {/* Toggles */}
+                      <div className="flex flex-wrap gap-x-6 gap-y-3">
+                        <label className="flex cursor-pointer items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={slidingScale}
+                            onChange={(e) => { setSlidingScale(e.target.checked); setSubmitted(false); }}
+                            className="h-4 w-4 rounded accent-primary"
+                          />
+                          <span className="text-sm text-foreground">Offers sliding scale</span>
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={acceptingNow}
+                            onChange={(e) => { setAcceptingNow(e.target.checked); setSubmitted(false); }}
+                            className="h-4 w-4 rounded accent-primary"
+                          />
+                          <span className="text-sm text-foreground">Accepting new clients now</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional notes */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground" htmlFor="additionalNotes">
                     Additional Notes
@@ -858,11 +1194,24 @@ export function ReferralComposeForm({
                   <textarea
                     className="min-h-20 w-full rounded-2xl border bg-white px-4 py-3 text-sm"
                     id="additionalNotes"
-                    placeholder="Any additional context that might help the receiving therapist..."
+                    placeholder="Any additional context that might help the receiving therapist…"
                     value={additionalNotes}
                     onChange={(e) => { setAdditionalNotes(e.target.value); setSubmitted(false); }}
                   />
                 </div>
+
+                {/* Clear all — shown when multiple filters are active and form is open */}
+                {activeFilterChips.length > 1 && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleClearAll}
+                      className="text-xs text-muted-foreground transition-colors hover:text-red-600"
+                    >
+                      Clear all filters
+                    </button>
+                  </div>
+                )}
 
                 <button
                   type="button"
@@ -880,7 +1229,7 @@ export function ReferralComposeForm({
 
       {submitted ? (
         <div className="space-y-6">
-          {/* Active case banner + start-new-client control */}
+          {/* Active case banner */}
           {currentCode && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
               <p className="text-sm text-foreground">
@@ -890,7 +1239,7 @@ export function ReferralComposeForm({
               <button
                 type="button"
                 onClick={() => { setCurrentCaseId(undefined); setCurrentCode(undefined); }}
-                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
+                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-primary hover:text-primary"
               >
                 <RefreshCw size={11} />
                 Start new client
@@ -900,19 +1249,18 @@ export function ReferralComposeForm({
 
           {/* Multi-select action bar */}
           {selectedProfileIds.size > 0 && (
-            <div className="sticky top-4 z-10 rounded-2xl border border-primary/30 bg-white shadow-md px-4 py-3 space-y-3">
+            <div className="sticky top-4 z-10 space-y-3 rounded-2xl border border-primary/30 bg-white px-4 py-3 shadow-md">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-semibold text-foreground">
                   {selectedProfileIds.size} selected
                 </span>
-
                 {batchMailtoHref ? (
                   <a
                     href={batchMailtoHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={logBatch}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
                   >
                     {isBatchPending ? "Logging…" : "Contact selected"}
                   </a>
@@ -921,28 +1269,22 @@ export function ReferralComposeForm({
                     No email addresses on file for selected therapists — log manually below.
                   </span>
                 )}
-
                 <button
                   type="button"
                   onClick={handleClearSelection}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <X size={12} />
                   Clear selection
                 </button>
               </div>
-
-              {/* No-email notice */}
               {selectedWithoutEmail.length > 0 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   <span className="font-medium">No email on file — contact manually: </span>
                   {selectedWithoutEmail.map((t) => t.displayName).join(", ")}
-                  {". "}
-                  These will still be logged as referrals under the shared code.
+                  {". "}These will still be logged as referrals under the shared code.
                 </div>
               )}
-
-              {/* Batch log confirmation */}
               {batchLogState && (
                 <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
                   <span className="font-medium">
@@ -1090,9 +1432,7 @@ function MatchSection({
       <div className="flex items-center gap-2">
         {icon}
         <h2 className="text-base font-semibold text-foreground">{title}</h2>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-          {count}
-        </span>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{count}</span>
       </div>
       <div className="space-y-3">
         {visible.map(({ therapist, confidence, dimensions }) => (
@@ -1162,8 +1502,6 @@ function TherapistMatchCard({
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // Pre-mint a code at render time so the mailto href is fully built before any click.
-  // If an active case already exists (currentCode), use that code instead.
   const [pendingCode] = useState(() => mintReferralCode());
   const activeCode = currentCode ?? pendingCode;
 
@@ -1171,42 +1509,28 @@ function TherapistMatchCard({
     ? buildMailto(therapist.publicEmail, therapist.displayName, senderName, activeCode, criteria)
     : undefined;
 
-  const confidenceLabel =
-    confidence === "high" ? "High" : confidence === "medium" ? "Medium" : "Low";
+  const confidenceLabel = confidence === "high" ? "High" : confidence === "medium" ? "Medium" : "Low";
   const confidenceColor =
-    confidence === "high"
-      ? "text-green-600"
-      : confidence === "medium"
-        ? "text-amber-600"
-        : "text-muted-foreground";
+    confidence === "high" ? "text-green-600" : confidence === "medium" ? "text-amber-600" : "text-muted-foreground";
 
   const trustBadges: string[] = [];
   if (therapist.trustedByViewer) trustBadges.push("You Trust");
   else if (therapist.isFollowed) trustBadges.push("In Network");
-  else if (therapist.trustedBy.length === 1) {
-    trustBadges.push(`${therapist.trustedBy[0]?.name} trusts them`);
-  } else if (therapist.trustedBy.length > 1) {
-    trustBadges.push(`${therapist.trustedBy[0]?.name} +${therapist.trustedBy.length - 1} trust them`);
-  }
+  else if (therapist.trustedBy.length === 1) trustBadges.push(`${therapist.trustedBy[0]?.name} trusts them`);
+  else if (therapist.trustedBy.length > 1) trustBadges.push(`${therapist.trustedBy[0]?.name} +${therapist.trustedBy.length - 1} trust them`);
 
   const attributeChips: string[] = [];
-  if (therapist.populations.length > 0) {
-    attributeChips.push(`Works with ${therapist.populations[0]}`);
-  }
+  if (therapist.populations.length > 0) attributeChips.push(`Works with ${therapist.populations[0]}`);
   if (therapist.telehealth && therapist.availabilityStatus === "accepting" && !therapist.availabilityIsStale) {
     attributeChips.push("Available via Telehealth");
   } else if (therapist.telehealth) {
     attributeChips.push("Telehealth");
   }
-  if (therapist.inPerson && therapist.neighborhoods[0]) {
-    attributeChips.push(`Located in ${therapist.neighborhoods[0]}`);
-  }
+  if (therapist.inPerson && therapist.neighborhoods[0]) attributeChips.push(`Located in ${therapist.neighborhoods[0]}`);
   attributeChips.push(getPaymentModelLabel(therapist.paymentModel));
 
   const availabilityChipLabel = (() => {
-    if (therapist.availabilityStatus === "accepting" && therapist.availabilityIsStale) {
-      return "Availability unconfirmed";
-    }
+    if (therapist.availabilityStatus === "accepting" && therapist.availabilityIsStale) return "Availability unconfirmed";
     const base =
       therapist.availabilityStatus === "accepting" ? "Accepting" :
       therapist.availabilityStatus === "waitlist" ? "Waitlist" : "Full";
@@ -1244,9 +1568,7 @@ function TherapistMatchCard({
         contactMethod: therapist.publicEmail ? "email" : "manual",
       });
       setLogState(result);
-      if (result.ok) {
-        onCaseCreated(result.caseId, result.clientReference);
-      }
+      if (result.ok) onCaseCreated(result.caseId, result.clientReference);
     });
   }
 
@@ -1260,9 +1582,7 @@ function TherapistMatchCard({
 
   function handleCopyTemplate() {
     const code = logState?.ok ? logState.clientReference : activeCode;
-    navigator.clipboard.writeText(
-      buildMailtoBody(therapist.displayName, senderName, code, criteria)
-    );
+    navigator.clipboard.writeText(buildMailtoBody(therapist.displayName, senderName, code, criteria));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -1274,17 +1594,15 @@ function TherapistMatchCard({
     <div className={`rounded-2xl border bg-white p-5 transition-colors ${isSelected ? "border-primary/50 ring-1 ring-primary/20" : ""}`}>
       {/* Header row */}
       <div className="flex items-start gap-3">
-        {/* Selection checkbox */}
-        <div className="pt-1 shrink-0">
+        <div className="shrink-0 pt-1">
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggleSelect(therapist.profileId)}
             aria-label={`Select ${therapist.displayName}`}
-            className="h-4 w-4 rounded accent-primary cursor-pointer"
+            className="h-4 w-4 cursor-pointer rounded accent-primary"
           />
         </div>
-
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="font-semibold text-foreground">{therapist.displayName}</h3>
@@ -1316,10 +1634,7 @@ function TherapistMatchCard({
       {attributeChips.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {attributeChips.map((chip) => (
-            <span
-              key={chip}
-              className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
-            >
+            <span key={chip} className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600">
               {chip}
             </span>
           ))}
@@ -1354,7 +1669,7 @@ function TherapistMatchCard({
               <button
                 type="button"
                 onClick={handleCopyTemplate}
-                className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-medium text-green-700 transition-colors hover:bg-green-50"
               >
                 <ClipboardCopy size={12} />
                 {copied ? "Copied!" : "Copy inquiry template"}
@@ -1364,7 +1679,7 @@ function TherapistMatchCard({
                   href={therapist.bookingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-medium text-primary hover:underline underline-offset-4"
+                  className="text-xs font-medium text-primary underline-offset-4 hover:underline"
                 >
                   Booking page →
                 </a>
@@ -1378,32 +1693,25 @@ function TherapistMatchCard({
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {!alreadyLogged && (
           mailtoHref ? (
-            // Native anchor — browser opens mail client without any JavaScript gate
             <Button asChild className="min-w-[120px] flex-1">
               <a href={mailtoHref} target="_blank" rel="noopener noreferrer" onClick={handleLog}>
                 {isPending ? "Logging…" : "Contact & log"}
               </a>
             </Button>
           ) : (
-            // No email on file — log only
-            <Button
-              className="min-w-[120px] flex-1"
-              disabled={isPending}
-              onClick={handleLog}
-            >
+            <Button className="min-w-[120px] flex-1" disabled={isPending} onClick={handleLog}>
               {isPending ? "Logging…" : "Log contact"}
             </Button>
           )
         )}
 
-        {/* Always-visible fallback: copy the address, copy the message body */}
         {hasEmail && (
           <>
             <button
               type="button"
               onClick={handleCopyEmail}
               title="Copy email address"
-              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600 hover:border-primary hover:text-primary transition-colors"
+              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:border-primary hover:text-primary"
             >
               <ClipboardCopy size={11} className="shrink-0" />
               {copiedEmail ? "Copied!" : therapist.publicEmail}
@@ -1411,7 +1719,7 @@ function TherapistMatchCard({
             <button
               type="button"
               onClick={handleCopyTemplate}
-              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
+              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-primary hover:text-primary"
             >
               <ClipboardCopy size={12} />
               {copied ? "Copied!" : "Copy message"}
@@ -1419,12 +1727,11 @@ function TherapistMatchCard({
           </>
         )}
 
-        {/* No-email fallback: copy the inquiry template */}
         {!hasEmail && (
           <button
             type="button"
             onClick={handleCopyTemplate}
-            className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary transition-colors"
+            className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-primary hover:text-primary"
           >
             <ClipboardCopy size={12} />
             {copied ? "Copied!" : "Copy template"}
@@ -1468,10 +1775,7 @@ function TherapistMatchCard({
               ))}
             </ul>
           )}
-          <MatchBreakdown
-            dimensions={dimensions}
-            availabilityStatus={therapist.availabilityStatus}
-          />
+          <MatchBreakdown dimensions={dimensions} availabilityStatus={therapist.availabilityStatus} />
         </div>
       )}
     </div>
