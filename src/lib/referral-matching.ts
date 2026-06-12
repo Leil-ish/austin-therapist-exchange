@@ -135,7 +135,15 @@ export const PRESENTING_ISSUES = [
   "Burnout",
   "Sleep",
   "Bipolar Disorder",
-  "Anger"
+  "Anger",
+  "Psychosis",
+  "Schizophrenia / Schizophrenia-Spectrum",
+  "Schizoaffective Disorder",
+  "Personality Disorders",
+  "Dissociative Disorders",
+  "Self-Harm / Suicidality",
+  "Grief / Bereavement",
+  "Anger Management"
 ] as const;
 
 export const PAYMENT_OPTIONS = [
