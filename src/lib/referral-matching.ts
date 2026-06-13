@@ -202,7 +202,18 @@ export const INSURANCE_CARRIERS = [
   "Oscar",
   "Sendero",
   "Medicaid",
-  "Medicare"
+  "Medicare",
+  "Humana",
+  "Tricare",
+  "Ambetter",
+  "Carelon",
+  "Magellan",
+  "Quest Behavioral Health",
+  "Ascension",
+  "Scott & White",
+  "Curative",
+  "Sana",
+  "Moda"
 ] as const;
 
 export const URGENCY_LEVELS = ["Low", "Medium", "High", "Urgent"] as const;
@@ -318,6 +329,11 @@ export function insuranceMatches(
   const normalizedInsurance = normalizeForMatch(insurance);
 
   if (normalizedInsurance === "not sure") {
+    return true;
+  }
+
+  // Empty list means the therapist's accepted carriers are unknown — never exclude them.
+  if (!therapistInsuranceAccepted || therapistInsuranceAccepted.length === 0) {
     return true;
   }
 
@@ -457,13 +473,36 @@ export function locationMatches(location: string, therapistNeighborhoods: string
   );
 }
 
+/**
+ * Returns a signed score for how well a specific insurance carrier matches a therapist.
+ *   +1  — therapist lists the carrier
+ *   -1  — therapist lists other carriers but NOT this one
+ *    0  — therapist's list is empty/unknown (unknown passes; do not penalize)
+ */
+export function carrierScore(
+  carrier: string,
+  therapistInsuranceAccepted: string[]
+): number {
+  if (!carrier) return 0;
+  const normalizedCarrier = normalizeForMatch(carrier);
+  if (normalizedCarrier === "not sure" || normalizedCarrier === "out of network") return 0;
+
+  if (!therapistInsuranceAccepted || therapistInsuranceAccepted.length === 0) return 0;
+
+  const normalizedAccepted = therapistInsuranceAccepted.map(normalizeForMatch);
+  const found = normalizedAccepted.some(
+    (item) => item.includes(normalizedCarrier) || normalizedCarrier.includes(item)
+  );
+  return found ? 1 : -1;
+}
+
 export function calculateMatchConfidence(
   levelOfCare: string,
   clientType: string,
   presentingIssue: string,
   payment: string,
   location: string,
-  insurance: string,
+  _insurance: string,
   therapist: PublicTherapistSummary
 ): "high" | "medium" | "low" {
   let matches = 0;
@@ -493,14 +532,6 @@ export function calculateMatchConfidence(
     }
   }
 
-  // Payment
-  if (payment) {
-    total++;
-    if (paymentModelMatchesFilter(therapist.paymentModel, payment.toLowerCase().replace(" ", "_"))) {
-      matches++;
-    }
-  }
-
   // Location
   if (location) {
     total++;
@@ -509,17 +540,15 @@ export function calculateMatchConfidence(
     }
   }
 
-  // Insurance
-  if (insurance) {
-    total++;
-    if (insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)) {
-      matches++;
-    }
-  }
+  // Payment: soft factor — mismatch caps confidence at "medium", not excluded from results
+  const normalizedPayment = payment ? payment.toLowerCase().replace(/ /g, "_") : "";
+  const paymentCompatible =
+    !normalizedPayment ||
+    paymentModelMatchesFilter(therapist.paymentModel, normalizedPayment);
 
   const matchRatio = total > 0 ? matches / total : 0;
 
-  if (matchRatio >= 0.8) return "high";
+  if (matchRatio >= 0.8) return paymentCompatible ? "high" : "medium";
   if (matchRatio >= 0.6) return "medium";
   return "low";
 }
