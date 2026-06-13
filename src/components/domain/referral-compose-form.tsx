@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calculateMatchConfidence,
+  carrierScore,
   CLIENT_TYPE_RELEVANCE,
   CLIENT_TYPES,
   COMMUNITIES,
@@ -495,20 +496,13 @@ export function ReferralComposeForm({
   const filteredTherapists = useMemo(() =>
     therapists.filter((therapist) => {
       if (levelOfCare && !levelOfCareMatches(levelOfCare, therapist.offerings, therapist.bio)) return false;
-      if (payment && !paymentModelMatchesFilter(therapist.paymentModel, payment.toLowerCase().replace(" ", "_"))) return false;
       if (location && !locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) return false;
-      if (
-        insurance &&
-        (payment === "Insurance" || payment === "Both" ||
-          levelOfCare === "Intensive Outpatient (IOP)" ||
-          levelOfCare === "Partial Hospitalization (PHP)" ||
-          levelOfCare === "Residential Treatment") &&
-        !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)
-      ) return false;
+      // Insurance hard filter: known non-matching list → exclude; empty list → pass (unknown).
+      if (insurance && !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)) return false;
       if (!passesHardFilters(extended, therapist)) return false;
       return true;
     }),
-    [therapists, levelOfCare, payment, location, insurance, extended]
+    [therapists, levelOfCare, location, insurance, extended]
   );
 
   const rankedTherapists = useMemo(() =>
@@ -541,11 +535,17 @@ export function ReferralComposeForm({
           .slice(1)
           .reduce((acc, issue) => acc + (presentingIssueMatches(issue, therapist.specialties) ? 1 : 0), 0);
 
+        // Carrier-level soft match: +1 boost when carrier found, -1 when list is non-empty but missing, 0 when unknown
+        const carrierBonus =
+          insurance && (payment === "Insurance" || payment === "Both")
+            ? carrierScore(insurance, therapist.insuranceAccepted)
+            : 0;
+
         return {
           therapist,
           confidence,
           dimensions,
-          score: trustScore + availabilityScore + confidenceScore + urgencyBoost + overlapBonus + issueBonus,
+          score: trustScore + availabilityScore + confidenceScore + urgencyBoost + overlapBonus + issueBonus + carrierBonus,
         };
       })
       .sort((a, b) => b.score - a.score),
