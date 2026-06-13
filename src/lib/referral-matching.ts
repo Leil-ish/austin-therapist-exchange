@@ -116,7 +116,6 @@ export const PRESENTING_ISSUES = [
   "Trauma",
   "PTSD",
   "OCD",
-  "SUD",
   "Substance Use",
   "Eating Disorder",
   "Infidelity",
@@ -131,19 +130,17 @@ export const PRESENTING_ISSUES = [
   "Life Transitions",
   "Parenting",
   "Self Esteem",
-  "Grief Loss",
+  "Grief / Bereavement",
   "Burnout",
   "Sleep",
   "Bipolar Disorder",
-  "Anger",
+  "Anger Management",
   "Psychosis",
   "Schizophrenia / Schizophrenia-Spectrum",
   "Schizoaffective Disorder",
   "Personality Disorders",
   "Dissociative Disorders",
-  "Self-Harm / Suicidality",
-  "Grief / Bereavement",
-  "Anger Management"
+  "Self-Harm / Suicidality"
 ] as const;
 
 export const PAYMENT_OPTIONS = [
@@ -190,7 +187,11 @@ export const MODALITIES = [
   "Family systems",
   "Gottman",
   "Exposure therapy",
-  "Mindfulness-based"
+  "Mindfulness-based",
+  "Brainspotting",
+  "ART",
+  "CPT",
+  "Ketamine-Assisted"
 ] as const;
 
 export const INSURANCE_CARRIERS = [
@@ -390,10 +391,8 @@ export function presentingIssueMatches(presentingIssue: string, therapistSpecial
                                   "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
     "ptsd":                      ["ptsd", "post-traumatic", "trauma / ptsd", "complex trauma", "childhood trauma"],
     "ocd":                       ["ocd", "obsessive-compulsive", "obsessive"],
-    "sud":                       ["addiction", "substance", "alcohol", "drugs", "harm reduction",
-                                  "relapse", "recovery", "process addiction", "substance use disorders"],
     "substance use":             ["substance", "addiction", "alcohol", "drugs", "harm reduction",
-                                  "relapse", "recovery", "process addiction", "substance use"],
+                                  "relapse", "recovery", "process addiction", "substance use", "substance use disorders"],
     "eating disorder":           ["eating disorder", "eating disorders", "eating", "anorexia",
                                   "bulimia", "body image", "body dysmorphia"],
     "infidelity":                ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
@@ -415,11 +414,11 @@ export function presentingIssueMatches(presentingIssue: string, therapistSpecial
     "parenting":                 ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
     "self esteem":               ["self-esteem", "self esteem", "self worth", "confidence",
                                   "identity", "women's development", "religious deconstruction"],
-    "grief loss":                ["grief", "loss", "bereavement", "grief / loss"],
+    "grief / bereavement":       ["grief", "loss", "bereavement", "grief / loss", "grief / bereavement"],
     "burnout":                   ["burnout", "stress", "work-life", "career discord", "perfectionism"],
     "sleep":                     ["sleep", "insomnia"],
     "bipolar disorder":          ["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
-    "anger":                     ["anger", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
+    "anger management":          ["anger", "anger management", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
   };
 
   const keywords = issueMappings[normalizedIssue] || [normalizedIssue];
