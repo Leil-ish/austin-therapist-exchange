@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { TrustedClinicianList } from "@/components/domain/trusted-clinician-list";
 import { getSession } from "@/lib/auth/session";
 import { getAvailabilityLabel, getFollowedClinicians, getPublicTherapists } from "@/lib/data/live-data";
 
@@ -51,27 +52,7 @@ export default async function MemberNetworkPage() {
           <p className="text-sm text-muted-foreground">These therapists stay close at hand while you are making referrals.</p>
         </div>
         {following.length > 0 ? (
-          <div className="space-y-3">
-            {following.map((clinician) => (
-              <Card className="bg-white/90" key={clinician.profileId}>
-                <CardContent className="flex items-start justify-between gap-4 pt-5 pb-5">
-                  <div className="space-y-1.5">
-                    <div>
-                      <p className="font-medium text-foreground">{clinician.displayName}</p>
-                      <p className="text-sm text-muted-foreground">{clinician.title}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge>{getAvailabilityLabel(clinician.availabilityStatus)}</Badge>
-                      <span className="text-xs text-muted-foreground">Added {clinician.followedAtLabel}</span>
-                    </div>
-                  </div>
-                  <Link className="shrink-0 text-sm font-medium text-primary hover:text-primary/80" href={`/directory/${clinician.slug}`}>
-                    View profile
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <TrustedClinicianList following={following} />
         ) : (
           <EmptyState
             title="No trusted therapists saved yet"
