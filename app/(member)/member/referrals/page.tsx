@@ -2,7 +2,6 @@ import { IncomingReferrals } from "@/components/domain/incoming-referrals";
 import { ReferralComposeForm } from "@/components/domain/referral-compose-form";
 import { ReferralTracker } from "@/components/domain/referral-tracker";
 import { EmptyState } from "@/components/state/empty-state";
-import { Card, CardContent } from "@/components/ui/card";
 import { requireMember } from "@/lib/auth/guards";
 import { getReferralCandidateTherapists } from "@/lib/data/live-data";
 import { getIncomingReferrals, getReferralTracking } from "@/lib/data/referral-tracking";
@@ -46,6 +45,14 @@ export default async function MemberReferralsPage({
 
   return (
     <div className="space-y-8">
+      {/* Referral compose form */}
+      <ReferralComposeForm
+        statusCopy={statusCopy}
+        therapists={therapists}
+        senderName={session.fullName ?? ""}
+        senderEmail={session.email ?? ""}
+      />
+
       {/* Incoming referrals */}
       <section className="space-y-4">
         <div className="space-y-1">
@@ -68,21 +75,6 @@ export default async function MemberReferralsPage({
           />
         )}
       </section>
-
-      {/* Referral compose form */}
-      <Card className="bg-white/90">
-        <CardContent className="space-y-4 pt-6">
-          <p className="text-sm text-muted-foreground">
-            Start with structured referral criteria and see therapist matches before reviewing referral activity.
-          </p>
-          <ReferralComposeForm
-            statusCopy={statusCopy}
-            therapists={therapists}
-            senderName={session.fullName ?? ""}
-            senderEmail={session.email ?? ""}
-          />
-        </CardContent>
-      </Card>
 
       {/* Sent referrals */}
       <section className="space-y-4">

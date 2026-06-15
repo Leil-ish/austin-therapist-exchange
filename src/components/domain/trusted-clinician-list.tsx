@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { getAvailabilityLabel } from "@/lib/availability-label";
+import type { AvailabilityStatus, FollowedClinicianSummary } from "@/types";
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -14,7 +13,31 @@ function getInitials(name: string): string {
   }
   return name.slice(0, 2).toUpperCase();
 }
-import type { FollowedClinicianSummary } from "@/types";
+
+function AvailabilityDot({ status }: { status: AvailabilityStatus }) {
+  if (status === "accepting") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+        Accepting
+      </span>
+    );
+  }
+  if (status === "waitlist") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+        Limited
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/50">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/30" />
+      Not accepting
+    </span>
+  );
+}
 
 const PAGE_SIZE = 5;
 
@@ -27,13 +50,13 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
   return (
     <div className="space-y-2">
       <Card className="overflow-hidden bg-white/90">
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-border/40">
           {visible.map((clinician) => (
-            <li key={clinician.profileId} className="flex items-center gap-0 px-4 py-3">
+            <li key={clinician.profileId} className="flex items-center gap-0 px-5 py-3.5">
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span
                   aria-hidden="true"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8 text-xs font-medium text-primary/70"
                 >
                   {getInitials(clinician.displayName)}
                 </span>
@@ -42,12 +65,12 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
                   <p className="truncate text-xs text-muted-foreground">{clinician.title}</p>
                 </div>
               </div>
-              <div className="flex w-44 shrink-0 justify-center">
-                <Badge className="w-full justify-center">{getAvailabilityLabel(clinician.availabilityStatus)}</Badge>
+              <div className="flex w-36 shrink-0 justify-center">
+                <AvailabilityDot status={clinician.availabilityStatus} />
               </div>
-              <span className="w-32 shrink-0 text-right text-xs text-muted-foreground">Added {clinician.followedAtLabel}</span>
+              <span className="w-32 shrink-0 text-right text-xs text-muted-foreground/60">Added {clinician.followedAtLabel}</span>
               <Link
-                className="w-24 shrink-0 text-right text-sm font-medium text-primary hover:text-primary/80"
+                className="w-24 shrink-0 text-right text-sm font-medium text-primary transition-colors hover:text-primary/70"
                 href={`/directory/${clinician.slug}`}
               >
                 View profile
@@ -59,7 +82,7 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
 
       {!expanded && remaining > 0 && (
         <button
-          className="text-sm font-medium text-primary hover:text-primary/80"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           onClick={() => setExpanded(true)}
           type="button"
         >
@@ -68,7 +91,7 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
       )}
       {expanded && following.length > PAGE_SIZE && (
         <button
-          className="text-sm font-medium text-primary hover:text-primary/80"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           onClick={() => setExpanded(false)}
           type="button"
         >

@@ -26,11 +26,11 @@ export default async function MemberNetworkPage() {
     .slice(0, 6);
 
   return (
-    <div className="space-y-8">
-      <section className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border bg-white/90 p-6">
-        <div className="space-y-2">
-          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Network</p>
-          <h2 className="font-serif text-3xl text-foreground">People you trust and who they trust</h2>
+    <div className="space-y-10">
+      <section className="flex flex-wrap items-end justify-between gap-4 rounded-2xl bg-white/80 p-7 shadow-paper">
+        <div className="space-y-1.5">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">Network</p>
+          <h2 className="font-serif text-2xl leading-tight text-foreground">People you trust and who they trust</h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Keep trusted therapists close, see second-degree trust clearly, and remember who you refer to most.
           </p>
@@ -43,9 +43,9 @@ export default async function MemberNetworkPage() {
       {/* People you trust */}
       <section className="space-y-4">
         <div className="space-y-1">
-          <h3 className="font-serif text-2xl text-foreground">
+          <h3 className="font-serif text-xl text-foreground">
             People you trust
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
               · {following.length} colleagues
             </span>
           </h3>
@@ -64,11 +64,11 @@ export default async function MemberNetworkPage() {
       {/* People you may want to trust */}
       <section className="space-y-4">
         <div className="space-y-1">
-          <h3 className="font-serif text-2xl text-foreground">People you may want to trust</h3>
+          <h3 className="font-serif text-xl text-foreground">People you may want to trust</h3>
           <p className="text-sm text-muted-foreground">Vouched for by colleagues you already trust — good next connections to review.</p>
         </div>
         {suggestions.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
             {suggestions.map((therapist) => {
               const voucherNames = therapist.trustedBy.map((t) => t.name);
               const voucherCopy =
@@ -78,19 +78,23 @@ export default async function MemberNetworkPage() {
                     ? `Trusted by ${voucherNames[0]} and ${voucherNames[1]}`
                     : `Trusted by ${voucherNames[0]} and ${voucherNames.length - 1} others you trust`;
 
+              const availLabel = getAvailabilityLabel(therapist.availabilityStatus);
+
               return (
                 <Card className="bg-white/90" key={therapist.profileId}>
-                  <CardContent className="space-y-3 pt-6">
+                  <CardContent className="space-y-3 pt-7">
                     <div>
-                      <p className="font-medium text-foreground">{therapist.displayName}</p>
+                      <p className="text-base font-semibold leading-snug text-foreground">{therapist.displayName}</p>
                       <p className="text-sm text-muted-foreground">{therapist.title}</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
-                      <Badge variant="outline">{therapist.neighborhoods[0] ?? therapist.city}</Badge>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="muted">{availLabel}</Badge>
+                      {(therapist.neighborhoods[0] ?? therapist.city) && (
+                        <Badge variant="outline">{therapist.neighborhoods[0] ?? therapist.city}</Badge>
+                      )}
                     </div>
-                    <p className="text-xs font-medium text-primary">{voucherCopy}</p>
-                    <Link className="text-sm font-medium text-primary hover:text-primary/80" href={`/directory/${therapist.slug}`}>
+                    <p className="text-xs text-muted-foreground">{voucherCopy}</p>
+                    <Link className="text-sm font-medium text-primary transition-colors hover:text-primary/70" href={`/directory/${therapist.slug}`}>
                       View profile
                     </Link>
                   </CardContent>

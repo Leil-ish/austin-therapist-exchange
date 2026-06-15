@@ -802,30 +802,28 @@ export function ReferralComposeForm({
         </CardHeader>
 
         {formOpen && (
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
 
             {/* Level of Care */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-foreground">
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Level of Care <span className="text-red-500">*</span>
               </label>
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-2 shadow-sm">
-                <div className="flex flex-wrap gap-2">
-                  {LEVELS_OF_CARE.map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => handleLevelOfCareChange(levelOfCare === level ? "" : level)}
-                      className={`rounded-full px-5 py-3 text-sm font-semibold transition ${
-                        levelOfCare === level
-                          ? "bg-primary text-white shadow"
-                          : "border border-slate-300 bg-white text-slate-700 hover:border-primary hover:text-primary"
-                      }`}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-1.5">
+                {LEVELS_OF_CARE.map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => handleLevelOfCareChange(levelOfCare === level ? "" : level)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                      levelOfCare === level
+                        ? "bg-primary text-white shadow-sm"
+                        : "border border-slate-200 bg-white text-slate-600 hover:border-primary/40 hover:text-primary"
+                    }`}
+                  >
+                    {level}
+                  </button>
+                ))}
               </div>
             </div>
 
