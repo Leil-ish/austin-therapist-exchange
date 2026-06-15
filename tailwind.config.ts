@@ -41,7 +41,8 @@ const config: Config = {
       },
       boxShadow: {
         soft: "0 22px 50px -30px rgba(34, 92, 94, 0.28)",
-        paper: "0 8px 24px rgba(164, 132, 92, 0.12)"
+        paper: "0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(164, 132, 92, 0.11)",
+        "paper-hover": "0 2px 6px rgba(0,0,0,0.06), 0 12px 32px rgba(164, 132, 92, 0.16)"
       }
     }
   },

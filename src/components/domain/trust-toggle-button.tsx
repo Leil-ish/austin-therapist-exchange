@@ -1,15 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
-import { Button } from "@/components/ui/button";
 
 export function TrustToggleButton({
   followedProfileId,
   initialIsFollowed,
-  size = "sm"
 }: {
   followedProfileId: string;
   initialIsFollowed: boolean;
@@ -37,36 +35,40 @@ export function TrustToggleButton({
     });
   }
 
-  let label: React.ReactNode;
-  if (isPending) {
-    label = <span className="opacity-50">Saving…</span>;
-  } else if (isFollowed) {
-    label = hovered ? (
-      "Remove"
-    ) : (
-      <>
-        <Check className="mr-1.5 h-3.5 w-3.5" />
-        In your network
-      </>
-    );
-  } else {
-    label = "Add to trusted network";
-  }
-
-  const unfollowedVariant = size === "default" ? "outline" : "ghost";
-
   return (
     <div className="flex flex-col gap-1">
-      <Button
-        disabled={isPending}
-        onClick={handleClick}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        size={size}
-        variant={isFollowed ? "outline" : unfollowedVariant}
-      >
-        {label}
-      </Button>
+      {isFollowed ? (
+        <div
+          className="inline-flex items-center"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          {hovered ? (
+            <button
+              className="text-xs text-muted-foreground/60 transition-colors hover:text-red-500 disabled:opacity-40"
+              disabled={isPending}
+              onClick={handleClick}
+              type="button"
+            >
+              {isPending ? "Saving…" : "Remove"}
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-foreground/40" />
+              Trusted
+            </span>
+          )}
+        </div>
+      ) : (
+        <button
+          className="text-sm font-medium text-foreground transition-colors hover:text-foreground/70 disabled:opacity-40"
+          disabled={isPending}
+          onClick={handleClick}
+          type="button"
+        >
+          {isPending ? <span className="opacity-50">Saving…</span> : "+ Add to trusted network"}
+        </button>
+      )}
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
     </div>
   );

@@ -1,10 +1,10 @@
 import Link from "next/link";
 
-import { signOut } from "@/app-actions/auth-actions";
 import { getSession } from "@/lib/auth/session";
 import { getIncomingReferrals } from "@/lib/data/referral-tracking";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "./mobile-nav";
+import { UserAvatarMenu } from "./user-avatar-menu";
 
 const publicNav = [
   { href: "/directory", label: "Directory" },
@@ -14,7 +14,6 @@ const publicNav = [
 const memberNav = [
   { href: "/member/referrals", label: "Referrals" },
   { href: "/member/network", label: "Network" },
-  { href: "/member/profile", label: "Profile" },
   { href: "/directory", label: "Directory" }
 ] as const;
 
@@ -59,11 +58,7 @@ export async function SiteHeader() {
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-3 md:flex">
             {session ? (
-              <form action={signOut}>
-                <Button type="submit" variant="outline">
-                  Sign out
-                </Button>
-              </form>
+              <UserAvatarMenu fullName={session.fullName} email={session.email} />
             ) : (
               <>
                 <Button asChild variant="ghost">

@@ -3,14 +3,40 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TrustToggleButton } from "@/components/domain/trust-toggle-button";
-import { getAvailabilityLabel, getPaymentModelLabelForUi } from "@/lib/data/live-data";
-import type { PublicTherapistSummary } from "@/types";
+import { getPaymentModelLabelForUi } from "@/lib/data/live-data";
+import type { AvailabilityStatus, PublicTherapistSummary } from "@/types";
 
-function getAvailabilityBadge(therapist: PublicTherapistSummary): { label: string; stale: boolean } {
-  if (therapist.availabilityIsStale) {
-    return { label: "Availability unconfirmed", stale: true };
+function AvailabilityDot({ status, stale }: { status: AvailabilityStatus; stale: boolean }) {
+  if (stale) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/30" />
+        Unconfirmed
+      </span>
+    );
   }
-  return { label: getAvailabilityLabel(therapist.availabilityStatus), stale: false };
+  if (status === "accepting") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+        Accepting
+      </span>
+    );
+  }
+  if (status === "waitlist") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+        Limited
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/50">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/30" />
+      Not accepting
+    </span>
+  );
 }
 
 export function getInitials(name: string): string {
@@ -74,7 +100,7 @@ function TherapistAvatar({
   avatarUrl?: string;
   size?: "sm" | "md";
 }) {
-  const dim = size === "sm" ? "h-10 w-10 text-sm" : "h-12 w-12 text-base";
+  const dim = size === "sm" ? "h-9 w-9 text-xs" : "h-11 w-11 text-sm";
 
   if (avatarUrl) {
     return (
@@ -90,7 +116,7 @@ function TherapistAvatar({
   return (
     <span
       aria-hidden="true"
-      className={`${dim} flex shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary`}
+      className={`${dim} flex shrink-0 items-center justify-center rounded-full bg-primary/8 font-medium text-primary/70`}
     >
       {getInitials(name)}
     </span>
@@ -107,73 +133,76 @@ export function TherapistCard({
   const canFollow = currentProfileId && currentProfileId !== therapist.profileId;
   const trustContext = getTrustContext(therapist, !!currentProfileId);
   const meta = getCompactMeta(therapist);
-  const tags = [
-    ...therapist.specialties.slice(0, 2),
-  ];
-
-  const { label: availLabel, stale: availStale } = getAvailabilityBadge(therapist);
+  const specialtyTags = therapist.specialties.slice(0, 2);
+  const communityTags = therapist.communities.slice(0, 1);
 
   return (
-    <Card className="h-full bg-white/90">
-      <CardHeader className="pb-3">
-        {/* Name + avatar row */}
-        <div className="flex items-start gap-3">
-          <TherapistAvatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-lg font-semibold leading-tight">{therapist.displayName}</p>
-              <Badge variant={availStale ? "muted" : "default"} className="shrink-0 text-xs">
-                {availLabel}
-              </Badge>
+    <div className="group relative h-full">
+      <Card className="flex h-full flex-col bg-white/90 transition-shadow group-hover:shadow-paper-hover">
+        <CardHeader className="pb-3">
+          {/* Name + avatar row */}
+          <div className="flex items-start gap-3">
+            <TherapistAvatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-base font-semibold leading-snug text-foreground">{therapist.displayName}</p>
+                <AvailabilityDot status={therapist.availabilityStatus} stale={therapist.availabilityIsStale} />
+              </div>
+              <p className="mt-0.5 text-sm text-muted-foreground">{therapist.title}</p>
+              {therapist.recentlyReportedFull && (
+                <p className="mt-1 text-xs text-amber-600">Recently reported full by a colleague</p>
+              )}
             </div>
-            <p className="mt-0.5 text-sm text-muted-foreground">{therapist.title}</p>
-            {therapist.recentlyReportedFull && (
-              <p className="mt-1 text-xs text-amber-600">Recently reported full by a colleague</p>
-            )}
           </div>
-        </div>
 
-        {therapist.headline ? (
-          <p className="mt-1 text-sm italic text-primary/80">&ldquo;{therapist.headline}&rdquo;</p>
-        ) : null}
-      </CardHeader>
-
-      <CardContent className="space-y-3 pt-0">
-        {/* Specialty + community tags */}
-        {tags.length > 0 || therapist.communities.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <Badge key={tag} variant="muted" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {therapist.communities.slice(0, 1).map((community) => (
-              <Badge key={community} variant="outline" className="border-primary/30 text-xs text-primary">
-                {community}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-
-        {/* Meta + trust */}
-        <div className="space-y-0.5 text-xs text-muted-foreground">
-          <p>{meta}</p>
-          <p>{trustContext}</p>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-3 pt-1">
-          {canFollow ? (
-            <TrustToggleButton
-              followedProfileId={therapist.profileId}
-              initialIsFollowed={therapist.isFollowed ?? false}
-            />
+          {therapist.headline ? (
+            <p className="mt-1 text-sm italic text-muted-foreground/70">&ldquo;{therapist.headline}&rdquo;</p>
           ) : null}
-          <Link className="text-sm font-medium text-primary hover:text-primary/80" href={`/directory/${therapist.slug}`}>
-            View profile
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+        </CardHeader>
+
+        <CardContent className="flex flex-1 flex-col pt-0">
+          <div className="space-y-3">
+            {/* Specialty + community tags */}
+            {specialtyTags.length > 0 || communityTags.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {specialtyTags.map((tag) => (
+                  <Badge key={tag} variant="muted">
+                    {tag}
+                  </Badge>
+                ))}
+                {communityTags.map((community) => (
+                  <Badge key={community} variant="outline" className="text-primary/70">
+                    {community}
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
+
+            {/* Meta + trust */}
+            <div className="space-y-0.5 text-xs text-muted-foreground">
+              <p>{meta}</p>
+              <p>{trustContext}</p>
+            </div>
+          </div>
+
+          {/* Trust action — pinned to bottom, floats above the card link */}
+          {canFollow ? (
+            <div className="relative z-10 mt-auto pt-4">
+              <TrustToggleButton
+                followedProfileId={therapist.profileId}
+                initialIsFollowed={therapist.isFollowed ?? false}
+              />
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {/* Stretched link — covers the full card; trust button floats above via z-10 */}
+      <Link
+        aria-label={`View ${therapist.displayName}'s profile`}
+        className="absolute inset-0 cursor-pointer rounded-[24px]"
+        href={`/directory/${therapist.slug}`}
+      />
+    </div>
   );
 }
