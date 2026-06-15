@@ -1,15 +1,12 @@
-import Link from "next/link";
-
 import { IncomingReferrals } from "@/components/domain/incoming-referrals";
-import { MarkReferralsRead } from "@/components/domain/mark-referrals-read";
 import { ReferralComposeForm } from "@/components/domain/referral-compose-form";
+import { ReferralTracker } from "@/components/domain/referral-tracker";
 import { EmptyState } from "@/components/state/empty-state";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireMember } from "@/lib/auth/guards";
-import { getDirectReferralActivity, getReferralCandidateTherapists } from "@/lib/data/live-data";
-import { getIncomingReferrals } from "@/lib/data/referral-tracking";
-import type { DirectReferralActivityItem } from "@/types";
+import { getReferralCandidateTherapists } from "@/lib/data/live-data";
+import { getIncomingReferrals, getReferralTracking } from "@/lib/data/referral-tracking";
+import { getThisMonthCount } from "@/lib/referral-utils";
 
 function getStatusCopy(sent?: string, error?: string, responded?: string) {
   if (sent === "1") {
@@ -27,18 +24,6 @@ function getStatusCopy(sent?: string, error?: string, responded?: string) {
   return null;
 }
 
-function getReferralStage(status: string, readAt?: string) {
-  if (status === "accepted" || status === "matched" || status === "completed" || status === "declined" || status === "closed") {
-    return "Responded";
-  }
-
-  if (readAt) {
-    return "Viewed";
-  }
-
-  return "Pending";
-}
-
 export default async function MemberReferralsPage({
   searchParams
 }: {
@@ -47,214 +32,78 @@ export default async function MemberReferralsPage({
   const session = await requireMember();
   const params = searchParams ? await searchParams : undefined;
   const statusCopy = getStatusCopy(params?.directReferralSent, params?.directReferralError, params?.referralResponded);
-  const [therapists, directReferrals, incomingReferrals] = await Promise.all([
+
+  const [therapists, incomingReferrals, referralCases] = await Promise.all([
     getReferralCandidateTherapists(session.userId),
-    getDirectReferralActivity(session.userId),
     getIncomingReferrals(session.userId),
+    getReferralTracking(session.userId),
   ]);
 
-  // Group outgoing referrals by therapist for the "Referred to" tracker
-  const referredToMap = new Map<string, {
-    key: string;
-    name: string;
-    slug?: string;
-    referrals: DirectReferralActivityItem[];
-    lastReferralLabel: string;
-  }>();
-  for (const item of directReferrals.outgoing) {
-    const key = item.counterpartSlug ?? item.counterpartName;
-    const existing = referredToMap.get(key);
-    if (!existing) {
-      referredToMap.set(key, {
-        key,
-        name: item.counterpartName,
-        slug: item.counterpartSlug,
-        referrals: [item],
-        lastReferralLabel: item.createdAtLabel
-      });
-    } else {
-      existing.referrals.push(item);
-      existing.lastReferralLabel = item.createdAtLabel;
-    }
-  }
-  const referredTo = [...referredToMap.values()].sort(
-    (a, b) => b.referrals.length - a.referrals.length
-  );
+  // Cases with status "open" have not yet been placed or closed — still awaiting a response.
+  const openIncomingCount = incomingReferrals.filter((r) => r.status === "open").length;
+  const awaitingCount = referralCases.filter((c) => c.status === "open").length;
+  const sentThisMonth = getThisMonthCount(referralCases);
 
-  const unreadMessageIds = directReferrals.incoming
-    .filter(item => item.messageId && !item.readAt)
-    .map(item => item.messageId as string);
+  return (
+    <div className="space-y-8">
+      {/* Incoming referrals */}
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h3 className="font-serif text-2xl text-foreground">
+            Incoming referrals
+            {openIncomingCount > 0 && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                · {openIncomingCount} open
+              </span>
+            )}
+          </h3>
+          <p className="text-sm text-muted-foreground">{incomingReferrals.length} received total</p>
+        </div>
+        {incomingReferrals.length > 0 ? (
+          <IncomingReferrals referrals={incomingReferrals} />
+        ) : (
+          <EmptyState
+            title="No incoming referrals yet"
+            description="Referrals sent to you by colleagues will appear here."
+          />
+        )}
+      </section>
 
-  const unreadCount = incomingReferrals.filter((r) => r.status === "open").length;
-  const hasIncoming = incomingReferrals.length > 0;
-
-  const composeFormCard = (
-    <Card className="bg-white/90">
-      <CardHeader>
-        <CardTitle>Referral search</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Start with structured referral criteria and see therapist matches before reviewing referral activity.
-        </p>
-        <ReferralComposeForm statusCopy={statusCopy} therapists={therapists} senderName={session.fullName ?? ""} senderEmail={session.email ?? ""} />
-      </CardContent>
-    </Card>
-  );
-
-  const statsSection = (
-    <section className="grid gap-4 md:grid-cols-3">
+      {/* Referral compose form */}
       <Card className="bg-white/90">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-3xl">{directReferrals.sentCount}</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Sent referrals</CardContent>
+        <CardContent className="space-y-4 pt-6">
+          <p className="text-sm text-muted-foreground">
+            Start with structured referral criteria and see therapist matches before reviewing referral activity.
+          </p>
+          <ReferralComposeForm
+            statusCopy={statusCopy}
+            therapists={therapists}
+            senderName={session.fullName ?? ""}
+            senderEmail={session.email ?? ""}
+          />
+        </CardContent>
       </Card>
-      <Card className="bg-white/90">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-3xl">{incomingReferrals.length}</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Incoming referrals</CardContent>
-      </Card>
-      <Card className="bg-white/90">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-3xl">{directReferrals.exchangedCount}</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Two-way referral relationships</CardContent>
-      </Card>
-    </section>
-  );
 
-  const sentReferralsCard = (
-    <Card className="bg-white/90">
-      <CardHeader>
-        <CardTitle>Sent referrals</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {directReferrals.outgoing.length > 0 ? (
-          directReferrals.outgoing.slice(0, 6).map((item) => (
-            <div className="rounded-2xl border bg-background p-4" key={item.id}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium text-foreground">{item.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Sent to{" "}
-                    {item.counterpartSlug ? (
-                      <Link className="underline-offset-4 hover:underline" href={`/directory/${item.counterpartSlug}`}>
-                        {item.counterpartName}
-                      </Link>
-                    ) : (
-                      item.counterpartName
-                    )}
-                  </p>
-                </div>
-                <Badge variant="outline">{getReferralStage(item.status, item.readAt)}</Badge>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
-                {item.region ? <span>{item.region}</span> : null}
-                {item.paymentModel ? <span>{item.paymentModel}</span> : null}
-                <span>{item.createdAtLabel}</span>
-              </div>
-            </div>
-          ))
+      {/* Sent referrals */}
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h3 className="font-serif text-2xl text-foreground">Sent referrals</h3>
+          <p className="text-sm text-muted-foreground">
+            {referralCases.length} sent total · {sentThisMonth} this month
+            {awaitingCount > 0 && (
+              <> · <span className="text-amber-600">{awaitingCount} awaiting response</span></>
+            )}
+          </p>
+        </div>
+        {referralCases.length > 0 ? (
+          <ReferralTracker cases={referralCases} />
         ) : (
           <EmptyState
             title="No referrals sent yet"
             description="Your sent referrals will appear here with clear status updates."
           />
         )}
-      </CardContent>
-    </Card>
-  );
-
-  const referredToCard = (
-    <Card className="bg-white/90">
-      <CardHeader>
-        <CardTitle>Referred to</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {referredTo.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {referredTo.map((entry) => (
-              <div key={entry.key} className="rounded-2xl border bg-background p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    {entry.slug ? (
-                      <Link
-                        className="font-medium text-foreground hover:text-primary truncate block"
-                        href={`/directory/${entry.slug}`}
-                      >
-                        {entry.name}
-                      </Link>
-                    ) : (
-                      <p className="font-medium text-foreground truncate">{entry.name}</p>
-                    )}
-                  </div>
-                  <Badge variant="outline" className="shrink-0 tabular-nums">
-                    {entry.referrals.length} referral{entry.referrals.length === 1 ? "" : "s"}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">Last referral {entry.lastReferralLabel}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title="No referrals logged yet"
-            description="Therapists you refer to will appear here with their contact info for easy follow-up."
-          />
-        )}
-      </CardContent>
-    </Card>
-  );
-
-  return (
-    <div className="space-y-8">
-      <MarkReferralsRead messageIds={unreadMessageIds} />
-
-      {hasIncoming ? (
-        <>
-          <Card className="bg-white/90">
-            <CardHeader>
-              <CardTitle>
-                Incoming referrals
-                {unreadCount > 0 && (
-                  <span className="ml-2 text-base font-normal text-muted-foreground">
-                    · {unreadCount} new
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <IncomingReferrals referrals={incomingReferrals} />
-            </CardContent>
-          </Card>
-          {composeFormCard}
-          {statsSection}
-          {sentReferralsCard}
-          {referredToCard}
-        </>
-      ) : (
-        <>
-          {composeFormCard}
-          {statsSection}
-          <section className="grid gap-6 lg:grid-cols-2">
-            {sentReferralsCard}
-            <Card className="bg-white/90">
-              <CardHeader>
-                <CardTitle>Incoming referrals</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <EmptyState
-                  title="No incoming referrals yet"
-                  description="When a colleague flags a possible referral for you, it will appear here."
-                />
-              </CardContent>
-            </Card>
-          </section>
-          {referredToCard}
-        </>
-      )}
+      </section>
     </div>
   );
 }

@@ -99,6 +99,11 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
   const [cases, setCases] = useState<ClientCase[]>(initialCases);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const INITIAL_VISIBLE = 5;
+  const visibleCases = showAll ? cases : cases.slice(0, INITIAL_VISIBLE);
+  const hiddenCount = cases.length - INITIAL_VISIBLE;
 
   function toggleExpanded(id: string) {
     setExpanded((prev) => {
@@ -153,7 +158,7 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
 
   return (
     <div className="space-y-2">
-      {cases.map((c) => {
+      {visibleCases.map((c) => {
         const isOpen = expanded.has(c.id);
         const recipientSummary =
           c.referrals.length === 1
@@ -271,6 +276,24 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
           </Card>
         );
       })}
+      {hiddenCount > 0 && !showAll && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="text-sm font-medium text-primary hover:text-primary/80"
+        >
+          Show {hiddenCount} more
+        </button>
+      )}
+      {showAll && cases.length > INITIAL_VISIBLE && (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="text-sm font-medium text-primary hover:text-primary/80"
+        >
+          Show less
+        </button>
+      )}
     </div>
   );
 }
