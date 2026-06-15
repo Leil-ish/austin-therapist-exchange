@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { requireMember } from "@/lib/auth/guards";
+import { getIncomingReferrals } from "@/lib/data/referral-tracking";
 
 const memberNav = [
   { href: "/member/referrals", label: "Referrals" },
@@ -11,6 +12,7 @@ const memberNav = [
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
   const session = await requireMember();
+  const unreadReferralCount = (await getIncomingReferrals(session.userId)).filter((r) => r.status === "open").length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -24,11 +26,16 @@ export default async function MemberLayout({ children }: { children: React.React
           <nav className="flex flex-wrap gap-3">
             {memberNav.map((item) => (
               <Link
-                className="rounded-xl border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+                className="relative rounded-xl border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
                 href={item.href as never}
                 key={item.href}
               >
                 {item.label}
+                {item.href === "/member/referrals" && unreadReferralCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                    {unreadReferralCount}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
