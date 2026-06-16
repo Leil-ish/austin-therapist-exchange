@@ -255,7 +255,7 @@ async function getSupplementalTherapistFields(
     profileIds.length
       ? admin
           .from("profiles")
-          .select("id")
+          .select("id, avatar_url")
           .in("id", profileIds)
       : Promise.resolve({ data: [] as unknown[], error: null })
   ]);
@@ -1120,7 +1120,7 @@ export async function getFollowedClinicians(profileId: string) {
       .in("profile_id", followedProfileIds),
     admin
       .from("profiles")
-      .select("id, slug")
+      .select("id, slug, avatar_url")
       .in("id", followedProfileIds)
   ]);
 
@@ -1129,6 +1129,12 @@ export async function getFollowedClinicians(profileId: string) {
   );
   const slugByProfileId = new Map(
     ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [String(p.id), String(p.slug ?? "")])
+  );
+  const avatarByProfileId = new Map(
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [
+      String(p.id),
+      typeof p.avatar_url === "string" && p.avatar_url ? p.avatar_url : undefined
+    ])
   );
 
   return ((rawFollows ?? []) as Array<Record<string, unknown>>)
@@ -1145,7 +1151,8 @@ export async function getFollowedClinicians(profileId: string) {
         displayName: String(tp.public_display_name ?? "Therapist"),
         title: buildTherapistTitle(tp),
         availabilityStatus: (tp.availability_status as AvailabilityStatus | null) ?? "waitlist",
-        followedAtLabel: formatCreatedAtLabel(follow.created_at as string | null)
+        followedAtLabel: formatCreatedAtLabel(follow.created_at as string | null),
+        avatarUrl: avatarByProfileId.get(pid)
       } satisfies FollowedClinicianSummary;
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));

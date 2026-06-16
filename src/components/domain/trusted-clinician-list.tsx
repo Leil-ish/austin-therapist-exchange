@@ -4,15 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
+import { Avatar } from "@/components/ui/avatar";
 import type { AvailabilityStatus, FollowedClinicianSummary } from "@/types";
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
 
 function AvailabilityDot({ status }: { status: AvailabilityStatus }) {
   if (status === "accepting") {
@@ -54,12 +47,7 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
           {visible.map((clinician) => (
             <li key={clinician.profileId} className="flex items-center gap-0 px-5 py-3.5">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8 text-xs font-medium text-primary/70"
-                >
-                  {getInitials(clinician.displayName)}
-                </span>
+                <Avatar avatarUrl={clinician.avatarUrl} name={clinician.displayName} size="xs" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{clinician.displayName}</p>
                   <p className="truncate text-xs text-muted-foreground">{clinician.title}</p>

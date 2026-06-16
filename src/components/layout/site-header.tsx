@@ -58,7 +58,7 @@ export async function SiteHeader() {
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-3 md:flex">
             {session ? (
-              <UserAvatarMenu fullName={session.fullName} email={session.email} />
+              <UserAvatarMenu fullName={session.fullName} email={session.email} avatarUrl={session.avatarUrl} />
             ) : (
               <>
                 <Button asChild variant="ghost">
