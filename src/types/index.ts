@@ -136,6 +136,7 @@ export interface AppSession {
   fullName: string;
   email: string;
   canIssueReferrals?: boolean;
+  avatarUrl?: string;
 }
 
 export interface FollowedClinicianSummary {
@@ -146,6 +147,7 @@ export interface FollowedClinicianSummary {
   headline?: string;
   availabilityStatus: AvailabilityStatus;
   followedAtLabel: string;
+  avatarUrl?: string;
 }
 
 export interface CuratedListSummary {

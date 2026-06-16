@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { respondToIncomingReferral } from "@/app-actions/member-actions";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { IncomingReferral, ReferralStatus } from "@/lib/data/referral-tracking";
@@ -69,14 +70,17 @@ function ReferralCard({ referral: initial }: { referral: IncomingReferral }) {
     <div className="rounded-2xl border bg-background p-4 space-y-3">
       {/* Header row */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-0.5 min-w-0">
-          <p className="font-medium text-foreground">
-            Referral from {referral.referringClinicianName}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Logged {referral.receivedAtLabel}
-            {referral.respondedAtLabel ? ` · Responded ${referral.respondedAtLabel}` : ""}
-          </p>
+        <div className="flex items-start gap-3 min-w-0">
+          <Avatar name={referral.referringClinicianName} size="sm" />
+          <div className="space-y-0.5 min-w-0">
+            <p className="font-medium text-foreground">
+              Referral from {referral.referringClinicianName}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Logged {referral.receivedAtLabel}
+              {referral.respondedAtLabel ? ` · Responded ${referral.respondedAtLabel}` : ""}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="font-mono text-xs text-muted-foreground border rounded px-1.5 py-0.5">

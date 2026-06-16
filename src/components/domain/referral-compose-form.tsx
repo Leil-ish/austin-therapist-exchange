@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, ClipboardCopy, Eye, Filter, MapPin, Pencil, Ref
 import { logReferralContact, logReferralContacts } from "@/app-actions/member-actions";
 import type { LogReferralContactResult } from "@/app-actions/member-actions";
 import { mintReferralCode } from "@/lib/referral-code";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -1601,6 +1602,7 @@ function TherapistMatchCard({
             className="h-4 w-4 cursor-pointer rounded accent-primary"
           />
         </div>
+        <Avatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="font-semibold text-foreground">{therapist.displayName}</h3>

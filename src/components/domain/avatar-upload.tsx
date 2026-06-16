@@ -4,14 +4,7 @@ import { useRef, useState, useTransition } from "react";
 
 import { updateAvatarUrl } from "@/app-actions/member-actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0]! + parts[parts.length - 1]![0]!).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
+import { getInitials } from "@/components/ui/avatar";
 
 export function AvatarUpload({
   userId,
@@ -51,8 +44,9 @@ export function AvatarUpload({
       .upload(path, file, { upsert: true, contentType: file.type });
 
     if (uploadError) {
+      console.error("Avatar upload failed:", uploadError);
       setPreview(currentAvatarUrl);
-      setError("Upload failed — please try again.");
+      setError(`Upload failed: ${uploadError.message}`);
       return;
     }
 
@@ -64,7 +58,8 @@ export function AvatarUpload({
     startTransition(async () => {
       const result = await updateAvatarUrl(fd);
       if (result?.error) {
-        setError(result.error);
+        console.error("Avatar URL save failed:", result.error);
+        setError(`Save failed: ${result.error}`);
       }
     });
   }

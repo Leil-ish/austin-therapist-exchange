@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Avatar } from "@/components/ui/avatar";
 import { TrustToggleButton } from "@/components/domain/trust-toggle-button";
 import { getPaymentModelLabelForUi } from "@/lib/data/live-data";
 import type { AvailabilityStatus, PublicTherapistSummary } from "@/types";
@@ -37,14 +38,6 @@ function AvailabilityDot({ status, stale }: { status: AvailabilityStatus; stale:
       Not accepting
     </span>
   );
-}
-
-export function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
 }
 
 function getCompactMeta(therapist: PublicTherapistSummary) {
@@ -91,38 +84,6 @@ function getTrustContext(therapist: PublicTherapistSummary, isSignedIn: boolean 
     : "New to Austin Therapist Exchange";
 }
 
-function TherapistAvatar({
-  name,
-  avatarUrl,
-  size = "md"
-}: {
-  name: string;
-  avatarUrl?: string;
-  size?: "sm" | "md";
-}) {
-  const dim = size === "sm" ? "h-9 w-9 text-xs" : "h-11 w-11 text-sm";
-
-  if (avatarUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        alt={name}
-        className={`${dim} shrink-0 rounded-full object-cover`}
-        src={avatarUrl}
-      />
-    );
-  }
-
-  return (
-    <span
-      aria-hidden="true"
-      className={`${dim} flex shrink-0 items-center justify-center rounded-full bg-primary/8 font-medium text-primary/70`}
-    >
-      {getInitials(name)}
-    </span>
-  );
-}
-
 export function TherapistCard({
   therapist,
   currentProfileId
@@ -142,7 +103,7 @@ export function TherapistCard({
         <CardHeader className="pb-3">
           {/* Name + avatar row */}
           <div className="flex items-start gap-3">
-            <TherapistAvatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} />
+            <Avatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} />
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-base font-semibold leading-snug text-foreground">{therapist.displayName}</p>

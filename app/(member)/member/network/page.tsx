@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { EmptyState } from "@/components/state/empty-state";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -83,9 +84,12 @@ export default async function MemberNetworkPage() {
               return (
                 <Card className="bg-white/90" key={therapist.profileId}>
                   <CardContent className="space-y-3 pt-7">
-                    <div>
-                      <p className="text-base font-semibold leading-snug text-foreground">{therapist.displayName}</p>
-                      <p className="text-sm text-muted-foreground">{therapist.title}</p>
+                    <div className="flex items-start gap-3">
+                      <Avatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} size="sm" />
+                      <div>
+                        <p className="text-base font-semibold leading-snug text-foreground">{therapist.displayName}</p>
+                        <p className="text-sm text-muted-foreground">{therapist.title}</p>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       <Badge variant="muted">{availLabel}</Badge>
