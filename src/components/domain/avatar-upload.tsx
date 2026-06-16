@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 
 import { updateAvatarUrl } from "@/app-actions/member-actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -17,7 +17,8 @@ export function AvatarUpload({
 }) {
   const [preview, setPreview] = useState<string | undefined>(currentAvatarUrl);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
+  const [saved, setSaved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -30,8 +31,10 @@ export function AvatarUpload({
     }
 
     setError(null);
+    setSaved(false);
+    setIsPending(true);
 
-    // Optimistic local preview
+    // Show local preview immediately while upload runs
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
 
@@ -46,6 +49,7 @@ export function AvatarUpload({
     if (uploadError) {
       console.error("Avatar upload failed:", uploadError);
       setPreview(currentAvatarUrl);
+      setIsPending(false);
       setError(`Upload failed: ${uploadError.message}`);
       return;
     }
@@ -55,13 +59,17 @@ export function AvatarUpload({
     const fd = new FormData();
     fd.append("avatarUrl", publicUrl);
 
-    startTransition(async () => {
-      const result = await updateAvatarUrl(fd);
-      if (result?.error) {
-        console.error("Avatar URL save failed:", result.error);
-        setError(`Save failed: ${result.error}`);
-      }
-    });
+    // Await the DB write directly — no startTransition — so this completes
+    // before isPending clears and before the user can save the profile form.
+    const result = await updateAvatarUrl(fd);
+    setIsPending(false);
+
+    if (result?.error) {
+      console.error("Avatar URL save failed:", result.error);
+      setError(`Save failed: ${result.error}`);
+    } else {
+      setSaved(true);
+    }
   }
 
   const initials = getInitials(displayName);
@@ -87,7 +95,12 @@ export function AvatarUpload({
             {initials}
           </span>
         )}
-        <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-xs font-medium text-white opacity-0 transition group-hover:opacity-100">
+        {/* Always visible when saving; hover-only when idle */}
+        <span
+          className={`absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-xs font-medium text-white transition ${
+            isPending ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
+        >
           {isPending ? "Saving…" : "Change"}
         </span>
       </button>
@@ -98,7 +111,13 @@ export function AvatarUpload({
         type="file"
         onChange={handleFileChange}
       />
-      <p className="text-xs text-muted-foreground">Click to upload a photo · JPEG, PNG, or WebP · max 5 MB</p>
+      <p className="text-xs text-muted-foreground">Click to upload · JPEG, PNG, or WebP · max 5 MB</p>
+      {isPending && (
+        <p className="text-xs text-muted-foreground animate-pulse">Saving photo…</p>
+      )}
+      {saved && !isPending && (
+        <p className="text-xs text-green-600">Photo saved — you can now save your profile.</p>
+      )}
       {error ? <p className="text-xs text-destructive" role="alert">{error}</p> : null}
     </div>
   );
