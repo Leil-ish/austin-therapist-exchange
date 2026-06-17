@@ -359,7 +359,6 @@ export function ReferralComposeForm({
   const [languages, setLanguages] = useState<string[]>([]);
   const [gender, setGender] = useState("");
   const [slidingScale, setSlidingScale] = useState(false);
-  const [acceptingNow, setAcceptingNow] = useState(false);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   // ── UI state ─────────────────────────────────────────────────────────────
@@ -396,7 +395,6 @@ export function ReferralComposeForm({
     const langs = p.get("langs") ?? "";
     const gen = p.get("gen") ?? "";
     const ss = p.get("ss") === "1";
-    const an = p.get("an") === "1";
     const sub = p.get("sub") === "1";
 
     if (loc) setLevelOfCare(loc);
@@ -415,7 +413,6 @@ export function ReferralComposeForm({
     if (langs) setLanguages(langs.split(",").filter(Boolean));
     if (gen) setGender(gen);
     if (ss) setSlidingScale(true);
-    if (an) setAcceptingNow(true);
     if (sub) { setSubmitted(true); setFormOpen(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -437,11 +434,10 @@ export function ReferralComposeForm({
     if (languages.length) p.set("langs", languages.join(","));
     if (gender) p.set("gen", gender);
     if (slidingScale) p.set("ss", "1");
-    if (acceptingNow) p.set("an", "1");
     if (submitted) p.set("sub", "1");
     const qs = p.toString();
     window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
-  }, [levelOfCare, urgency, clientType, presentingIssues, location, payment, insurance, format, groupFocus, ageRange, communities, modalities, languages, gender, slidingScale, acceptingNow, submitted]);
+  }, [levelOfCare, urgency, clientType, presentingIssues, location, payment, insurance, format, groupFocus, ageRange, communities, modalities, languages, gender, slidingScale, submitted]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const primaryIssue = levelOfCare === "Group Therapy" ? groupFocus : (presentingIssues[0] ?? "");
@@ -461,6 +457,22 @@ export function ReferralComposeForm({
   };
 
   const hasRequiredFields = Boolean(levelOfCare) && Object.values(getRequiredFields()).every(Boolean);
+
+  // Gate: results shown only once all six primary fields are filled
+  const gatePresenting = levelOfCare === "Group Therapy" ? Boolean(groupFocus) : presentingIssues.length > 0;
+  const gatePaymentOrIns = (
+    levelOfCare === "Intensive Outpatient (IOP)" ||
+    levelOfCare === "Partial Hospitalization (PHP)" ||
+    levelOfCare === "Residential Treatment"
+  ) ? Boolean(insurance) : Boolean(payment);
+  const missingGateCount = [
+    Boolean(levelOfCare),
+    Boolean(clientType),
+    gatePresenting,
+    Boolean(format),
+    gatePaymentOrIns,
+  ].filter((v) => !v).length;
+  const allGateFilled = missingGateCount === 0;
 
   const criteria: ContactCriteria = {
     levelOfCare,
@@ -488,11 +500,10 @@ export function ReferralComposeForm({
     format: format || undefined,
     gender: gender || undefined,
     slidingScale: slidingScale || undefined,
-    acceptingNow: acceptingNow || undefined,
     communities: communities.length ? communities : undefined,
     modalities: modalities.length ? modalities : undefined,
     languages: languages.length ? languages : undefined,
-  }), [format, gender, slidingScale, acceptingNow, communities, modalities, languages]);
+  }), [format, gender, slidingScale, communities, modalities, languages]);
 
   const filteredTherapists = useMemo(() =>
     therapists.filter((therapist) => {
@@ -590,8 +601,8 @@ export function ReferralComposeForm({
 
   const handleFormatChange = (newFormat: string) => {
     setFormat(newFormat);
-    // If switching to in-person and location was telehealth-only, clear it
-    if (newFormat === "In person" && location === "Telehealth Only") setLocation("");
+    if (newFormat === "Telehealth") setLocation("");
+    else if (newFormat === "In person" && location === "Telehealth Only") setLocation("");
     setSubmitted(false);
   };
 
@@ -619,7 +630,6 @@ export function ReferralComposeForm({
     setLanguages([]);
     setGender("");
     setSlidingScale(false);
-    setAcceptingNow(false);
     setAdditionalNotes("");
   };
 
@@ -663,13 +673,12 @@ export function ReferralComposeForm({
     );
     if (gender) chips.push({ key: "gen", label: "Gender", value: gender, onRemove: () => { setGender(""); setSubmitted(false); } });
     if (slidingScale) chips.push({ key: "ss", label: "Filter", value: "Sliding scale", onRemove: () => { setSlidingScale(false); setSubmitted(false); } });
-    if (acceptingNow) chips.push({ key: "an", label: "Filter", value: "Accepting now", onRemove: () => { setAcceptingNow(false); setSubmitted(false); } });
     return chips;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levelOfCare, urgency, clientType, presentingIssues, groupFocus, format, location, payment, insurance, ageRange, communities, modalities, languages, gender, slidingScale, acceptingNow]);
+  }, [levelOfCare, urgency, clientType, presentingIssues, groupFocus, format, location, payment, insurance, ageRange, communities, modalities, languages, gender, slidingScale]);
 
   const moreFilterCount = communities.length + modalities.length + languages.length +
-    (gender ? 1 : 0) + (slidingScale ? 1 : 0) + (acceptingNow ? 1 : 0);
+    (gender ? 1 : 0) + (slidingScale ? 1 : 0);
 
   // ── Multi-select / batch helpers ──────────────────────────────────────────
   const selectedTherapists = useMemo(() =>
@@ -833,7 +842,7 @@ export function ReferralComposeForm({
                 {/* Urgency */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground" htmlFor="urgency">
-                    Urgency <span className="text-red-500">*</span>
+                    Urgency
                   </label>
                   <select
                     className={`w-full rounded-2xl border px-4 py-3 text-sm transition ${urgency ? getUrgencyColor(urgency) : "bg-white text-slate-900"}`}
@@ -913,7 +922,7 @@ export function ReferralComposeForm({
                   )}
 
                   {/* Format row */}
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className={`grid gap-4 ${format !== "Telehealth" ? "md:grid-cols-2" : ""}`}>
                     {/* Format — 3-way toggle for non-GT; dropdown for GT */}
                     {levelOfCare !== "Group Therapy" ? (
                       <div className="space-y-2">
@@ -962,23 +971,25 @@ export function ReferralComposeForm({
                       </div>
                     )}
 
-                    {/* Location */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-foreground" htmlFor="location">
-                        Location
-                      </label>
-                      <select
-                        className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-                        id="location"
-                        value={location}
-                        onChange={(e) => { setLocation(e.target.value); setSubmitted(false); }}
-                      >
-                        <option value="">Any location</option>
-                        {LOCATION_FILTER_OPTIONS.map((loc) => (
-                          <option key={loc} value={loc}>{loc}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* Location — hidden when Telehealth */}
+                    {format !== "Telehealth" && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground" htmlFor="location">
+                          Location
+                        </label>
+                        <select
+                          className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                          id="location"
+                          value={location}
+                          onChange={(e) => { setLocation(e.target.value); setSubmitted(false); }}
+                        >
+                          <option value="">Any location</option>
+                          {LOCATION_FILTER_OPTIONS.map((loc) => (
+                            <option key={loc} value={loc}>{loc}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   {/* Payment row */}
@@ -1171,15 +1182,6 @@ export function ReferralComposeForm({
                           />
                           <span className="text-sm text-foreground">Offers sliding scale</span>
                         </label>
-                        <label className="flex cursor-pointer items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={acceptingNow}
-                            onChange={(e) => { setAcceptingNow(e.target.checked); setSubmitted(false); }}
-                            className="h-4 w-4 rounded accent-primary"
-                          />
-                          <span className="text-sm text-foreground">Accepting new clients now</span>
-                        </label>
                       </div>
                     </div>
                   )}
@@ -1212,22 +1214,22 @@ export function ReferralComposeForm({
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!hasRequiredFields || isPending}
-                  className="w-full rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isPending ? "Finding matches…" : "Find Trusted Referrals"}
-                </button>
               </>
             )}
           </CardContent>
         )}
       </Card>
 
-      {submitted ? (
+      {allGateFilled ? (
         <div className="space-y-6">
+          {/* Live match count */}
+          {rankedTherapists.length > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {rankedTherapists.length} therapist{rankedTherapists.length !== 1 ? "s" : ""} match · adjust criteria or scroll to results
+            </p>
+          ) : (
+            <p className="text-sm font-medium text-amber-600">No therapists match · try adjusting your criteria</p>
+          )}
           {/* Active case banner */}
           {currentCode && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
@@ -1384,7 +1386,9 @@ export function ReferralComposeForm({
           )}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">Complete the required criteria above to see matching therapists.</p>
+        <p className="text-sm text-muted-foreground">
+          Select {missingGateCount} more to see matches
+        </p>
       )}
     </div>
   );
