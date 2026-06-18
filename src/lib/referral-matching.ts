@@ -499,11 +499,12 @@ export function carrierScore(
 export function calculateMatchConfidence(
   levelOfCare: string,
   clientType: string,
-  presentingIssue: string,
+  presentingIssues: string[],
   payment: string,
   location: string,
   _insurance: string,
-  therapist: PublicTherapistSummary
+  therapist: PublicTherapistSummary,
+  softCriteria?: { modalities?: string[]; communities?: string[]; languages?: string[] }
 ): "high" | "medium" | "low" {
   let matches = 0;
   let total = 0;
@@ -524,10 +525,10 @@ export function calculateMatchConfidence(
     }
   }
 
-  // Presenting Issue
-  if (presentingIssue) {
+  // Presenting Issues — one dimension; matches if ANY selected issue matches
+  if (presentingIssues.length > 0) {
     total++;
-    if (presentingIssueMatches(presentingIssue, therapist.specialties)) {
+    if (presentingIssues.some((issue) => presentingIssueMatches(issue, therapist.specialties))) {
       matches++;
     }
   }
@@ -538,6 +539,23 @@ export function calculateMatchConfidence(
     if (locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) {
       matches++;
     }
+  }
+
+  // Soft criteria — only counted when the therapist has data for that field.
+  // Guard prevents penalising therapists for fields they simply haven't filled in.
+  if (softCriteria?.modalities?.length && therapist.modalities.length > 0) {
+    total++;
+    if (countOverlappingTerms(softCriteria.modalities, therapist.modalities) > 0) matches++;
+  }
+
+  if (softCriteria?.communities?.length && therapist.communities.length > 0) {
+    total++;
+    if (countOverlappingTerms(softCriteria.communities, therapist.communities) > 0) matches++;
+  }
+
+  if (softCriteria?.languages?.length && therapist.languages.length > 0) {
+    total++;
+    if (countOverlappingTerms(softCriteria.languages, therapist.languages) > 0) matches++;
   }
 
   // Payment: soft factor — mismatch caps confidence at "medium", not excluded from results
@@ -566,11 +584,12 @@ export type MatchDimension = {
 export function getMatchDimensions(
   levelOfCare: string,
   clientType: string,
-  presentingIssue: string,
+  presentingIssues: string[],
   payment: string,
   location: string,
   insurance: string,
-  therapist: PublicTherapistSummary
+  therapist: PublicTherapistSummary,
+  softCriteria?: { modalities?: string[]; communities?: string[]; languages?: string[] }
 ): MatchDimension[] {
   const dimensions: MatchDimension[] = [];
 
@@ -590,11 +609,12 @@ export function getMatchDimensions(
     });
   }
 
-  if (presentingIssue) {
+  if (presentingIssues.length > 0) {
+    const matchedCount = presentingIssues.filter((i) => presentingIssueMatches(i, therapist.specialties)).length;
     dimensions.push({
-      label: "Issue",
-      value: presentingIssue,
-      status: presentingIssueMatches(presentingIssue, therapist.specialties) ? "match" : "gap"
+      label: presentingIssues.length === 1 ? "Issue" : `Issues (${matchedCount}/${presentingIssues.length})`,
+      value: presentingIssues.join(", "),
+      status: matchedCount > 0 ? "match" : "gap"
     });
   }
 
@@ -619,6 +639,30 @@ export function getMatchDimensions(
       label: "Insurance",
       value: insurance,
       status: insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel) ? "match" : "gap"
+    });
+  }
+
+  if (softCriteria?.modalities?.length) {
+    dimensions.push({
+      label: softCriteria.modalities.length === 1 ? softCriteria.modalities[0] : `${softCriteria.modalities.length} modalities`,
+      value: softCriteria.modalities.join(", "),
+      status: countOverlappingTerms(softCriteria.modalities, therapist.modalities) > 0 ? "match" : "gap"
+    });
+  }
+
+  if (softCriteria?.communities?.length) {
+    dimensions.push({
+      label: softCriteria.communities.length === 1 ? softCriteria.communities[0] : `${softCriteria.communities.length} communities`,
+      value: softCriteria.communities.join(", "),
+      status: countOverlappingTerms(softCriteria.communities, therapist.communities) > 0 ? "match" : "gap"
+    });
+  }
+
+  if (softCriteria?.languages?.length) {
+    dimensions.push({
+      label: softCriteria.languages.length === 1 ? softCriteria.languages[0] : `${softCriteria.languages.length} languages`,
+      value: softCriteria.languages.join(", "),
+      status: countOverlappingTerms(softCriteria.languages, therapist.languages) > 0 ? "match" : "gap"
     });
   }
 

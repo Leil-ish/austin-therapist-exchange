@@ -469,7 +469,6 @@ export function ReferralComposeForm({
     Boolean(levelOfCare),
     Boolean(clientType),
     gatePresenting,
-    Boolean(format),
     gatePaymentOrIns,
   ].filter((v) => !v).length;
   const allGateFilled = missingGateCount === 0;
@@ -520,8 +519,9 @@ export function ReferralComposeForm({
   const rankedTherapists = useMemo(() =>
     filteredTherapists
       .map((therapist) => {
-        const confidence = calculateMatchConfidence(levelOfCare, clientType, primaryIssue, payment, location, insurance, therapist);
-        const dimensions = getMatchDimensions(levelOfCare, clientType, primaryIssue, payment, location, insurance, therapist);
+        const issuesForMatch = levelOfCare === "Group Therapy" ? (groupFocus ? [groupFocus] : []) : presentingIssues;
+        const confidence = calculateMatchConfidence(levelOfCare, clientType, issuesForMatch, payment, location, insurance, therapist, extended);
+        const dimensions = getMatchDimensions(levelOfCare, clientType, issuesForMatch, payment, location, insurance, therapist, extended);
 
         let urgencyBoost = 0;
         if (urgency.includes("Urgent") && !urgency.includes("Moderately") && therapist.availabilityStatus === "accepting") {
@@ -542,9 +542,8 @@ export function ReferralComposeForm({
         // Soft overlap bonus from extended criteria
         const overlapBonus = softOverlapScore(extended, therapist);
 
-        // Multi-issue bonus: each additional selected issue that matches adds +1
+        // Issue bonus: each selected issue that matches adds +1 to ranking score
         const issueBonus = presentingIssues
-          .slice(1)
           .reduce((acc, issue) => acc + (presentingIssueMatches(issue, therapist.specialties) ? 1 : 0), 0);
 
         // Carrier-level soft match: +1 boost when carrier found, -1 when list is non-empty but missing, 0 when unknown
@@ -561,7 +560,7 @@ export function ReferralComposeForm({
         };
       })
       .sort((a, b) => b.score - a.score),
-    [filteredTherapists, levelOfCare, clientType, primaryIssue, presentingIssues, payment, location, insurance, urgency, extended]
+    [filteredTherapists, levelOfCare, clientType, presentingIssues, groupFocus, payment, location, insurance, urgency, extended]
   );
 
   const { topMatches, trustedNetworkMatches, broaderMatches, effectiveTopMatches, effectiveBroader, hasAnyNetwork } =
@@ -1512,9 +1511,16 @@ function TherapistMatchCard({
     ? buildMailto(therapist.publicEmail, therapist.displayName, senderName, activeCode, criteria)
     : undefined;
 
-  const confidenceLabel = confidence === "high" ? "High" : confidence === "medium" ? "Medium" : "Low";
+  // Badge and dots are derived from the checklist dimensions so they always agree with "N of N criteria matched".
+  // confidence (from calculateMatchConfidence) is intentionally kept for grouping/scoring only — not displayed.
+  const matchCount = dimensions.filter((d) => d.status === "match").length;
+  const displayedConfidence: "high" | "medium" | "low" =
+    dimensions.length === 0 || matchCount === dimensions.length ? "high"
+    : matchCount >= dimensions.length - 1 ? "medium"
+    : "low";
+  const confidenceLabel = displayedConfidence === "high" ? "High" : displayedConfidence === "medium" ? "Medium" : "Low";
   const confidenceColor =
-    confidence === "high" ? "text-green-600" : confidence === "medium" ? "text-amber-600" : "text-muted-foreground";
+    displayedConfidence === "high" ? "text-green-600" : displayedConfidence === "medium" ? "text-amber-600" : "text-muted-foreground";
 
   const trustBadges: string[] = [];
   if (therapist.trustedByViewer) trustBadges.push("You Trust");
@@ -1630,7 +1636,7 @@ function TherapistMatchCard({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
           <span className={`text-sm font-semibold ${confidenceColor}`}>{confidenceLabel}</span>
-          <ConfidenceDots confidence={confidence} />
+          <ConfidenceDots confidence={displayedConfidence} />
         </div>
       </div>
 
