@@ -857,7 +857,7 @@ export type UpdateReferralResponseResult = { ok: true } | { ok: false; error: st
 
 export async function updateReferralResponse(
   caseReferralId: string,
-  status: "open" | "accepted" | "declined" | "closed" | "completed"
+  status: "open" | "matched" | "accepted" | "declined" | "closed" | "completed"
 ): Promise<UpdateReferralResponseResult> {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();

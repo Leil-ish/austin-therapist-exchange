@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import Link from "next/link";
 
 import { updateReferralResponse } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ function referralStatusClasses(status: ReferralStatus): string {
     case "open":
       return "bg-amber-100 text-amber-700";
     case "accepted":
+    case "matched":
       return "bg-blue-100 text-blue-700";
     case "declined":
       return "bg-red-100 text-red-600";
@@ -240,7 +242,19 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-medium text-foreground">{r.therapistName}</p>
+                          <p className="text-sm font-medium text-foreground">
+                            {/* TODO: add slug to case_referral query to enable profile links */}
+                            {r.therapistSlug ? (
+                              <Link
+                                href={`/directory/${r.therapistSlug}`}
+                                className="hover:underline underline-offset-4 text-foreground"
+                              >
+                                {r.therapistName}
+                              </Link>
+                            ) : (
+                              r.therapistName
+                            )}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             Sent {r.sentAtLabel}
                             {r.respondedAtLabel && ` · Responded ${r.respondedAtLabel}`}
