@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useTransition, useState } from "react";
-import { ChevronDown, ChevronUp, ClipboardCopy, Eye, Filter, MapPin, Pencil, RefreshCw, Users, Target, Globe, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ClipboardCopy, Eye, Filter, MapPin, Pencil, RefreshCw, Users, Globe, X } from "lucide-react";
 
 import { logReferralContact, logReferralContacts } from "@/app-actions/member-actions";
 import type { LogReferralContactResult } from "@/app-actions/member-actions";
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   calculateMatchConfidence,
-  carrierScore,
   CLIENT_TYPE_RELEVANCE,
   CLIENT_TYPES,
   COMMUNITIES,
@@ -29,7 +28,6 @@ import {
   passesHardFilters,
   paymentModelMatchesFilter,
   PAYMENT_OPTIONS,
-  presentingIssueMatches,
   PRESENTING_ISSUES,
   softOverlapScore,
 } from "@/lib/referral-matching";
@@ -53,17 +51,6 @@ function getUrgencyColor(urgency: string) {
   return "bg-green-100 border-green-300 text-green-900";
 }
 
-function getPaymentModelLabel(value: string) {
-  if (value === "private_pay") return "Accepts Private Pay";
-  if (value === "insurance") return "Accepts Insurance";
-  return "Private Pay & Insurance";
-}
-
-function getAvailabilityRank(status: PublicTherapistSummary["availabilityStatus"]) {
-  if (status === "accepting") return 3;
-  if (status === "waitlist") return 2;
-  return 1;
-}
 
 function ConfidenceDots({ confidence }: { confidence: "high" | "medium" | "low" }) {
   const count = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
@@ -516,73 +503,38 @@ export function ReferralComposeForm({
     [therapists, levelOfCare, location, insurance, extended]
   );
 
-  const rankedTherapists = useMemo(() =>
-    filteredTherapists
-      .map((therapist) => {
-        const issuesForMatch = levelOfCare === "Group Therapy" ? (groupFocus ? [groupFocus] : []) : presentingIssues;
-        const confidence = calculateMatchConfidence(levelOfCare, clientType, issuesForMatch, payment, location, insurance, therapist, extended);
-        const dimensions = getMatchDimensions(levelOfCare, clientType, issuesForMatch, payment, location, insurance, therapist, extended);
-
-        let urgencyBoost = 0;
-        if (urgency.includes("Urgent") && !urgency.includes("Moderately") && therapist.availabilityStatus === "accepting") {
-          urgencyBoost = 5;
-        } else if (urgency.includes("Moderately") && therapist.availabilityStatus !== "full") {
-          urgencyBoost = 2;
-        }
-
-        const trustScore =
-          Number(Boolean(therapist.trustedByViewer)) * 8 +
-          Number(Boolean(therapist.isFollowed)) * 5 +
-          Math.min(therapist.trustedBy.length, 3) * 2;
-        const availabilityScore =
-          getAvailabilityRank(therapist.availabilityStatus) -
-          (therapist.availabilityIsStale || therapist.recentlyReportedFull ? 1 : 0);
-        const confidenceScore = confidence === "high" ? 3 : confidence === "medium" ? 2 : 1;
-
-        // Soft overlap bonus from extended criteria
-        const overlapBonus = softOverlapScore(extended, therapist);
-
-        // Issue bonus: each selected issue that matches adds +1 to ranking score
-        const issueBonus = presentingIssues
-          .reduce((acc, issue) => acc + (presentingIssueMatches(issue, therapist.specialties) ? 1 : 0), 0);
-
-        // Carrier-level soft match: +1 boost when carrier found, -1 when list is non-empty but missing, 0 when unknown
-        const carrierBonus =
-          insurance && (payment === "Insurance" || payment === "Both")
-            ? carrierScore(insurance, therapist.insuranceAccepted)
-            : 0;
-
-        return {
-          therapist,
-          confidence,
-          dimensions,
-          score: trustScore + availabilityScore + confidenceScore + urgencyBoost + overlapBonus + issueBonus + carrierBonus,
-        };
-      })
-      .sort((a, b) => b.score - a.score),
-    [filteredTherapists, levelOfCare, clientType, presentingIssues, groupFocus, payment, location, insurance, urgency, extended]
+  const scoredTherapists = useMemo(() =>
+    filteredTherapists.map((therapist) => {
+      const issuesForMatch = levelOfCare === "Group Therapy" ? (groupFocus ? [groupFocus] : []) : presentingIssues;
+      const confidence = calculateMatchConfidence(levelOfCare, clientType, issuesForMatch, payment, location, insurance, therapist, extended);
+      const dimensions = getMatchDimensions(levelOfCare, clientType, issuesForMatch, payment, location, insurance, therapist, extended);
+      return { therapist, confidence, dimensions };
+    }),
+    [filteredTherapists, levelOfCare, clientType, presentingIssues, groupFocus, payment, location, insurance, extended]
   );
 
-  const { topMatches, trustedNetworkMatches, broaderMatches, effectiveTopMatches, effectiveBroader, hasAnyNetwork } =
-    useMemo(() => {
-      const inNetwork = (t: PublicTherapistSummary) => t.trustedByViewer || t.isFollowed || t.trustedBy.length > 0;
-      const top = rankedTherapists.filter((m) => m.confidence === "high" && inNetwork(m.therapist));
-      const topIds = new Set(top.map((m) => m.therapist.profileId));
-      const trusted = rankedTherapists.filter((m) => !topIds.has(m.therapist.profileId) && inNetwork(m.therapist));
-      const trustedIds = new Set(trusted.map((m) => m.therapist.profileId));
-      const broader = rankedTherapists.filter((m) => !topIds.has(m.therapist.profileId) && !trustedIds.has(m.therapist.profileId));
-      const effectiveTop = top.length > 0 ? top : rankedTherapists.filter((m) => m.confidence === "high");
-      const effectiveTopIds = new Set(effectiveTop.map((m) => m.therapist.profileId));
-      const effectiveBroad = rankedTherapists.filter((m) => !effectiveTopIds.has(m.therapist.profileId));
-      return {
-        topMatches: top,
-        trustedNetworkMatches: trusted,
-        broaderMatches: broader,
-        effectiveTopMatches: effectiveTop,
-        effectiveBroader: effectiveBroad,
-        hasAnyNetwork: rankedTherapists.some((m) => inNetwork(m.therapist)),
-      };
-    }, [rankedTherapists]);
+  const { yourNetwork, trustedByNetwork, broaderMatches } = useMemo(() => {
+    const comparator = (
+      a: { therapist: PublicTherapistSummary; confidence: "high" | "medium" | "low" },
+      b: { therapist: PublicTherapistSummary; confidence: "high" | "medium" | "low" }
+    ) => {
+      const confA = a.confidence === "high" ? 3 : a.confidence === "medium" ? 2 : 1;
+      const confB = b.confidence === "high" ? 3 : b.confidence === "medium" ? 2 : 1;
+      if (confA !== confB) return confB - confA;
+      return softOverlapScore(extended, b.therapist) - softOverlapScore(extended, a.therapist);
+    };
+    return {
+      yourNetwork: scoredTherapists
+        .filter((m) => m.therapist.isFollowed || m.therapist.trustedByViewer)
+        .sort(comparator),
+      trustedByNetwork: scoredTherapists
+        .filter((m) => !m.therapist.isFollowed && !m.therapist.trustedByViewer && m.therapist.trustedBy.length > 0)
+        .sort(comparator),
+      broaderMatches: scoredTherapists
+        .filter((m) => !m.therapist.isFollowed && !m.therapist.trustedByViewer && m.therapist.trustedBy.length === 0)
+        .sort(comparator),
+    };
+  }, [scoredTherapists, extended]);
 
   // ── Event handlers ────────────────────────────────────────────────────────
   const handleLevelOfCareChange = (level: string) => {
@@ -681,8 +633,8 @@ export function ReferralComposeForm({
 
   // ── Multi-select / batch helpers ──────────────────────────────────────────
   const selectedTherapists = useMemo(() =>
-    rankedTherapists.map((m) => m.therapist).filter((t) => selectedProfileIds.has(t.profileId)),
-    [rankedTherapists, selectedProfileIds]
+    scoredTherapists.map((m) => m.therapist).filter((t) => selectedProfileIds.has(t.profileId)),
+    [scoredTherapists, selectedProfileIds]
   );
   const selectedWithEmail = selectedTherapists.filter((t) => Boolean(t.publicEmail));
   const selectedWithoutEmail = selectedTherapists.filter((t) => !t.publicEmail);
@@ -1222,9 +1174,9 @@ export function ReferralComposeForm({
       {allGateFilled ? (
         <div className="space-y-6">
           {/* Live match count */}
-          {rankedTherapists.length > 0 ? (
+          {scoredTherapists.length > 0 ? (
             <p className="text-sm text-muted-foreground">
-              {rankedTherapists.length} therapist{rankedTherapists.length !== 1 ? "s" : ""} match · adjust criteria or scroll to results
+              {scoredTherapists.length} therapist{scoredTherapists.length !== 1 ? "s" : ""} match · adjust criteria or scroll to results
             </p>
           ) : (
             <p className="text-sm font-medium text-amber-600">No therapists match · try adjusting your criteria</p>
@@ -1297,33 +1249,18 @@ export function ReferralComposeForm({
             </div>
           )}
 
-          {rankedTherapists.length === 0 ? (
+          {scoredTherapists.length === 0 ? (
             <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
               No therapists match these criteria yet. Try adjusting your filters or check back as more providers join.
             </div>
-          ) : hasAnyNetwork ? (
+          ) : (
             <>
-              {topMatches.length > 0 && (
-                <MatchSection
-                  icon={<Target size={16} className="text-primary" />}
-                  title="Top Matches"
-                  count={topMatches.length}
-                  matches={topMatches}
-                  criteria={criteria}
-                  senderName={senderName}
-                  currentCaseId={currentCaseId}
-                  currentCode={currentCode}
-                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
-                  selectedProfileIds={selectedProfileIds}
-                  onToggleSelect={handleToggleSelect}
-                />
-              )}
-              {trustedNetworkMatches.length > 0 && (
+              {yourNetwork.length > 0 && (
                 <MatchSection
                   icon={<Users size={16} className="text-primary" />}
-                  title="Trusted Network"
-                  count={trustedNetworkMatches.length}
-                  matches={trustedNetworkMatches}
+                  title="Your network"
+                  count={yourNetwork.length}
+                  matches={yourNetwork}
                   criteria={criteria}
                   senderName={senderName}
                   currentCaseId={currentCaseId}
@@ -1331,12 +1268,29 @@ export function ReferralComposeForm({
                   onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
                   selectedProfileIds={selectedProfileIds}
                   onToggleSelect={handleToggleSelect}
+                  defaultShow={3}
+                />
+              )}
+              {trustedByNetwork.length > 0 && (
+                <MatchSection
+                  icon={<Users size={16} className="text-muted-foreground" />}
+                  title="Trusted by your network"
+                  count={trustedByNetwork.length}
+                  matches={trustedByNetwork}
+                  criteria={criteria}
+                  senderName={senderName}
+                  currentCaseId={currentCaseId}
+                  currentCode={currentCode}
+                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
+                  selectedProfileIds={selectedProfileIds}
+                  onToggleSelect={handleToggleSelect}
+                  defaultShow={3}
                 />
               )}
               {broaderMatches.length > 0 && (
                 <MatchSection
                   icon={<Globe size={16} className="text-muted-foreground" />}
-                  title="Broader Matches"
+                  title={yourNetwork.length === 0 && trustedByNetwork.length === 0 ? "Matches" : "Broader matches"}
                   count={broaderMatches.length}
                   matches={broaderMatches}
                   criteria={criteria}
@@ -1346,39 +1300,7 @@ export function ReferralComposeForm({
                   onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
                   selectedProfileIds={selectedProfileIds}
                   onToggleSelect={handleToggleSelect}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              {effectiveTopMatches.length > 0 && (
-                <MatchSection
-                  icon={<Target size={16} className="text-primary" />}
-                  title="Top Matches"
-                  count={effectiveTopMatches.length}
-                  matches={effectiveTopMatches}
-                  criteria={criteria}
-                  senderName={senderName}
-                  currentCaseId={currentCaseId}
-                  currentCode={currentCode}
-                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
-                  selectedProfileIds={selectedProfileIds}
-                  onToggleSelect={handleToggleSelect}
-                />
-              )}
-              {effectiveBroader.length > 0 && (
-                <MatchSection
-                  icon={<Globe size={16} className="text-muted-foreground" />}
-                  title="Other Matches"
-                  count={effectiveBroader.length}
-                  matches={effectiveBroader}
-                  criteria={criteria}
-                  senderName={senderName}
-                  currentCaseId={currentCaseId}
-                  currentCode={currentCode}
-                  onCaseCreated={(id, code) => { setCurrentCaseId(id); setCurrentCode(code); }}
-                  selectedProfileIds={selectedProfileIds}
-                  onToggleSelect={handleToggleSelect}
+                  defaultShow={5}
                 />
               )}
             </>
@@ -1393,8 +1315,6 @@ export function ReferralComposeForm({
   );
 }
 
-const SECTION_DEFAULT_SHOW = 5;
-
 function MatchSection({
   icon,
   title,
@@ -1407,6 +1327,7 @@ function MatchSection({
   onCaseCreated,
   selectedProfileIds,
   onToggleSelect,
+  defaultShow,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -1415,7 +1336,6 @@ function MatchSection({
     therapist: PublicTherapistSummary;
     confidence: "high" | "medium" | "low";
     dimensions: MatchDimension[];
-    score: number;
   }>;
   criteria: ContactCriteria;
   senderName: string;
@@ -1424,10 +1344,11 @@ function MatchSection({
   onCaseCreated: (caseId: string, code: string) => void;
   selectedProfileIds: Set<string>;
   onToggleSelect: (profileId: string) => void;
+  defaultShow: number;
 }) {
   const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? matches : matches.slice(0, SECTION_DEFAULT_SHOW);
-  const hiddenCount = matches.length - SECTION_DEFAULT_SHOW;
+  const visible = showAll ? matches : matches.slice(0, defaultShow);
+  const hiddenCount = matches.length - defaultShow;
 
   return (
     <div className="space-y-3">
@@ -1457,18 +1378,18 @@ function MatchSection({
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="w-full rounded-2xl border border-dashed border-slate-300 py-2.5 text-sm text-muted-foreground transition hover:border-primary hover:text-primary"
+          className="text-sm font-medium text-primary"
         >
           Show {hiddenCount} more
         </button>
       )}
-      {showAll && matches.length > SECTION_DEFAULT_SHOW && (
+      {showAll && matches.length > defaultShow && (
         <button
           type="button"
           onClick={() => setShowAll(false)}
-          className="w-full rounded-2xl border border-dashed border-slate-300 py-2.5 text-sm text-muted-foreground transition hover:border-primary hover:text-primary"
+          className="text-sm font-medium text-primary"
         >
-          Show fewer
+          Show less
         </button>
       )}
     </div>
@@ -1525,18 +1446,8 @@ function TherapistMatchCard({
   const trustBadges: string[] = [];
   if (therapist.trustedByViewer) trustBadges.push("You Trust");
   else if (therapist.isFollowed) trustBadges.push("In Network");
-  else if (therapist.trustedBy.length === 1) trustBadges.push(`${therapist.trustedBy[0]?.name} trusts them`);
-  else if (therapist.trustedBy.length > 1) trustBadges.push(`${therapist.trustedBy[0]?.name} +${therapist.trustedBy.length - 1} trust them`);
-
-  const attributeChips: string[] = [];
-  if (therapist.populations.length > 0) attributeChips.push(`Works with ${therapist.populations[0]}`);
-  if (therapist.telehealth && therapist.availabilityStatus === "accepting" && !therapist.availabilityIsStale) {
-    attributeChips.push("Available via Telehealth");
-  } else if (therapist.telehealth) {
-    attributeChips.push("Telehealth");
-  }
-  if (therapist.inPerson && therapist.neighborhoods[0]) attributeChips.push(`Located in ${therapist.neighborhoods[0]}`);
-  attributeChips.push(getPaymentModelLabel(therapist.paymentModel));
+  else if (therapist.trustedBy.length === 1) trustBadges.push(`Trusted by ${therapist.trustedBy[0]?.name}`);
+  else if (therapist.trustedBy.length > 1) trustBadges.push(`Trusted by ${therapist.trustedBy[0]?.name} +${therapist.trustedBy.length - 1}`);
 
   const availabilityChipLabel = (() => {
     if (therapist.availabilityStatus === "accepting" && therapist.availabilityIsStale) return "Availability unconfirmed";
@@ -1625,6 +1536,19 @@ function TherapistMatchCard({
                 {badge}
               </span>
             ))}
+            <span
+              className={
+                therapist.availabilityIsStale
+                  ? "rounded-md border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500"
+                  : therapist.availabilityStatus === "accepting"
+                    ? "rounded-md border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs text-green-700"
+                    : therapist.availabilityStatus === "waitlist"
+                      ? "rounded-md border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-xs text-yellow-700"
+                      : "rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-500"
+              }
+            >
+              {availabilityChipLabel}
+            </span>
           </div>
           <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
             <MapPin size={12} className="shrink-0" />
@@ -1640,29 +1564,6 @@ function TherapistMatchCard({
         </div>
       </div>
 
-      {/* Attribute chips */}
-      {attributeChips.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {attributeChips.map((chip) => (
-            <span key={chip} className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600">
-              {chip}
-            </span>
-          ))}
-          <span
-            className={
-              therapist.availabilityIsStale || therapist.recentlyReportedFull
-                ? "rounded-md border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500"
-                : therapist.availabilityStatus === "accepting"
-                  ? "rounded-md border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs text-green-700"
-                  : therapist.availabilityStatus === "waitlist"
-                    ? "rounded-md border border-yellow-200 bg-yellow-50 px-2.5 py-0.5 text-xs text-yellow-700"
-                    : "rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-500"
-            }
-          >
-            {availabilityChipLabel}
-          </span>
-        </div>
-      )}
       {therapist.recentlyReportedFull && (
         <p className="mt-2 text-xs text-amber-600">Recently reported full by a colleague</p>
       )}
