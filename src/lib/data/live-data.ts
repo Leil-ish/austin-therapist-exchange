@@ -199,6 +199,57 @@ async function getFollowedProfileIds(viewerProfileId?: string) {
   );
 }
 
+async function getSecondDegreeFollows(
+  therapistProfileIds: string[],
+  viewerFollowedIds: string[]
+): Promise<Map<string, Array<{ id: string; name: string; slug: string }>>> {
+  if (therapistProfileIds.length === 0 || viewerFollowedIds.length === 0) {
+    return new Map();
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data: rawFollows } = await admin
+    .from("follows")
+    .select("followed_profile_id, follower_profile_id")
+    .in("follower_profile_id", viewerFollowedIds)
+    .in("followed_profile_id", therapistProfileIds);
+
+  const follows = (rawFollows ?? []) as Array<{
+    followed_profile_id: string;
+    follower_profile_id: string;
+  }>;
+
+  if (follows.length === 0) return new Map();
+
+  const followerIds = [...new Set(follows.map((f) => f.follower_profile_id))];
+  const { data: rawProfiles } = await admin
+    .from("profiles")
+    .select("id, full_name, slug")
+    .in("id", followerIds);
+
+  const profileMap = new Map(
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [
+      String(p.id),
+      {
+        id: String(p.id),
+        name: String(p.full_name ?? "Therapist"),
+        slug: String(p.slug ?? "")
+      }
+    ])
+  );
+
+  const grouped = new Map<string, Array<{ id: string; name: string; slug: string }>>();
+  for (const follow of follows) {
+    const follower = profileMap.get(follow.follower_profile_id);
+    if (!follower) continue;
+    const current = grouped.get(follow.followed_profile_id) ?? [];
+    current.push(follower);
+    grouped.set(follow.followed_profile_id, current);
+  }
+
+  return grouped;
+}
+
 async function getPublicCuratedListTitles(profileIds: string[]) {
   if (profileIds.length === 0) {
     return new Map<string, string[]>();
@@ -288,7 +339,7 @@ function mapTherapistSummary(
   trustedBy: Map<string, { id: string; name: string; slug: string }[]>,
   followedProfileIds: Set<string>,
   curatedListTitles: Map<string, string[]>,
-  viewerProfileId?: string,
+  _viewerProfileId?: string,
   recentlyReportedFull: boolean = false
 ): PublicTherapistSummary {
   const profileId = String(row.profile_id);
@@ -337,7 +388,7 @@ function mapTherapistSummary(
     bookingUrl: typeof row.booking_url === "string" && row.booking_url ? row.booking_url : undefined,
     avatarUrl: typeof row.avatar_url === "string" && row.avatar_url ? row.avatar_url : undefined,
     isFollowed: followedProfileIds.has(profileId),
-    trustedByViewer: viewerProfileId ? trustedConnections.some((connection) => connection.id === viewerProfileId) : false,
+    trustedByViewer: followedProfileIds.has(profileId),
     membershipTier: (row.membership_tier as MembershipTier | null) ?? "free",
     sponsorName: undefined
   };
@@ -393,14 +444,13 @@ export async function getPublicTherapists(
     .range(offset, offset + limit - 1);
 
   const rows = (rawRows ?? []) as Array<Record<string, unknown>>;
-  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
-    getSupplementalTherapistFields(
-      rows.map((row) => String(row.therapist_profile_id)),
-      rows.map((row) => String(row.profile_id))
-    ),
-    getEndorserConnections(rows.map((row) => String(row.profile_id))),
-    getFollowedProfileIds(viewerProfileId),
-    getPublicCuratedListTitles(rows.map((row) => String(row.therapist_profile_id)))
+  const followedProfileIds = await getFollowedProfileIds(viewerProfileId);
+  const profileIds = rows.map((row) => String(row.profile_id));
+  const therapistProfileIds = rows.map((row) => String(row.therapist_profile_id));
+  const [{ therapistFields, profileFields }, secondDegreeFollows, curatedListTitles] = await Promise.all([
+    getSupplementalTherapistFields(therapistProfileIds, profileIds),
+    getSecondDegreeFollows(profileIds, [...followedProfileIds]),
+    getPublicCuratedListTitles(therapistProfileIds)
   ]);
 
   return {
@@ -412,7 +462,7 @@ export async function getPublicTherapists(
             ...therapistFields.get(String(row.therapist_profile_id)),
             ...profileFields.get(String(row.profile_id))
           },
-          trustedBy,
+          secondDegreeFollows,
           followedProfileIds,
           curatedListTitles,
           viewerProfileId
@@ -503,13 +553,13 @@ export async function getReferralCandidateTherapists(
   const profileById = new Map(profiles.map((profile) => [String(profile.id), profile]));
   const rowProfileIds = rows.map((row) => String(row.profile_id));
 
-  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles, rawResponses] = await Promise.all([
+  const followedProfileIds = await getFollowedProfileIds(viewerProfileId);
+  const [{ therapistFields, profileFields }, secondDegreeFollows, curatedListTitles, rawResponses] = await Promise.all([
     getSupplementalTherapistFields(
       rows.map((row) => String(row.id)),
       rowProfileIds
     ),
-    getEndorserConnections(rowProfileIds),
-    getFollowedProfileIds(viewerProfileId),
+    getSecondDegreeFollows(rowProfileIds, [...followedProfileIds]),
     getPublicCuratedListTitles(rows.map((row) => String(row.id))),
     rowProfileIds.length
       ? admin
@@ -565,7 +615,7 @@ export async function getReferralCandidateTherapists(
           ...therapistFields.get(String(row.id)),
           ...profileFields.get(String(row.profile_id))
         },
-        trustedBy,
+        secondDegreeFollows,
         followedProfileIds,
         curatedListTitles,
         viewerProfileId,
