@@ -306,7 +306,7 @@ async function getSupplementalTherapistFields(
     profileIds.length
       ? admin
           .from("profiles")
-          .select("id, avatar_url")
+          .select("id, avatar_url, created_at")
           .in("id", profileIds)
       : Promise.resolve({ data: [] as unknown[], error: null })
   ]);
@@ -1058,51 +1058,94 @@ export async function getAdminJoinRequests() {
   const admin = createSupabaseAdminClient();
   const { data: rawRequests } = await admin
     .from("join_requests")
-    .select("id, full_name, email, credentials, license_number, endorsement_from_profile_id, invitation_id, status, created_at")
+    .select(
+      "id, full_name, email, credentials, website_url, license_number, sponsor_profile_id, endorsement_from_profile_id, invitation_id, level_of_care, specialties, payment_model, availability, care_format, status, created_at"
+    )
     .order("created_at", { ascending: false });
 
   const requests = (rawRequests ?? []) as Array<Record<string, unknown>>;
-  const sponsorIds = [...new Set(requests.map((request) => String(request.endorsement_from_profile_id)))];
-  const invitationIds = [...new Set(requests.map((request) => String(request.invitation_id)))];
+
+  // Collect sponsor IDs from new field first, fall back to legacy field
+  const sponsorIds = [
+    ...new Set(
+      requests
+        .map((r) => {
+          const id = r.sponsor_profile_id ?? r.endorsement_from_profile_id;
+          return typeof id === "string" && id ? id : null;
+        })
+        .filter((id): id is string => id !== null)
+    )
+  ];
+
+  const invitationIds = [
+    ...new Set(
+      requests
+        .map((r) => (typeof r.invitation_id === "string" && r.invitation_id ? r.invitation_id : null))
+        .filter((id): id is string => id !== null)
+    )
+  ];
 
   const { data: rawSponsors } = sponsorIds.length
     ? await admin.from("profiles").select("id, full_name").in("id", sponsorIds)
     : { data: [] as unknown[] };
   const sponsors = new Map(
-    ((rawSponsors ?? []) as Array<Record<string, unknown>>).map((profile) => [
-      String(profile.id),
-      String(profile.full_name ?? "Trusted member")
+    ((rawSponsors ?? []) as Array<Record<string, unknown>>).map((p) => [
+      String(p.id),
+      String(p.full_name ?? "Member")
     ])
   );
 
   const { data: rawInvitations } = invitationIds.length
-    ? await admin.from("invitations").select("id, code, market_slug").in("id", invitationIds)
+    ? await admin.from("invitations").select("id, code").in("id", invitationIds)
     : { data: [] as unknown[] };
   const invitations = new Map(
-    ((rawInvitations ?? []) as Array<Record<string, unknown>>).map((invitation) => [
-      String(invitation.id),
-      {
-        code: String(invitation.code ?? ""),
-        marketSlug: String(invitation.market_slug ?? "austin-tx")
-      }
+    ((rawInvitations ?? []) as Array<Record<string, unknown>>).map((inv) => [
+      String(inv.id),
+      String(inv.code ?? "")
     ])
   );
 
   return requests.map((request) => {
-    const invitation = invitations.get(String(request.invitation_id));
+    const sponsorId = (typeof request.sponsor_profile_id === "string" && request.sponsor_profile_id
+      ? request.sponsor_profile_id
+      : typeof request.endorsement_from_profile_id === "string" && request.endorsement_from_profile_id
+      ? request.endorsement_from_profile_id
+      : null);
+
+    const invId =
+      typeof request.invitation_id === "string" && request.invitation_id ? request.invitation_id : null;
 
     return {
       id: String(request.id),
       fullName: String(request.full_name ?? "Applicant"),
       email: String(request.email ?? ""),
       credentials: String(request.credentials ?? ""),
+      website:
+        typeof request.website_url === "string" && request.website_url
+          ? request.website_url
+          : undefined,
       licenseNumber:
-        typeof request.license_number === "string" && request.license_number.length > 0
+        typeof request.license_number === "string" && request.license_number
           ? request.license_number
           : undefined,
-      marketName: invitation?.marketSlug === "austin-tx" ? "Austin" : invitation?.marketSlug ?? "Austin",
-      sponsorName: sponsors.get(String(request.endorsement_from_profile_id)) ?? "Trusted member",
-      referralCode: invitation?.code ?? "",
+      levelOfCare: Array.isArray(request.level_of_care) ? (request.level_of_care as string[]) : [],
+      specialties: Array.isArray(request.specialties) ? (request.specialties as string[]) : [],
+      paymentModel:
+        typeof request.payment_model === "string" && request.payment_model
+          ? request.payment_model
+          : undefined,
+      onboardingAvailability:
+        typeof request.availability === "string" && request.availability
+          ? request.availability
+          : undefined,
+      careFormat:
+        typeof request.care_format === "string" && request.care_format
+          ? request.care_format
+          : undefined,
+      marketName: "Austin",
+      sponsorName: sponsorId ? (sponsors.get(sponsorId) ?? undefined) : undefined,
+      sponsorProfileId: sponsorId ?? undefined,
+      referralCode: invId ? (invitations.get(invId) ?? undefined) : undefined,
       createdAtLabel: formatCreatedAtLabel(request.created_at as string | null),
       status: String(request.status ?? "pending") as JoinRequestSummary["status"]
     } satisfies JoinRequestSummary;

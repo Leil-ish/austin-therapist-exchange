@@ -41,7 +41,7 @@ async function getLatestJoinRequestForUser(user: User) {
         id: string;
         full_name?: string | null;
         credentials?: string | null;
-        invitation_id: string;
+        invitation_id: string | null;
         grant_referral_access?: boolean | null;
         status: "pending" | "active" | "rejected" | "suspended";
         reviewed_by?: string | null;

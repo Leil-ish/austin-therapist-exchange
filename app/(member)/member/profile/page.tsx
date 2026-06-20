@@ -119,6 +119,15 @@ export default async function MemberProfilePage({
   const neighborhoods = Array.isArray(profile.neighborhoods) ? (profile.neighborhoods as string[]) : [];
   const insuranceAccepted = Array.isArray(profile.insurance_accepted) ? (profile.insurance_accepted as string[]) : [];
 
+  const profileCreatedAt =
+    typeof profile.created_at === "string" ? new Date(profile.created_at) : null;
+  const accountAgeInDays = profileCreatedAt
+    ? (Date.now() - profileCreatedAt.getTime()) / (1000 * 60 * 60 * 24)
+    : null;
+  const isNewAccount = accountAgeInDays !== null && accountAgeInDays <= 7;
+  const bio = String(profile.bio ?? "").trim();
+  const showWelcomeBanner = !bio && neighborhoods.length === 0 && isNewAccount;
+
   const filterFieldChecks = [
     { label: "Gender", empty: !profile.gender },
     { label: "Languages", empty: languages.length === 0 },
@@ -132,6 +141,16 @@ export default async function MemberProfilePage({
 
   return (
     <div className="space-y-6">
+
+      {/* ── new-member welcome banner ── */}
+      {showWelcomeBanner && (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+          <p className="font-medium">Welcome to Austin Therapist Exchange — finish setting up your profile</p>
+          <p className="mt-1 text-muted-foreground text-xs">
+            Add your bio, neighborhoods you serve, and insurance carriers to appear in more referral searches.
+          </p>
+        </div>
+      )}
 
       {/* ── freshness + completeness banners ── */}
       <AvailabilityFreshnessBanner

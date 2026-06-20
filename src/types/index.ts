@@ -98,10 +98,17 @@ export interface JoinRequestSummary {
   fullName: string;
   email: string;
   credentials: string;
+  website?: string;
   licenseNumber?: string;
+  levelOfCare: string[];
+  specialties: string[];
+  paymentModel?: string;
+  onboardingAvailability?: string;
+  careFormat?: string;
   marketName: string;
-  sponsorName: string;
-  referralCode: string;
+  sponsorName?: string;
+  sponsorProfileId?: string;
+  referralCode?: string;
   createdAtLabel: string;
   status: MembershipState;
 }
