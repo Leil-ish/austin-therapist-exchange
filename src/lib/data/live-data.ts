@@ -504,11 +504,12 @@ export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: s
     return null;
   }
 
-  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
+  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles, recentlyReportedFull] = await Promise.all([
     getSupplementalTherapistFields([String(rawRow.therapist_profile_id)], [String(rawRow.profile_id)]),
     getEndorserConnections([String(rawRow.profile_id)]),
     getFollowedProfileIds(viewerProfileId),
-    getPublicCuratedListTitles([String(rawRow.therapist_profile_id)])
+    getPublicCuratedListTitles([String(rawRow.therapist_profile_id)]),
+    getRecentlyReportedFull(String(rawRow.profile_id))
   ]);
   return mapTherapistSummary(
     {
@@ -519,8 +520,42 @@ export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: s
     trustedBy,
     followedProfileIds,
     curatedListTitles,
-    viewerProfileId
+    viewerProfileId,
+    recentlyReportedFull
   );
+}
+
+export async function getRecentlyReportedFull(profileId: string): Promise<boolean> {
+  const admin = createSupabaseAdminClient();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+  const [{ data: rawResp }, { data: rawProfile }] = await Promise.all([
+    admin
+      .from("case_referrals")
+      .select("responded_at")
+      .eq("referred_profile_id", profileId)
+      .eq("status", "declined")
+      .not("responded_at", "is", null)
+      .order("responded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("therapist_profiles")
+      .select("availability_updated_at")
+      .eq("profile_id", profileId)
+      .maybeSingle()
+  ]);
+
+  if (!rawResp?.responded_at) return false;
+
+  const respondedMs = new Date(String(rawResp.responded_at)).getTime();
+  if (Date.now() - respondedMs > thirtyDaysMs) return false;
+
+  const availabilityUpdatedAt =
+    typeof rawProfile?.availability_updated_at === "string" ? rawProfile.availability_updated_at : null;
+  if (availabilityUpdatedAt && new Date(availabilityUpdatedAt).getTime() > respondedMs) return false;
+
+  return true;
 }
 
 export async function getReferralCandidateTherapists(

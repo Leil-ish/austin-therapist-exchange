@@ -65,6 +65,9 @@ export default async function TherapistProfilePage({
                   </Badge>
                   <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
                 </div>
+                {therapist.recentlyReportedFull && (
+                  <p className="text-xs text-amber-600">Recently reported full by a colleague</p>
+                )}
                 <CardTitle className="text-4xl">{therapist.displayName}</CardTitle>
                 {therapist.headline ? <p className="text-base uppercase tracking-[0.18em] text-muted-foreground">{therapist.headline}</p> : null}
                 <p className="text-lg text-muted-foreground">{therapist.title}</p>
