@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireMember } from "@/lib/auth/guards";
+import { sendAdminNotificationEmail } from "@/lib/email";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { sendAdminNotificationEmail } from "@/lib/email";
 import type { AvailabilityStatus, PaymentModel, PostType } from "@/types";
 
 function normalizeEmail(value: string) {

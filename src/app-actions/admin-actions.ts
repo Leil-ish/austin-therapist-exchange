@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth/guards";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendApprovalEmail, sendDenialEmail } from "@/lib/email";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 function slugify(value: string) {
   return value
