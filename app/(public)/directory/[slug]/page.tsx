@@ -2,11 +2,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
-import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
 import { requireMember } from "@/lib/auth/guards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrustToggleButton } from "@/components/domain/trust-toggle-button";
 import { PageShell } from "@/components/layout/page-shell";
 import {
   getAvailabilityLabel,
@@ -15,11 +15,24 @@ import {
 } from "@/lib/data/live-data";
 
 export default async function TherapistProfilePage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ from?: string; returnTo?: string }>;
 }) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const rawReturnTo = resolvedSearchParams.returnTo ?? resolvedSearchParams.from;
+  const fromNetwork = rawReturnTo?.startsWith("/member/network") ?? false;
+  const fromReferrals = rawReturnTo?.startsWith("/member/referrals") ?? false;
+  const returnTo = (fromNetwork || fromReferrals) ? rawReturnTo : null;
+  const showBackLink = fromNetwork || fromReferrals;
+  const backLabel = fromNetwork
+    ? "Back to network"
+    : rawReturnTo === "/member/referrals"
+      ? "Back to referrals"
+      : "Back to referral search";
   const session = await requireMember(`/directory/${slug}`);
   const therapist = await getPublicTherapistBySlug(slug, session.userId);
 
@@ -29,6 +42,16 @@ export default async function TherapistProfilePage({
 
   return (
     <PageShell>
+      {showBackLink && (
+        <div className="mx-auto max-w-5xl px-6 pt-8">
+          <Link
+            href={(returnTo ?? "/member/referrals") as never}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+          >
+            <span aria-hidden>←</span> {backLabel}
+          </Link>
+        </div>
+      )}
       <section className="mx-auto grid max-w-5xl gap-8 px-6 py-16 md:grid-cols-[1.2fr_0.8fr]">
         <Card className="bg-white/90">
           <CardHeader className="space-y-4">
@@ -44,9 +67,14 @@ export default async function TherapistProfilePage({
               ) : null}
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex flex-wrap gap-2">
-                  <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
+                  <Badge variant={therapist.availabilityIsStale ? "muted" : "default"}>
+                    {therapist.availabilityIsStale ? "Availability unconfirmed" : getAvailabilityLabel(therapist.availabilityStatus)}
+                  </Badge>
                   <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
                 </div>
+                {therapist.recentlyReportedFull && (
+                  <p className="text-xs text-amber-600">Recently reported full by a colleague</p>
+                )}
                 <CardTitle className="text-4xl">{therapist.displayName}</CardTitle>
                 {therapist.headline ? <p className="text-base uppercase tracking-[0.18em] text-muted-foreground">{therapist.headline}</p> : null}
                 <p className="text-lg text-muted-foreground">{therapist.title}</p>
@@ -59,13 +87,11 @@ export default async function TherapistProfilePage({
                 <Button asChild>
                   <Link href={`/member/referrals/to/${therapist.slug}`}>Make a referral</Link>
                 </Button>
-                <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
-                  <input name="followedProfileId" type="hidden" value={therapist.profileId} />
-                  <input name="returnTo" type="hidden" value={`/directory/${therapist.slug}`} />
-                  <Button type="submit" variant="outline">
-                    {therapist.isFollowed ? "Saved" : "Save"}
-                  </Button>
-                </form>
+                <TrustToggleButton
+                  followedProfileId={therapist.profileId}
+                  initialIsFollowed={therapist.isFollowed ?? false}
+                  size="default"
+                />
                 {therapist.publicEmail ? (
                   <Button asChild variant="outline">
                     <a href={`mailto:${therapist.publicEmail}?subject=${encodeURIComponent(`Referral inquiry for ${therapist.displayName}`)}`}>

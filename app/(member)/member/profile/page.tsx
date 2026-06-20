@@ -1,60 +1,107 @@
 import { saveMemberProfile } from "@/app-actions/member-actions";
 import { updatePassword } from "@/app-actions/auth-actions";
-import { COMMUNITIES } from "@/lib/referral-matching";
+import { COMMUNITIES, GENDERS, LANGUAGES, LOCATION_OPTIONS, MODALITIES } from "@/lib/referral-matching";
+import { ProfileLogisticsSection } from "@/components/domain/profile-logistics-section";
+import { ProfileSpecialtiesPicker } from "@/components/domain/profile-specialties-picker";
 import { AvatarUpload } from "@/components/domain/avatar-upload";
+import { AvailabilityFreshnessBanner } from "@/components/domain/availability-freshness-banner";
 import { EmptyState } from "@/components/state/empty-state";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
-import { getMemberProfileForUser } from "@/lib/data/live-data";
+import { getMemberProfileForUser, getRecentlyReportedFull } from "@/lib/data/live-data";
+import { cn } from "@/lib/utils";
+
+// ─── tiny helpers ────────────────────────────────────────────────────────────
+
+const INPUT = "w-full rounded-2xl border bg-background px-4 py-3 text-sm";
+const LOCKED_INPUT = cn(INPUT, "cursor-not-allowed opacity-50");
+
+function SectionCard({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
+  return (
+    <section
+      id={id}
+      className="rounded-[28px] border bg-white/90 shadow-paper"
+    >
+      <div className="p-6">
+        <h3 className="mb-5 font-serif text-2xl tracking-[0.01em]">{title}</h3>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function FieldLabel({
+  htmlFor,
+  children,
+  required,
+}: {
+  htmlFor: string;
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-foreground">
+      {children}
+      {required ? (
+        <span className="ml-0.5 text-destructive" aria-hidden="true"> *</span>
+      ) : (
+        <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
+      )}
+    </label>
+  );
+}
+
+function PremiumLabel({ htmlFor, label }: { htmlFor: string; label: string }) {
+  return (
+    <div className="mb-1 flex items-center gap-2">
+      <label htmlFor={htmlFor} className="text-sm font-medium text-foreground">
+        {label}
+        <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
+      </label>
+      <Badge variant="muted" className="py-0 text-xs">Premium</Badge>
+    </div>
+  );
+}
+
+// ─── status copy helpers ──────────────────────────────────────────────────────
 
 function getStatusCopy(error?: string, saved?: string) {
-  if (saved) {
-    return "Profile saved.";
-  }
-
-  if (error === "missing-fields") {
-    return "Please complete the required referral-facing profile fields.";
-  }
-
-  if (error === "save-failed") {
-    return "We couldn't save your profile. Please try again.";
-  }
-
+  if (saved) return { text: "Profile saved.", ok: true };
+  if (error === "missing-fields") return { text: "Please fill in the required fields (marked *).", ok: false };
+  if (error === "save-failed") return { text: "We couldn't save your profile. Please try again.", ok: false };
   return null;
 }
 
 function getPasswordStatusCopy(error?: string, saved?: string) {
-  if (saved) {
-    return "Password updated.";
-  }
-
-  if (error === "missing-password") {
-    return "Please enter and confirm your new password.";
-  }
-
-  if (error === "password-mismatch") {
-    return "The password fields did not match.";
-  }
-
-  if (error === "password-too-short") {
-    return "Use at least 10 characters for your password.";
-  }
-
+  if (saved) return "Password updated.";
+  if (error === "missing-password") return "Please enter and confirm your new password.";
+  if (error === "password-mismatch") return "The password fields did not match.";
+  if (error === "password-too-short") return "Use at least 10 characters for your password.";
   return error ? `Password update error: ${error}` : null;
 }
 
+// ─── page ─────────────────────────────────────────────────────────────────────
+
 export default async function MemberProfilePage({
-  searchParams
+  searchParams,
 }: {
-  searchParams?: Promise<{ saved?: string; error?: string; passwordSaved?: string; passwordError?: string }>;
+  searchParams?: Promise<{
+    saved?: string;
+    error?: string;
+    passwordSaved?: string;
+    passwordError?: string;
+  }>;
 }) {
   const session = await getSession();
   const params = searchParams ? await searchParams : undefined;
-  const profile = session ? await getMemberProfileForUser(session.userId) : null;
-  const statusCopy = getStatusCopy(params?.error, params?.saved);
+  const [profile, recentlyReportedFull] = session
+    ? await Promise.all([getMemberProfileForUser(session.userId), getRecentlyReportedFull(session.userId)])
+    : [null, false];
+  const status = getStatusCopy(params?.error, params?.saved);
   const passwordStatusCopy = getPasswordStatusCopy(params?.passwordError, params?.passwordSaved);
+  const isPremium = session?.membershipTier === "premium";
 
   if (!session || !profile) {
     return (
@@ -65,100 +112,227 @@ export default async function MemberProfilePage({
     );
   }
 
+  const communities = Array.isArray(profile.communities) ? (profile.communities as string[]) : [];
+  const modalities = Array.isArray(profile.modalities) ? (profile.modalities as string[]) : [];
+  const languages = Array.isArray(profile.languages) ? (profile.languages as string[]) : [];
+  const specialties = Array.isArray(profile.specialties) ? (profile.specialties as string[]) : [];
+  const neighborhoods = Array.isArray(profile.neighborhoods) ? (profile.neighborhoods as string[]) : [];
+  const insuranceAccepted = Array.isArray(profile.insurance_accepted) ? (profile.insurance_accepted as string[]) : [];
+
+  const filterFieldChecks = [
+    { label: "Gender", empty: !profile.gender },
+    { label: "Languages", empty: languages.length === 0 },
+    { label: "Modalities", empty: modalities.length === 0 },
+    { label: "Communities served", empty: communities.length === 0 },
+    { label: "Specialties", empty: specialties.length === 0 },
+    { label: "Insurance accepted", empty: profile.payment_model !== "private_pay" && insuranceAccepted.length === 0 },
+    { label: "In-person or telehealth format", empty: !profile.offers_in_person && !profile.offers_telehealth },
+  ];
+  const missingFilterFields = filterFieldChecks.filter((f) => f.empty).map((f) => f.label);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Card className="bg-white/90 lg:col-span-2">
+    <div className="space-y-6">
+
+      {/* ── freshness + completeness banners ── */}
+      <AvailabilityFreshnessBanner
+        availabilityStatus={String(profile.availability_status ?? "waitlist")}
+        availabilityUpdatedAt={
+          typeof profile.availability_updated_at === "string"
+            ? profile.availability_updated_at
+            : null
+        }
+      />
+
+      {missingFilterFields.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-medium">Complete your profile to appear in more referral searches</p>
+          <p className="mt-1">
+            Missing:{" "}
+            {missingFilterFields.map((f, i) => (
+              <span key={f}>
+                {i > 0 && ", "}
+                {f === "Gender" || f === "Languages" || f === "Modalities" || f === "Communities served" ? (
+                  <a href="#matching-attributes" className="underline underline-offset-2">{f}</a>
+                ) : (
+                  f
+                )}
+              </span>
+            ))}.
+          </p>
+          <p className="mt-1 text-xs text-amber-700">
+            Fill in these fields in the form below to help colleagues find you when their client criteria match your practice.
+          </p>
+        </div>
+      )}
+
+      {/* ── avatar — separate from the profile form ── */}
+      <Card className="bg-white/90">
         <CardHeader>
-          <CardTitle>Professional profile</CardTitle>
+          <CardTitle>Profile photo</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-          <p>Availability, fit, neighborhoods, payment, and a clear sense of your work.</p>
-          {statusCopy ? <div className="rounded-[24px] border bg-background p-4">{statusCopy}</div> : null}
+        <CardContent>
+          <AvatarUpload
+            currentAvatarUrl={
+              typeof profile.avatar_url === "string" && profile.avatar_url
+                ? profile.avatar_url
+                : undefined
+            }
+            displayName={String(profile.public_display_name ?? session.fullName)}
+            userId={session.userId}
+          />
         </CardContent>
       </Card>
 
-      <Card className="bg-white/90 lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Edit public profile</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="border-b pb-6">
-            <AvatarUpload
-              currentAvatarUrl={typeof profile.avatar_url === "string" && profile.avatar_url ? profile.avatar_url : undefined}
-              displayName={String(profile.public_display_name ?? session.fullName)}
-              userId={session.userId}
-            />
+      {/* ════════════════════════════════════════
+          Main profile form
+          All name= attributes are unchanged.
+          ════════════════════════════════════════ */}
+      <form action={saveMemberProfile} className="space-y-6">
+
+        {/* ── BASICS ── */}
+        <SectionCard title="Basics">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <FieldLabel htmlFor="publicDisplayName" required>Full name</FieldLabel>
+              <input
+                id="publicDisplayName"
+                className={INPUT}
+                defaultValue={String(profile.public_display_name ?? session.fullName)}
+                name="publicDisplayName"
+                placeholder="e.g. Sarah Chen"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="credentials" required>Credentials / title</FieldLabel>
+              <input
+                id="credentials"
+                className={INPUT}
+                defaultValue={String(profile.credentials ?? "")}
+                name="credentials"
+                placeholder="e.g. LPC, LCSW"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <PremiumLabel htmlFor="headline" label="Tagline" />
+              <input
+                id="headline"
+                className={isPremium ? INPUT : LOCKED_INPUT}
+                disabled={!isPremium}
+                defaultValue={String(profile.headline ?? "")}
+                name="headline"
+                placeholder={
+                  isPremium
+                    ? "Something personal — e.g. \"I help people find calm after chaos\""
+                    : "Upgrade to Premium to add a tagline"
+                }
+              />
+            </div>
           </div>
-          <form action={saveMemberProfile} className="grid gap-4 md:grid-cols-2">
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={String(profile.public_display_name ?? session.fullName)}
-              name="publicDisplayName"
-              placeholder="Public display name"
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={String(profile.credentials ?? "")}
-              name="credentials"
-              placeholder="Credentials"
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
-              defaultValue={String(profile.headline ?? "")}
-              name="headline"
-              placeholder={session.membershipTier === "premium" ? "Your tagline — something personal (e.g. \"I help people find calm after chaos\")" : "Premium members can add a tagline"}
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={String(profile.website_url ?? "")}
-              name="websiteUrl"
-              placeholder="Website URL"
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={String(profile.booking_url ?? "")}
-              name="bookingUrl"
-              placeholder="Booking URL (optional)"
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={String(profile.public_email ?? "")}
-              name="publicEmail"
-              placeholder="Public email"
-              type="email"
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={String(profile.public_phone ?? "")}
-              name="publicPhone"
-              placeholder="Public phone"
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={(Array.isArray(profile.neighborhoods) ? profile.neighborhoods : []).join(", ")}
-              name="neighborhoods"
-              placeholder="Primary neighborhood or area"
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={(Array.isArray(profile.specialties) ? profile.specialties : []).join(", ")}
-              name="specialties"
-              placeholder="Specialties (comma separated)"
-            />
-            <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={(Array.isArray(profile.insurance_accepted) ? profile.insurance_accepted : []).join(", ")}
-              name="insuranceAccepted"
-              placeholder="Insurance carriers or notes (optional)"
-            />
-            <div className="space-y-2 rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2">
-              <p className="font-medium text-foreground">Communities served</p>
-              <p className="text-xs text-muted-foreground">Select all communities you serve or identify with — helps with culturally-informed referrals.</p>
-              <div className="mt-2 flex flex-wrap gap-3">
-                {COMMUNITIES.map((community) => (
-                  <label key={community} className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+        </SectionCard>
+
+        {/* ── CONTACT & LINKS ── */}
+        <SectionCard title="Contact & links">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <FieldLabel htmlFor="publicEmail">Public email</FieldLabel>
+              <input
+                id="publicEmail"
+                className={INPUT}
+                defaultValue={String(profile.public_email ?? "")}
+                name="publicEmail"
+                placeholder="Shown on your profile"
+                type="email"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="publicPhone">Public phone</FieldLabel>
+              <input
+                id="publicPhone"
+                className={INPUT}
+                defaultValue={String(profile.public_phone ?? "")}
+                name="publicPhone"
+                placeholder="Shown on your profile"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="websiteUrl">Website URL</FieldLabel>
+              <input
+                id="websiteUrl"
+                className={INPUT}
+                defaultValue={String(profile.website_url ?? "")}
+                name="websiteUrl"
+                placeholder="https://yourpractice.com"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="bookingUrl">Booking URL</FieldLabel>
+              <input
+                id="bookingUrl"
+                className={INPUT}
+                defaultValue={String(profile.booking_url ?? "")}
+                name="bookingUrl"
+                placeholder="e.g. Jane App, SimplePractice link"
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ── PRACTICE & LOCATION ── */}
+        <SectionCard title="Practice & location">
+          <div className="space-y-6">
+            <fieldset>
+              <legend className="mb-1 text-sm font-medium text-foreground">
+                Neighborhoods / area
+                <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
+              </legend>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Select all areas where you see clients in person.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {LOCATION_OPTIONS.filter((l) => l !== "Telehealth Only").map((location) => (
+                  <label
+                    key={location}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                  >
                     <input
-                      defaultChecked={(Array.isArray(profile.communities) ? profile.communities as string[] : []).includes(community)}
+                      defaultChecked={neighborhoods.includes(location)}
+                      name="neighborhoods"
+                      type="checkbox"
+                      value={location}
+                    />
+                    {location}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <ProfileSpecialtiesPicker defaultSelected={specialties} />
+          </div>
+        </SectionCard>
+
+        {/* ── MATCHING ATTRIBUTES ── */}
+        <SectionCard id="matching-attributes" title="Matching attributes">
+          <p className="mb-5 text-sm text-muted-foreground">
+            These fields power the referral search filters — keeping them filled helps colleagues find you when their client&apos;s needs match your practice.
+          </p>
+
+          <div className="space-y-6">
+            <fieldset>
+              <legend className="mb-1 text-sm font-medium text-foreground">
+                Communities served
+                <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
+              </legend>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Select all communities you serve or identify with — helps with culturally-informed referrals.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {COMMUNITIES.map((community) => (
+                  <label
+                    key={community}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                  >
+                    <input
+                      defaultChecked={communities.includes(community)}
                       name="communities"
                       type="checkbox"
                       value={community}
@@ -167,86 +341,218 @@ export default async function MemberProfilePage({
                   </label>
                 ))}
               </div>
-            </div>
-            <select
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={String(profile.payment_model ?? "both")}
-              name="paymentModel"
-            >
-              <option value="private_pay">Private pay</option>
-              <option value="insurance">Insurance</option>
-              <option value="both">Private pay + insurance</option>
-            </select>
-            <select
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-              defaultValue={String(profile.availability_status ?? "waitlist")}
-              name="availabilityStatus"
-            >
-              <option value="accepting">Accepting new clients</option>
-              <option value="waitlist">Limited openings</option>
-              <option value="full">Not accepting referrals</option>
-            </select>
-            <div className="flex flex-wrap items-center gap-4 rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground">
-              <label className="flex items-center gap-2">
-                <input defaultChecked={Boolean(profile.offers_in_person)} name="offersInPerson" type="checkbox" />
-                In person
-              </label>
-              <label className="flex items-center gap-2">
-                <input defaultChecked={Boolean(profile.offers_telehealth)} name="offersTelehealth" type="checkbox" />
-                Telehealth
-              </label>
-            </div>
-            <textarea
-              className="min-h-32 w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
-              defaultValue={String(profile.bio ?? "")}
-              name="bio"
-              placeholder="Short bio"
-            />
-            <textarea
-              className="min-h-32 w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
-              defaultValue={String(profile.approach_summary ?? "")}
-              name="approachSummary"
-              placeholder="How would you describe your approach to therapy?"
-            />
-            <textarea
-              className="min-h-24 w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
-              defaultValue={(Array.isArray(profile.featured_links) ? profile.featured_links : []).join("\n")}
-              name="featuredLinks"
-              placeholder="Featured links, one per line"
-            />
-            <textarea
-              className="min-h-24 w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
-              defaultValue={(Array.isArray(profile.offerings) ? profile.offerings : []).join("\n")}
-              name="offerings"
-              placeholder={session.membershipTier === "premium" ? "Offerings, groups, workshops, or resources (one per line)" : "Premium members can add offerings and resources"}
-            />
-            <label className="flex items-center gap-2 rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground md:col-span-2">
-              <input defaultChecked={Boolean(profile.is_public)} name="isPublic" type="checkbox" />
-              Show this profile in the public directory
-            </label>
-            <div className="md:col-span-2">
-              <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+            </fieldset>
 
+            <fieldset>
+              <legend className="mb-1 text-sm font-medium text-foreground">
+                Modalities
+                <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
+              </legend>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Select your primary therapeutic modalities — used to match referrals by treatment approach.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {MODALITIES.map((modality) => (
+                  <label
+                    key={modality}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                  >
+                    <input
+                      defaultChecked={modalities.includes(modality)}
+                      name="modalities"
+                      type="checkbox"
+                      value={modality}
+                    />
+                    {modality}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="mb-1 text-sm font-medium text-foreground">
+                Languages
+                <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
+              </legend>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Languages you can provide therapy in — helps match clients who need services in a specific language.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {LANGUAGES.map((language) => (
+                  <label
+                    key={language}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                  >
+                    <input
+                      defaultChecked={languages.includes(language)}
+                      name="languages"
+                      type="checkbox"
+                      value={language}
+                    />
+                    {language}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <FieldLabel htmlFor="gender">Gender (self-declared)</FieldLabel>
+                <select
+                  id="gender"
+                  className={INPUT}
+                  defaultValue={String(profile.gender ?? "")}
+                  name="gender"
+                >
+                  <option value="">Prefer not to say</option>
+                  {GENDERS.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <label
+                  htmlFor="offersSlidingScale"
+                  className="flex cursor-pointer items-center gap-3 rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground w-full"
+                >
+                  <input
+                    id="offersSlidingScale"
+                    defaultChecked={Boolean(profile.offers_sliding_scale)}
+                    name="offersSlidingScale"
+                    type="checkbox"
+                  />
+                  Offers sliding scale fees
+                </label>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ── LOGISTICS & AVAILABILITY ── */}
+        <SectionCard title="Logistics & availability">
+          {recentlyReportedFull && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-medium">A colleague recently indicated you may be full</p>
+              <p className="mt-1 text-xs text-amber-700">
+                Update your availability below to clear this flag from your directory listing.
+              </p>
+            </div>
+          )}
+          <ProfileLogisticsSection
+            defaultPaymentModel={String(profile.payment_model ?? "both")}
+            defaultAvailabilityStatus={String(profile.availability_status ?? "waitlist")}
+            defaultOffersInPerson={Boolean(profile.offers_in_person)}
+            defaultOffersTelehealth={Boolean(profile.offers_telehealth)}
+            defaultInsuranceAccepted={insuranceAccepted}
+          />
+        </SectionCard>
+
+        {/* ── ABOUT YOUR WORK ── */}
+        <SectionCard title="About your work">
+          <div className="space-y-4">
+            <div>
+              <FieldLabel htmlFor="bio" required>Bio</FieldLabel>
+              <textarea
+                id="bio"
+                className={cn(INPUT, "min-h-32")}
+                defaultValue={String(profile.bio ?? "")}
+                name="bio"
+                placeholder="A short professional bio — who you work with and what you bring to the room."
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="approachSummary">Therapy approach</FieldLabel>
+              <textarea
+                id="approachSummary"
+                className={cn(INPUT, "min-h-28")}
+                defaultValue={String(profile.approach_summary ?? "")}
+                name="approachSummary"
+                placeholder="How would you describe your approach to therapy?"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="featuredLinks">Featured links</FieldLabel>
+              <textarea
+                id="featuredLinks"
+                className={cn(INPUT, "min-h-20")}
+                defaultValue={(Array.isArray(profile.featured_links) ? profile.featured_links : []).join("\n")}
+                name="featuredLinks"
+                placeholder="One URL per line — articles, podcast episodes, Psychology Today, etc."
+              />
+            </div>
+            <div>
+              <PremiumLabel htmlFor="offerings" label="Offerings" />
+              <textarea
+                id="offerings"
+                className={cn(isPremium ? INPUT : LOCKED_INPUT, "min-h-20")}
+                disabled={!isPremium}
+                defaultValue={(Array.isArray(profile.offerings) ? profile.offerings : []).join("\n")}
+                name="offerings"
+                placeholder={
+                  isPremium
+                    ? "Groups, workshops, or resources — one per line"
+                    : "Upgrade to Premium to list offerings, groups, and resources"
+                }
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ── VISIBILITY ── */}
+        <SectionCard title="Visibility">
+          <label
+            htmlFor="isPublic"
+            className="flex cursor-pointer items-center gap-3 text-sm text-muted-foreground"
+          >
+            <input
+              id="isPublic"
+              defaultChecked={Boolean(profile.is_public)}
+              name="isPublic"
+              type="checkbox"
+            />
+            <span>
+              <span className="font-medium text-foreground">Show this profile in the public directory</span>
+              <span className="ml-2 text-xs">(visible to non-members at austintherapistexchange.com)</span>
+            </span>
+          </label>
+        </SectionCard>
+
+        {/* ── STICKY SAVE BAR ── */}
+        <div className="sticky bottom-0 z-20 rounded-[28px] border bg-white/95 px-6 py-4 shadow-paper backdrop-blur-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className={cn(
+              "text-sm",
+              !status ? "text-muted-foreground" : status.ok ? "text-green-700" : "text-destructive"
+            )}>
+              {status
+                ? status.text
+                : "Fields marked * are required."}
+            </p>
+            <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
+          </div>
+        </div>
+
+      </form>
+
+      {/* ── PASSWORD ── */}
       <Card className="bg-white/90">
         <CardHeader>
           <CardTitle>Password login</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
           <p>Password sign-in avoids email delays.</p>
-          {passwordStatusCopy ? <div className="rounded-[24px] border bg-background p-4">{passwordStatusCopy}</div> : null}
+          {passwordStatusCopy ? (
+            <div className="rounded-[24px] border bg-background p-4">{passwordStatusCopy}</div>
+          ) : null}
           <form action={updatePassword} className="space-y-4">
             <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
+              className={INPUT}
               name="password"
               placeholder="New password"
               type="password"
             />
             <input
-              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
+              className={INPUT}
               name="confirmPassword"
               placeholder="Confirm new password"
               type="password"
@@ -255,6 +561,7 @@ export default async function MemberProfilePage({
           </form>
         </CardContent>
       </Card>
+
     </div>
   );
 }

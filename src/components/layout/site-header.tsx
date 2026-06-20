@@ -1,9 +1,10 @@
 import Link from "next/link";
 
-import { signOut } from "@/app-actions/auth-actions";
 import { getSession } from "@/lib/auth/session";
+import { getIncomingReferrals } from "@/lib/data/referral-tracking";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "./mobile-nav";
+import { UserAvatarMenu } from "./user-avatar-menu";
 
 const publicNav = [
   { href: "/directory", label: "Directory" },
@@ -11,15 +12,18 @@ const publicNav = [
 ] as const;
 
 const memberNav = [
-  { href: "/directory", label: "Directory" },
   { href: "/member/referrals", label: "Referrals" },
   { href: "/member/network", label: "Network" },
-  { href: "/member/profile", label: "Profile" }
+  { href: "/directory", label: "Directory" }
 ] as const;
 
 export async function SiteHeader() {
   const session = await getSession();
   const navItems = session ? memberNav : publicNav;
+
+  const unreadReferralCount = session
+    ? (await getIncomingReferrals(session.userId)).filter((r) => r.status === "open").length
+    : 0;
 
   return (
     <header className="sticky top-0 z-20 border-b border-primary/10 bg-[rgba(255,251,245,0.9)] backdrop-blur">
@@ -40,8 +44,13 @@ export async function SiteHeader() {
 
         <nav className="hidden items-center gap-6 md:flex">
           {navItems.map((item) => (
-            <Link className="text-sm text-muted-foreground hover:text-foreground" href={item.href} key={item.href}>
+            <Link className="relative text-sm text-muted-foreground hover:text-foreground" href={item.href} key={item.href}>
               {item.label}
+              {item.href === "/member/referrals" && unreadReferralCount > 0 && (
+                <span className="absolute -top-2 -right-3 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                  {unreadReferralCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
@@ -49,11 +58,7 @@ export async function SiteHeader() {
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-3 md:flex">
             {session ? (
-              <form action={signOut}>
-                <Button type="submit" variant="outline">
-                  Sign out
-                </Button>
-              </form>
+              <UserAvatarMenu fullName={session.fullName} email={session.email} avatarUrl={session.avatarUrl} />
             ) : (
               <>
                 <Button asChild variant="ghost">

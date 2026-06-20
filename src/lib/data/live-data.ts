@@ -17,6 +17,7 @@ import type {
   ReferralMessage
 } from "@/types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { AVAILABILITY_STALE_DAYS } from "@/lib/referral-matching";
 
 function asArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
@@ -24,7 +25,7 @@ function asArray(value: unknown): string[] {
 
 function formatRelativeDateLabel(value?: string | null) {
   if (!value) {
-    return "Updated recently";
+    return "Not yet confirmed";
   }
 
   const then = new Date(value);
@@ -33,22 +34,22 @@ function formatRelativeDateLabel(value?: string | null) {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays <= 0) {
-    return "Updated today";
+    return "Confirmed today";
   }
 
   if (diffDays === 1) {
-    return "Updated yesterday";
+    return "Confirmed yesterday";
   }
 
   if (diffDays < 7) {
-    return `Updated ${diffDays} days ago`;
+    return `Confirmed ${diffDays} days ago`;
   }
 
   if (diffDays < 14) {
-    return "Updated last week";
+    return "Confirmed last week";
   }
 
-  return `Updated ${Math.floor(diffDays / 7)} weeks ago`;
+  return `Confirmed ${Math.floor(diffDays / 7)} weeks ago`;
 }
 
 function formatCreatedAtLabel(value?: string | null) {
@@ -198,6 +199,57 @@ async function getFollowedProfileIds(viewerProfileId?: string) {
   );
 }
 
+async function getSecondDegreeFollows(
+  therapistProfileIds: string[],
+  viewerFollowedIds: string[]
+): Promise<Map<string, Array<{ id: string; name: string; slug: string }>>> {
+  if (therapistProfileIds.length === 0 || viewerFollowedIds.length === 0) {
+    return new Map();
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data: rawFollows } = await admin
+    .from("follows")
+    .select("followed_profile_id, follower_profile_id")
+    .in("follower_profile_id", viewerFollowedIds)
+    .in("followed_profile_id", therapistProfileIds);
+
+  const follows = (rawFollows ?? []) as Array<{
+    followed_profile_id: string;
+    follower_profile_id: string;
+  }>;
+
+  if (follows.length === 0) return new Map();
+
+  const followerIds = [...new Set(follows.map((f) => f.follower_profile_id))];
+  const { data: rawProfiles } = await admin
+    .from("profiles")
+    .select("id, full_name, slug")
+    .in("id", followerIds);
+
+  const profileMap = new Map(
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [
+      String(p.id),
+      {
+        id: String(p.id),
+        name: String(p.full_name ?? "Therapist"),
+        slug: String(p.slug ?? "")
+      }
+    ])
+  );
+
+  const grouped = new Map<string, Array<{ id: string; name: string; slug: string }>>();
+  for (const follow of follows) {
+    const follower = profileMap.get(follow.follower_profile_id);
+    if (!follower) continue;
+    const current = grouped.get(follow.followed_profile_id) ?? [];
+    current.push(follower);
+    grouped.set(follow.followed_profile_id, current);
+  }
+
+  return grouped;
+}
+
 async function getPublicCuratedListTitles(profileIds: string[]) {
   if (profileIds.length === 0) {
     return new Map<string, string[]>();
@@ -248,13 +300,13 @@ async function getSupplementalTherapistFields(
     therapistProfileIds.length
       ? admin
           .from("therapist_profiles")
-          .select("id, headline, featured_links, offerings, public_email, public_phone, communities")
+          .select("id, public_email, public_phone, communities, modalities")
           .in("id", therapistProfileIds)
       : Promise.resolve({ data: [] as unknown[], error: null }),
     profileIds.length
       ? admin
           .from("profiles")
-          .select("id, membership_tier, avatar_url")
+          .select("id, avatar_url")
           .in("id", profileIds)
       : Promise.resolve({ data: [] as unknown[], error: null })
   ]);
@@ -276,17 +328,25 @@ async function getSupplementalTherapistFields(
   return { therapistFields, profileFields };
 }
 
+function isAvailabilityStale(isoDate: string | null | undefined): boolean {
+  if (!isoDate) return false;
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24)) > AVAILABILITY_STALE_DAYS;
+}
+
 function mapTherapistSummary(
   row: Record<string, unknown>,
   trustedBy: Map<string, { id: string; name: string; slug: string }[]>,
   followedProfileIds: Set<string>,
   curatedListTitles: Map<string, string[]>,
-  viewerProfileId?: string
+  _viewerProfileId?: string,
+  recentlyReportedFull: boolean = false
 ): PublicTherapistSummary {
   const profileId = String(row.profile_id);
   const paymentModel = (row.payment_model as PaymentModel | null) ?? "both";
   const therapistProfileId = String(row.therapist_profile_id);
   const trustedConnections = trustedBy.get(profileId) ?? [];
+  const availabilityUpdatedAt = typeof row.availability_updated_at === "string" ? row.availability_updated_at : null;
 
   return {
     id: therapistProfileId,
@@ -309,7 +369,14 @@ function mapTherapistSummary(
     city: String(row.city ?? "Austin"),
     marketName: "Austin",
     availabilityStatus: (row.availability_status as AvailabilityStatus | null) ?? "waitlist",
-    availabilityUpdatedAtLabel: formatRelativeDateLabel(row.availability_updated_at as string | null),
+    availabilityUpdatedAtLabel: formatRelativeDateLabel(availabilityUpdatedAt),
+    availabilityUpdatedAt,
+    availabilityIsStale: isAvailabilityStale(availabilityUpdatedAt),
+    recentlyReportedFull,
+    modalities: asArray(row.modalities),
+    gender: typeof row.gender === "string" && row.gender ? row.gender : undefined,
+    languages: asArray(row.languages),
+    slidingScale: Boolean(row.offers_sliding_scale),
     inPerson: Boolean(row.offers_in_person),
     telehealth: Boolean(row.offers_telehealth),
     trustedBy: trustedConnections,
@@ -318,9 +385,10 @@ function mapTherapistSummary(
     curatedListTitles: curatedListTitles.get(therapistProfileId) ?? [],
     publicEmail: typeof row.public_email === "string" ? row.public_email : undefined,
     publicPhone: typeof row.public_phone === "string" ? row.public_phone : undefined,
+    bookingUrl: typeof row.booking_url === "string" && row.booking_url ? row.booking_url : undefined,
     avatarUrl: typeof row.avatar_url === "string" && row.avatar_url ? row.avatar_url : undefined,
     isFollowed: followedProfileIds.has(profileId),
-    trustedByViewer: viewerProfileId ? trustedConnections.some((connection) => connection.id === viewerProfileId) : false,
+    trustedByViewer: followedProfileIds.has(profileId),
     membershipTier: (row.membership_tier as MembershipTier | null) ?? "free",
     sponsorName: undefined
   };
@@ -376,14 +444,13 @@ export async function getPublicTherapists(
     .range(offset, offset + limit - 1);
 
   const rows = (rawRows ?? []) as Array<Record<string, unknown>>;
-  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
-    getSupplementalTherapistFields(
-      rows.map((row) => String(row.therapist_profile_id)),
-      rows.map((row) => String(row.profile_id))
-    ),
-    getEndorserConnections(rows.map((row) => String(row.profile_id))),
-    getFollowedProfileIds(viewerProfileId),
-    getPublicCuratedListTitles(rows.map((row) => String(row.therapist_profile_id)))
+  const followedProfileIds = await getFollowedProfileIds(viewerProfileId);
+  const profileIds = rows.map((row) => String(row.profile_id));
+  const therapistProfileIds = rows.map((row) => String(row.therapist_profile_id));
+  const [{ therapistFields, profileFields }, secondDegreeFollows, curatedListTitles] = await Promise.all([
+    getSupplementalTherapistFields(therapistProfileIds, profileIds),
+    getSecondDegreeFollows(profileIds, [...followedProfileIds]),
+    getPublicCuratedListTitles(therapistProfileIds)
   ]);
 
   return {
@@ -395,7 +462,7 @@ export async function getPublicTherapists(
             ...therapistFields.get(String(row.therapist_profile_id)),
             ...profileFields.get(String(row.profile_id))
           },
-          trustedBy,
+          secondDegreeFollows,
           followedProfileIds,
           curatedListTitles,
           viewerProfileId
@@ -409,10 +476,13 @@ export async function getPublicTherapists(
           return trustB - trustA;
         }
 
-        const availabilityRank = { accepting: 2, waitlist: 1, full: 0 } as const;
-        if (availabilityRank[a.availabilityStatus] !== availabilityRank[b.availabilityStatus]) {
-          return availabilityRank[b.availabilityStatus] - availabilityRank[a.availabilityStatus];
-        }
+        const effectiveAvailScore = (t: PublicTherapistSummary) => {
+          const base = ({ accepting: 2, waitlist: 1, full: 0 } as const)[t.availabilityStatus];
+          return (t.availabilityIsStale || t.recentlyReportedFull) ? Math.max(base - 1, 0) : base;
+        };
+        const scoreA = effectiveAvailScore(a);
+        const scoreB = effectiveAvailScore(b);
+        if (scoreA !== scoreB) return scoreB - scoreA;
 
         return b.endorsementCount - a.endorsementCount;
       }),
@@ -434,11 +504,12 @@ export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: s
     return null;
   }
 
-  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
+  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles, recentlyReportedFull] = await Promise.all([
     getSupplementalTherapistFields([String(rawRow.therapist_profile_id)], [String(rawRow.profile_id)]),
     getEndorserConnections([String(rawRow.profile_id)]),
     getFollowedProfileIds(viewerProfileId),
-    getPublicCuratedListTitles([String(rawRow.therapist_profile_id)])
+    getPublicCuratedListTitles([String(rawRow.therapist_profile_id)]),
+    getRecentlyReportedFull(String(rawRow.profile_id))
   ]);
   return mapTherapistSummary(
     {
@@ -449,17 +520,51 @@ export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: s
     trustedBy,
     followedProfileIds,
     curatedListTitles,
-    viewerProfileId
+    viewerProfileId,
+    recentlyReportedFull
   );
+}
+
+export async function getRecentlyReportedFull(profileId: string): Promise<boolean> {
+  const admin = createSupabaseAdminClient();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+  const [{ data: rawResp }, { data: rawProfile }] = await Promise.all([
+    admin
+      .from("case_referrals")
+      .select("responded_at")
+      .eq("referred_profile_id", profileId)
+      .eq("status", "declined")
+      .not("responded_at", "is", null)
+      .order("responded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("therapist_profiles")
+      .select("availability_updated_at")
+      .eq("profile_id", profileId)
+      .maybeSingle()
+  ]);
+
+  if (!rawResp?.responded_at) return false;
+
+  const respondedMs = new Date(String(rawResp.responded_at)).getTime();
+  if (Date.now() - respondedMs > thirtyDaysMs) return false;
+
+  const availabilityUpdatedAt =
+    typeof rawProfile?.availability_updated_at === "string" ? rawProfile.availability_updated_at : null;
+  if (availabilityUpdatedAt && new Date(availabilityUpdatedAt).getTime() > respondedMs) return false;
+
+  return true;
 }
 
 export async function getReferralCandidateTherapists(
   viewerProfileId?: string
 ): Promise<PublicTherapistSummary[]> {
   const admin = createSupabaseAdminClient();
-  const { data: rawProfiles } = await admin
+  const { data: rawProfiles, error: profilesError } = await admin
     .from("profiles")
-    .select("id, slug, city, membership_tier, role, membership_state")
+    .select("id, slug, city, role, membership_state")
     .in("membership_state", ["active", "pending"])
     .in("role", ["therapist", "admin"]);
 
@@ -472,24 +577,48 @@ export async function getReferralCandidateTherapists(
   }
 
   const profileIds = profiles.map((profile) => String(profile.id));
-  const { data: rawTherapistProfiles } = await admin
+  const { data: rawTherapistProfiles, error: tpError } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, featured_links, offerings, headline"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, communities, modalities"
     )
     .in("profile_id", profileIds);
 
   const rows = (rawTherapistProfiles ?? []) as Array<Record<string, unknown>>;
   const profileById = new Map(profiles.map((profile) => [String(profile.id), profile]));
-  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
+  const rowProfileIds = rows.map((row) => String(row.profile_id));
+
+  const followedProfileIds = await getFollowedProfileIds(viewerProfileId);
+  const [{ therapistFields, profileFields }, secondDegreeFollows, curatedListTitles, rawResponses] = await Promise.all([
     getSupplementalTherapistFields(
       rows.map((row) => String(row.id)),
-      rows.map((row) => String(row.profile_id))
+      rowProfileIds
     ),
-    getEndorserConnections(rows.map((row) => String(row.profile_id))),
-    getFollowedProfileIds(viewerProfileId),
-    getPublicCuratedListTitles(rows.map((row) => String(row.id)))
+    getSecondDegreeFollows(rowProfileIds, [...followedProfileIds]),
+    getPublicCuratedListTitles(rows.map((row) => String(row.id))),
+    rowProfileIds.length
+      ? admin
+          .from("case_referrals")
+          .select("referred_profile_id, status, responded_at")
+          .in("referred_profile_id", rowProfileIds)
+          .not("responded_at", "is", null)
+          .order("responded_at", { ascending: false })
+      : Promise.resolve({ data: [] as unknown[], error: null })
   ]);
+
+  // Build most-recent-response map (aggregate, anonymous — status + date only)
+  const recentResponseByProfileId = new Map<string, { status: string; responded_at: string }>();
+  for (const resp of ((rawResponses.data ?? []) as Array<Record<string, unknown>>)) {
+    const pid = String(resp.referred_profile_id);
+    if (!recentResponseByProfileId.has(pid)) {
+      recentResponseByProfileId.set(pid, {
+        status: String(resp.status),
+        responded_at: String(resp.responded_at)
+      });
+    }
+  }
+
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
   return rows
     .map((row) => {
@@ -499,22 +628,33 @@ export async function getReferralCandidateTherapists(
         return null;
       }
 
+      // Compute soft-signal: declined recently AND more recent than self-reported update
+      const recentResp = recentResponseByProfileId.get(String(row.profile_id));
+      const availabilityUpdatedAt = typeof row.availability_updated_at === "string" ? row.availability_updated_at : null;
+      const recentlyReportedFull = (() => {
+        if (!recentResp || recentResp.status !== "declined") return false;
+        const respondedMs = new Date(recentResp.responded_at).getTime();
+        if (Date.now() - respondedMs > thirtyDaysMs) return false;
+        if (availabilityUpdatedAt && new Date(availabilityUpdatedAt).getTime() > respondedMs) return false;
+        return true;
+      })();
+
       return mapTherapistSummary(
         {
           therapist_profile_id: row.id,
           profile_id: row.profile_id,
           slug: profile.slug,
           city: profile.city ?? "Austin",
-          membership_tier: profile.membership_tier ?? "free",
           public_endorsement_count: 0,
           ...row,
           ...therapistFields.get(String(row.id)),
           ...profileFields.get(String(row.profile_id))
         },
-        trustedBy,
+        secondDegreeFollows,
         followedProfileIds,
         curatedListTitles,
-        viewerProfileId
+        viewerProfileId,
+        recentlyReportedFull
       );
     })
     .filter((therapist): therapist is PublicTherapistSummary => Boolean(therapist))
@@ -526,10 +666,13 @@ export async function getReferralCandidateTherapists(
         return trustB - trustA;
       }
 
-      const availabilityRank = { accepting: 2, waitlist: 1, full: 0 } as const;
-      if (availabilityRank[a.availabilityStatus] !== availabilityRank[b.availabilityStatus]) {
-        return availabilityRank[b.availabilityStatus] - availabilityRank[a.availabilityStatus];
-      }
+      const effectiveAvailScore = (t: PublicTherapistSummary) => {
+        const base = ({ accepting: 2, waitlist: 1, full: 0 } as const)[t.availabilityStatus];
+        return (t.availabilityIsStale || t.recentlyReportedFull) ? Math.max(base - 1, 0) : base;
+      };
+      const scoreA = effectiveAvailScore(a);
+      const scoreB = effectiveAvailScore(b);
+      if (scoreA !== scoreB) return scoreB - scoreA;
 
       return b.trustedBy.length - a.trustedBy.length;
     });
@@ -1012,7 +1155,7 @@ export async function getMemberProfileForUser(profileId: string) {
   const { data } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, payment_model"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, availability_updated_at, accepting_referrals, is_public, payment_model, gender, languages, offers_sliding_scale"
     )
     .eq("profile_id", profileId)
     .maybeSingle();
@@ -1053,24 +1196,48 @@ export async function getFollowedClinicians(profileId: string) {
     return [] as FollowedClinicianSummary[];
   }
 
-  const { therapists } = await getPublicTherapists(profileId, 1000, 0);
-  const byProfileId = new Map(therapists.map((therapist) => [therapist.profileId, therapist]));
+  // Query therapist_profiles and profiles directly so that therapists with
+  // is_public=false (filtered out of the public directory view) are still included.
+  const [{ data: rawTherapistProfiles }, { data: rawProfiles }] = await Promise.all([
+    admin
+      .from("therapist_profiles")
+      .select("profile_id, public_display_name, credentials, title, specialties, availability_status")
+      .in("profile_id", followedProfileIds),
+    admin
+      .from("profiles")
+      .select("id, slug, avatar_url")
+      .in("id", followedProfileIds)
+  ]);
+
+  const therapistByProfileId = new Map(
+    ((rawTherapistProfiles ?? []) as Array<Record<string, unknown>>).map((tp) => [String(tp.profile_id), tp])
+  );
+  const slugByProfileId = new Map(
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [String(p.id), String(p.slug ?? "")])
+  );
+  const avatarByProfileId = new Map(
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [
+      String(p.id),
+      typeof p.avatar_url === "string" && p.avatar_url ? p.avatar_url : undefined
+    ])
+  );
 
   return ((rawFollows ?? []) as Array<Record<string, unknown>>)
     .map((follow) => {
-      const therapist = byProfileId.get(String(follow.followed_profile_id));
-      if (!therapist) {
+      const pid = String(follow.followed_profile_id);
+      const tp = therapistByProfileId.get(pid);
+      if (!tp) {
         return null;
       }
 
       return {
-        profileId: therapist.profileId,
-        slug: therapist.slug,
-        displayName: therapist.displayName,
-        title: therapist.title,
-        headline: therapist.headline,
-        availabilityStatus: therapist.availabilityStatus,
-        followedAtLabel: formatCreatedAtLabel(follow.created_at as string | null)
+        profileId: pid,
+        slug: slugByProfileId.get(pid) ?? "",
+        displayName: String(tp.public_display_name ?? "Therapist"),
+        title: buildTherapistTitle(tp),
+        availabilityStatus: (tp.availability_status as AvailabilityStatus | null) ?? "waitlist",
+        followedAtLabel: formatCreatedAtLabel(follow.created_at as string | null),
+        avatarUrl: avatarByProfileId.get(pid)
       } satisfies FollowedClinicianSummary;
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));

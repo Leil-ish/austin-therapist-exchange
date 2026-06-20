@@ -1,13 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
-import { TherapistCard } from "@/components/domain/therapist-card";
 import { PageShell } from "@/components/layout/page-shell";
-import { EmptyState } from "@/components/state/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
-import { getPublicTherapists } from "@/lib/data/live-data";
 
 export default async function HomePage({
   searchParams
@@ -26,7 +23,6 @@ export default async function HomePage({
   }
 
   const session = await getSession();
-  const { therapists } = await getPublicTherapists(session?.userId, 3, 0, undefined, undefined, undefined, undefined);
 
   return (
     <PageShell>
@@ -43,15 +39,31 @@ export default async function HomePage({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link href="/directory">Find a therapist</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href={(session ? "/member/referrals" : "/login") as never}>{session ? "Make a referral" : "Sign in"}</Link>
-            </Button>
-            <Button asChild size="lg" variant="ghost">
-              <Link href={(session ? "/member/network" : "/join/apply") as never}>{session ? "See colleagues" : "Request access"}</Link>
-            </Button>
+            {session ? (
+              <>
+                <Button asChild size="lg">
+                  <Link href="/member/referrals">Make a referral</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/directory">Find a therapist</Link>
+                </Button>
+                <Button asChild size="lg" variant="ghost">
+                  <Link href="/member/network">See colleagues</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button asChild size="lg">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/directory">Find a therapist</Link>
+                </Button>
+                <Button asChild size="lg" variant="ghost">
+                  <Link href="/join/apply">Request access</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -68,27 +80,43 @@ export default async function HomePage({
       </section>
 
       <section className="mx-auto max-w-6xl space-y-8 px-6 py-12">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Directory</p>
-            <h2 className="font-serif text-4xl leading-tight text-foreground">Austin therapists</h2>
-          </div>
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Why members use it</p>
+          <h2 className="font-serif text-4xl leading-tight text-foreground">Before posting in a group</h2>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="bg-white/90">
+            <CardContent className="space-y-3 pt-6 text-sm leading-7 text-muted-foreground">
+              <p><strong>See current availability</strong> — Know who&apos;s accepting new clients right now, not months later when you ask.</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/90">
+            <CardContent className="space-y-3 pt-6 text-sm leading-7 text-muted-foreground">
+              <p><strong>Filter by insurance, fit, and location</strong> — Find therapists that match your referral needs quickly.</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/90">
+            <CardContent className="space-y-3 pt-6 text-sm leading-7 text-muted-foreground">
+              <p><strong>Understand colleague trust signals</strong> — See who your peers trust, bringing confidence to your referrals.</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/90">
+            <CardContent className="space-y-3 pt-6 text-sm leading-7 text-muted-foreground">
+              <p><strong>Send referrals directly after approval</strong> — Reach therapists without email hunts or tracking lost threads.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-10">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/10 bg-white/70 px-6 py-5">
+          <p className="text-sm text-muted-foreground">
+            Browse Austin therapists by neighborhood, insurance, specialty, and availability.
+          </p>
           <Button asChild variant="outline">
-            <Link href="/directory">View directory</Link>
+            <Link href="/directory">Browse directory</Link>
           </Button>
         </div>
-        {therapists.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-3">
-            {therapists.map((therapist) => (
-              <TherapistCard key={therapist.slug} therapist={therapist} currentProfileId={session?.userId} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title="Profiles will appear here"
-            description="As more therapists join and complete their profiles, they will appear here."
-          />
-        )}
       </section>
     </PageShell>
   );

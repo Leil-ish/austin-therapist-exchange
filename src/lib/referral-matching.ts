@@ -1,5 +1,7 @@
 import type { PublicTherapistSummary } from "@/types";
 
+export const AVAILABILITY_STALE_DAYS = 60;
+
 export const AUSTIN_METRO_AREAS = [
   "North Austin",
   "Central Austin",
@@ -114,16 +116,31 @@ export const PRESENTING_ISSUES = [
   "Trauma",
   "PTSD",
   "OCD",
-  "SUD",
+  "Substance Use",
   "Eating Disorder",
   "Infidelity",
+  "Relationship Conflict",
+  "Communication Issues",
+  "Separation / Divorce",
+  "Premarital",
+  "Intimacy / Sexual Issues",
+  "ADHD",
+  "Autism / Neurodivergence",
+  "Postpartum / Perinatal",
+  "Life Transitions",
   "Parenting",
   "Self Esteem",
-  "Grief Loss",
+  "Grief / Bereavement",
   "Burnout",
   "Sleep",
   "Bipolar Disorder",
-  "Anger"
+  "Anger Management",
+  "Psychosis",
+  "Schizophrenia / Schizophrenia-Spectrum",
+  "Schizoaffective Disorder",
+  "Personality Disorders",
+  "Dissociative Disorders",
+  "Self-Harm / Suicidality"
 ] as const;
 
 export const PAYMENT_OPTIONS = [
@@ -170,7 +187,11 @@ export const MODALITIES = [
   "Family systems",
   "Gottman",
   "Exposure therapy",
-  "Mindfulness-based"
+  "Mindfulness-based",
+  "Brainspotting",
+  "ART",
+  "CPT",
+  "Ketamine-Assisted"
 ] as const;
 
 export const INSURANCE_CARRIERS = [
@@ -182,11 +203,67 @@ export const INSURANCE_CARRIERS = [
   "Sendero",
   "Medicaid",
   "Medicare",
-  "Out of network",
-  "Not sure"
+  "Humana",
+  "Tricare",
+  "Ambetter",
+  "Carelon",
+  "Magellan",
+  "Quest Behavioral Health",
+  "Ascension",
+  "Scott & White",
+  "Curative",
+  "Sana",
+  "Moda"
 ] as const;
 
 export const URGENCY_LEVELS = ["Low", "Medium", "High", "Urgent"] as const;
+
+export const LANGUAGES = [
+  "English",
+  "Spanish",
+  "Mandarin",
+  "Vietnamese",
+  "Korean",
+  "Hindi/Urdu",
+  "ASL",
+  "Other"
+] as const;
+
+export const GENDERS = ["Female", "Male", "Non-binary"] as const;
+
+export type ClientType = (typeof CLIENT_TYPES)[number];
+
+/** Drives conditional UI — which presenting issues and modalities to surface per client type.
+ *  Empty arrays for Adult Individual = no restriction (all options shown). */
+export const CLIENT_TYPE_RELEVANCE: Record<ClientType, { issues: string[]; modalities: string[] }> = {
+  "Adult Individual": {
+    issues: [],
+    modalities: []
+  },
+  "Child Individual": {
+    issues: ["Anxiety", "Depression", "Parenting", "Trauma", "ADHD", "Autism / Neurodivergence"],
+    modalities: ["CBT", "DBT", "Family systems"]
+  },
+  "Adolescent Individual": {
+    issues: ["Anxiety", "Depression", "Parenting", "Trauma", "ADHD", "Autism / Neurodivergence"],
+    modalities: ["CBT", "DBT", "Family systems"]
+  },
+  "Couples": {
+    issues: [
+      "Relationship Conflict",
+      "Communication Issues",
+      "Infidelity",
+      "Separation / Divorce",
+      "Premarital",
+      "Intimacy / Sexual Issues"
+    ],
+    modalities: ["Gottman", "EFT", "Relational", "Attachment-based"]
+  },
+  "Families": {
+    issues: ["Parenting", "Communication Issues", "Relationship Conflict"],
+    modalities: ["Family systems"]
+  }
+};
 
 export function normalizeForMatch(value: string) {
   return value.trim().toLowerCase();
@@ -255,6 +332,11 @@ export function insuranceMatches(
     return true;
   }
 
+  // Empty list means the therapist's accepted carriers are unknown — never exclude them.
+  if (!therapistInsuranceAccepted || therapistInsuranceAccepted.length === 0) {
+    return true;
+  }
+
   const normalizedAccepted = therapistInsuranceAccepted.map(normalizeForMatch);
 
   if (normalizedInsurance === "out of network") {
@@ -319,25 +401,40 @@ export function presentingIssueMatches(presentingIssue: string, therapistSpecial
   const normalizedSpecialties = therapistSpecialties.map(normalizeForMatch);
 
   const issueMappings: Record<string, string[]> = {
-    "anxiety":         ["anxiety", "panic", "perfectionism", "phobia", "ocd", "social anxiety", "generalized anxiety"],
-    "depression":      ["depression", "mood disorder", "mood disorders", "dysthymia", "seasonal"],
-    "trauma":          ["trauma", "ptsd", "post-traumatic", "childhood trauma", "complex trauma",
-                        "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
-    "ptsd":            ["ptsd", "post-traumatic", "trauma / ptsd", "complex trauma", "childhood trauma"],
-    "ocd":             ["ocd", "obsessive-compulsive", "obsessive"],
-    "sud":             ["addiction", "substance", "alcohol", "drugs", "harm reduction",
-                        "relapse", "recovery", "process addiction", "substance use disorders"],
-    "eating disorder": ["eating disorder", "eating disorders", "eating", "anorexia",
-                        "bulimia", "body image", "body dysmorphia"],
-    "infidelity":      ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
-    "parenting":       ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
-    "self esteem":     ["self-esteem", "self esteem", "self worth", "confidence",
-                        "identity", "women's development", "religious deconstruction"],
-    "grief loss":      ["grief", "loss", "bereavement", "grief / loss"],
-    "burnout":         ["burnout", "stress", "work-life", "career discord", "perfectionism"],
-    "sleep":           ["sleep", "insomnia"],
-    "bipolar disorder":["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
-    "anger":           ["anger", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
+    "anxiety":                   ["anxiety", "panic", "perfectionism", "phobia", "ocd", "social anxiety", "generalized anxiety"],
+    "depression":                ["depression", "mood disorder", "mood disorders", "dysthymia", "seasonal"],
+    "trauma":                    ["trauma", "ptsd", "post-traumatic", "childhood trauma", "complex trauma",
+                                  "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
+    "ptsd":                      ["ptsd", "post-traumatic", "trauma / ptsd", "complex trauma", "childhood trauma"],
+    "ocd":                       ["ocd", "obsessive-compulsive", "obsessive"],
+    "substance use":             ["substance", "addiction", "alcohol", "drugs", "harm reduction",
+                                  "relapse", "recovery", "process addiction", "substance use", "substance use disorders"],
+    "eating disorder":           ["eating disorder", "eating disorders", "eating", "anorexia",
+                                  "bulimia", "body image", "body dysmorphia"],
+    "infidelity":                ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
+    "relationship conflict":     ["relationship conflict", "conflict", "communication", "couple", "couples",
+                                  "marital", "relationship issues", "interpersonal"],
+    "communication issues":      ["communication", "conflict", "interpersonal", "relationship", "communication issues"],
+    "separation / divorce":      ["separation", "divorce", "co-parenting", "co parenting", "separation/divorce"],
+    "premarital":                ["premarital", "pre-marital", "premarriage", "marriage preparation",
+                                  "engaged", "premarital counseling"],
+    "intimacy / sexual issues":  ["intimacy", "sexual", "sex therapy", "sexuality", "desire",
+                                  "dysfunction", "intimacy issues"],
+    "adhd":                      ["adhd", "attention deficit", "add", "executive function", "focus", "attention"],
+    "autism / neurodivergence":  ["autism", "autistic", "asd", "neurodivergent", "neurodivergence",
+                                  "spectrum", "asperger"],
+    "postpartum / perinatal":    ["postpartum", "perinatal", "postnatal", "maternal", "pregnancy",
+                                  "new mom", "new parent", "birth trauma"],
+    "life transitions":          ["life transition", "life transitions", "transition", "career",
+                                  "relocation", "retirement", "major life change"],
+    "parenting":                 ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
+    "self esteem":               ["self-esteem", "self esteem", "self worth", "confidence",
+                                  "identity", "women's development", "religious deconstruction"],
+    "grief / bereavement":       ["grief", "loss", "bereavement", "grief / loss", "grief / bereavement"],
+    "burnout":                   ["burnout", "stress", "work-life", "career discord", "perfectionism"],
+    "sleep":                     ["sleep", "insomnia"],
+    "bipolar disorder":          ["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
+    "anger management":          ["anger", "anger management", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
   };
 
   const keywords = issueMappings[normalizedIssue] || [normalizedIssue];
@@ -376,14 +473,38 @@ export function locationMatches(location: string, therapistNeighborhoods: string
   );
 }
 
+/**
+ * Returns a signed score for how well a specific insurance carrier matches a therapist.
+ *   +1  — therapist lists the carrier
+ *   -1  — therapist lists other carriers but NOT this one
+ *    0  — therapist's list is empty/unknown (unknown passes; do not penalize)
+ */
+export function carrierScore(
+  carrier: string,
+  therapistInsuranceAccepted: string[]
+): number {
+  if (!carrier) return 0;
+  const normalizedCarrier = normalizeForMatch(carrier);
+  if (normalizedCarrier === "not sure" || normalizedCarrier === "out of network") return 0;
+
+  if (!therapistInsuranceAccepted || therapistInsuranceAccepted.length === 0) return 0;
+
+  const normalizedAccepted = therapistInsuranceAccepted.map(normalizeForMatch);
+  const found = normalizedAccepted.some(
+    (item) => item.includes(normalizedCarrier) || normalizedCarrier.includes(item)
+  );
+  return found ? 1 : -1;
+}
+
 export function calculateMatchConfidence(
   levelOfCare: string,
   clientType: string,
-  presentingIssue: string,
+  presentingIssues: string[],
   payment: string,
   location: string,
-  insurance: string,
-  therapist: PublicTherapistSummary
+  _insurance: string,
+  therapist: PublicTherapistSummary,
+  softCriteria?: { modalities?: string[]; communities?: string[]; languages?: string[] }
 ): "high" | "medium" | "low" {
   let matches = 0;
   let total = 0;
@@ -404,18 +525,10 @@ export function calculateMatchConfidence(
     }
   }
 
-  // Presenting Issue
-  if (presentingIssue) {
+  // Presenting Issues — one dimension; matches if ANY selected issue matches
+  if (presentingIssues.length > 0) {
     total++;
-    if (presentingIssueMatches(presentingIssue, therapist.specialties)) {
-      matches++;
-    }
-  }
-
-  // Payment
-  if (payment) {
-    total++;
-    if (paymentModelMatchesFilter(therapist.paymentModel, payment.toLowerCase().replace(" ", "_"))) {
+    if (presentingIssues.some((issue) => presentingIssueMatches(issue, therapist.specialties))) {
       matches++;
     }
   }
@@ -428,17 +541,32 @@ export function calculateMatchConfidence(
     }
   }
 
-  // Insurance
-  if (insurance) {
+  // Soft criteria — only counted when the therapist has data for that field.
+  // Guard prevents penalising therapists for fields they simply haven't filled in.
+  if (softCriteria?.modalities?.length && therapist.modalities.length > 0) {
     total++;
-    if (insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)) {
-      matches++;
-    }
+    if (countOverlappingTerms(softCriteria.modalities, therapist.modalities) > 0) matches++;
   }
+
+  if (softCriteria?.communities?.length && therapist.communities.length > 0) {
+    total++;
+    if (countOverlappingTerms(softCriteria.communities, therapist.communities) > 0) matches++;
+  }
+
+  if (softCriteria?.languages?.length && therapist.languages.length > 0) {
+    total++;
+    if (countOverlappingTerms(softCriteria.languages, therapist.languages) > 0) matches++;
+  }
+
+  // Payment: soft factor — mismatch caps confidence at "medium", not excluded from results
+  const normalizedPayment = payment ? payment.toLowerCase().replace(/ /g, "_") : "";
+  const paymentCompatible =
+    !normalizedPayment ||
+    paymentModelMatchesFilter(therapist.paymentModel, normalizedPayment);
 
   const matchRatio = total > 0 ? matches / total : 0;
 
-  if (matchRatio >= 0.8) return "high";
+  if (matchRatio >= 0.8) return paymentCompatible ? "high" : "medium";
   if (matchRatio >= 0.6) return "medium";
   return "low";
 }
@@ -456,11 +584,12 @@ export type MatchDimension = {
 export function getMatchDimensions(
   levelOfCare: string,
   clientType: string,
-  presentingIssue: string,
+  presentingIssues: string[],
   payment: string,
   location: string,
   insurance: string,
-  therapist: PublicTherapistSummary
+  therapist: PublicTherapistSummary,
+  softCriteria?: { modalities?: string[]; communities?: string[]; languages?: string[] }
 ): MatchDimension[] {
   const dimensions: MatchDimension[] = [];
 
@@ -480,11 +609,12 @@ export function getMatchDimensions(
     });
   }
 
-  if (presentingIssue) {
+  if (presentingIssues.length > 0) {
+    const matchedCount = presentingIssues.filter((i) => presentingIssueMatches(i, therapist.specialties)).length;
     dimensions.push({
-      label: "Issue",
-      value: presentingIssue,
-      status: presentingIssueMatches(presentingIssue, therapist.specialties) ? "match" : "gap"
+      label: presentingIssues.length === 1 ? "Issue" : `Issues (${matchedCount}/${presentingIssues.length})`,
+      value: presentingIssues.join(", "),
+      status: matchedCount > 0 ? "match" : "gap"
     });
   }
 
@@ -509,6 +639,30 @@ export function getMatchDimensions(
       label: "Insurance",
       value: insurance,
       status: insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel) ? "match" : "gap"
+    });
+  }
+
+  if (softCriteria?.modalities?.length) {
+    dimensions.push({
+      label: softCriteria.modalities.length === 1 ? softCriteria.modalities[0] : `${softCriteria.modalities.length} modalities`,
+      value: softCriteria.modalities.join(", "),
+      status: countOverlappingTerms(softCriteria.modalities, therapist.modalities) > 0 ? "match" : "gap"
+    });
+  }
+
+  if (softCriteria?.communities?.length) {
+    dimensions.push({
+      label: softCriteria.communities.length === 1 ? softCriteria.communities[0] : `${softCriteria.communities.length} communities`,
+      value: softCriteria.communities.join(", "),
+      status: countOverlappingTerms(softCriteria.communities, therapist.communities) > 0 ? "match" : "gap"
+    });
+  }
+
+  if (softCriteria?.languages?.length) {
+    dimensions.push({
+      label: softCriteria.languages.length === 1 ? softCriteria.languages[0] : `${softCriteria.languages.length} languages`,
+      value: softCriteria.languages.join(", "),
+      status: countOverlappingTerms(softCriteria.languages, therapist.languages) > 0 ? "match" : "gap"
     });
   }
 
@@ -607,6 +761,88 @@ export function getDynamicDropdownOptions() {
     clientTypes: Array.from(CLIENT_TYPES).sort(),
     levelsOfCare: Array.from(LEVELS_OF_CARE).sort(),
     paymentOptions: Array.from(PAYMENT_OPTIONS).sort(),
-    insuranceOptions: Array.from(INSURANCE_CARRIERS).sort()
+    insuranceOptions: Array.from(INSURANCE_CARRIERS).sort(),
+    languages: Array.from(LANGUAGES).sort(),
+    genders: Array.from(GENDERS).sort()
   };
+}
+
+/** Criteria beyond the core six that can narrow or boost matches. All fields optional; omitted = no filter. */
+export interface ExtendedCriteria {
+  /** Soft — communities the client identifies with; matched against therapist.communities */
+  communities?: string[];
+  /** Soft — therapeutic modalities preferred; matched against therapist.modalities */
+  modalities?: string[];
+  /** Soft — language(s) the client needs; matched against therapist.languages */
+  languages?: string[];
+  /** Soft — additional population signals; matched against therapist.populations */
+  populations?: string[];
+  /** Hard — "Telehealth" | "In person" | "Both"; empty/omitted = no filter */
+  format?: string;
+  /** Hard — therapist gender preference; empty / "No preference" / omitted = no filter */
+  gender?: string;
+  /** Hard — true = only therapists offering sliding scale */
+  slidingScale?: boolean;
+  /** Hard — true = only therapists currently accepting new clients */
+  acceptingNow?: boolean;
+}
+
+/**
+ * Returns false if any hard criterion is set and the therapist fails it.
+ * Call this as a pre-filter before scoring; excluded therapists skip scoring entirely.
+ */
+export function passesHardFilters(
+  criteria: ExtendedCriteria,
+  therapist: PublicTherapistSummary
+): boolean {
+  const { format, gender, slidingScale, acceptingNow } = criteria;
+
+  if (format) {
+    const f = normalizeForMatch(format);
+    if (f === "telehealth" && !therapist.telehealth) return false;
+    if (f === "in person" && !therapist.inPerson) return false;
+    if (f === "both" && !(therapist.telehealth && therapist.inPerson)) return false;
+  }
+
+  if (gender && normalizeForMatch(gender) !== "no preference") {
+    if (therapist.gender && normalizeForMatch(therapist.gender) !== normalizeForMatch(gender)) {
+      return false;
+    }
+  }
+
+  if (slidingScale === true && !therapist.slidingScale) return false;
+
+  if (acceptingNow === true && therapist.availabilityStatus !== "accepting") return false;
+
+  return true;
+}
+
+/**
+ * Returns a non-negative integer bonus to add to a therapist's total rank score.
+ * Each overlapping term in any soft-overlap dimension contributes +1.
+ * Add this to trustScore + availabilityScore + confidenceScore in the compose form.
+ */
+export function softOverlapScore(
+  criteria: ExtendedCriteria,
+  therapist: PublicTherapistSummary
+): number {
+  let bonus = 0;
+
+  if (criteria.communities?.length) {
+    bonus += countOverlappingTerms(criteria.communities, therapist.communities);
+  }
+
+  if (criteria.modalities?.length) {
+    bonus += countOverlappingTerms(criteria.modalities, therapist.modalities);
+  }
+
+  if (criteria.languages?.length) {
+    bonus += countOverlappingTerms(criteria.languages, therapist.languages);
+  }
+
+  if (criteria.populations?.length) {
+    bonus += countOverlappingTerms(criteria.populations, therapist.populations);
+  }
+
+  return bonus;
 }

@@ -36,6 +36,13 @@ export interface PublicTherapistSummary {
   marketName: string;
   availabilityStatus: AvailabilityStatus;
   availabilityUpdatedAtLabel: string;
+  availabilityUpdatedAt?: string | null;
+  availabilityIsStale: boolean;
+  recentlyReportedFull: boolean;
+  modalities: string[];
+  gender?: string;
+  languages: string[];
+  slidingScale: boolean;
   inPerson: boolean;
   telehealth: boolean;
   trustedBy: TrustedByConnection[];
@@ -44,6 +51,7 @@ export interface PublicTherapistSummary {
   curatedListTitles: string[];
   publicEmail?: string;
   publicPhone?: string;
+  bookingUrl?: string;
   isFollowed?: boolean;
   trustedByViewer?: boolean;
   membershipTier: MembershipTier;
@@ -128,6 +136,7 @@ export interface AppSession {
   fullName: string;
   email: string;
   canIssueReferrals?: boolean;
+  avatarUrl?: string;
 }
 
 export interface FollowedClinicianSummary {
@@ -138,6 +147,7 @@ export interface FollowedClinicianSummary {
   headline?: string;
   availabilityStatus: AvailabilityStatus;
   followedAtLabel: string;
+  avatarUrl?: string;
 }
 
 export interface CuratedListSummary {

@@ -16,7 +16,7 @@ export async function getSession(): Promise<AppSession | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, membership_state, full_name, can_issue_referrals")
+    .select("id, role, membership_state, full_name, can_issue_referrals, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -25,13 +25,7 @@ export async function getSession(): Promise<AppSession | null> {
 
     const { data: bootstrappedProfile } = await supabase
       .from("profiles")
-      .select("id, role, membership_state, full_name, can_issue_referrals")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const { data: bootstrappedTier } = await supabase
-      .from("profiles")
-      .select("membership_tier")
+      .select("id, role, membership_state, full_name, can_issue_referrals, avatar_url")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -43,26 +37,22 @@ export async function getSession(): Promise<AppSession | null> {
       userId: bootstrappedProfile.id,
       role: bootstrappedProfile.role,
       membershipState: bootstrappedProfile.membership_state,
-      membershipTier: (bootstrappedTier?.membership_tier as AppSession["membershipTier"] | null) ?? "free",
+      membershipTier: "free",
       fullName: bootstrappedProfile.full_name,
       email: user.email ?? "",
-      canIssueReferrals: bootstrappedProfile.can_issue_referrals
+      canIssueReferrals: bootstrappedProfile.can_issue_referrals,
+      avatarUrl: typeof bootstrappedProfile.avatar_url === "string" && bootstrappedProfile.avatar_url ? bootstrappedProfile.avatar_url : undefined
     };
   }
-
-  const { data: tierProfile } = await supabase
-    .from("profiles")
-    .select("membership_tier")
-    .eq("id", user.id)
-    .maybeSingle();
 
   return {
     userId: profile.id,
     role: profile.role,
     membershipState: profile.membership_state,
-    membershipTier: (tierProfile?.membership_tier as AppSession["membershipTier"] | null) ?? "free",
+    membershipTier: "free",
     fullName: profile.full_name,
     email: user.email ?? "",
-    canIssueReferrals: profile.can_issue_referrals
+    canIssueReferrals: profile.can_issue_referrals,
+    avatarUrl: typeof profile.avatar_url === "string" && profile.avatar_url ? profile.avatar_url : undefined
   };
 }

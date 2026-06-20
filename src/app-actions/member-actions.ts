@@ -504,10 +504,14 @@ export async function saveMemberProfile(formData: FormData) {
   const approachSummary = String(formData.get("approachSummary") ?? "").trim();
   const publicEmail = normalizeEmail(String(formData.get("publicEmail") ?? ""));
   const publicPhone = String(formData.get("publicPhone") ?? "").trim();
-  const specialties = parseCommaSeparatedList(formData.get("specialties"), 5);
-  const neighborhoods = parseCommaSeparatedList(formData.get("neighborhoods"), 3);
+  const specialties = (formData.getAll("specialties") as string[]).filter(Boolean).slice(0, 5);
+  const neighborhoods = (formData.getAll("neighborhoods") as string[]).filter(Boolean);
   const communities = (formData.getAll("communities") as string[]).filter(Boolean);
-  const insuranceAccepted = parseCommaSeparatedList(formData.get("insuranceAccepted"), 5);
+  const modalities = (formData.getAll("modalities") as string[]).filter(Boolean);
+  const languages = (formData.getAll("languages") as string[]).filter(Boolean);
+  const gender = String(formData.get("gender") ?? "").trim() || null;
+  const offersSlidingScale = formData.get("offersSlidingScale") === "on";
+  const insuranceAccepted = (formData.getAll("insurance") as string[]).filter(Boolean);
   const featuredLinks = parseLineSeparatedList(formData.get("featuredLinks"), session.membershipTier === "premium" ? 5 : 2);
   const offerings = parseLineSeparatedList(formData.get("offerings"), session.membershipTier === "premium" ? 8 : 0);
   const availabilityStatus = String(formData.get("availabilityStatus") ?? "waitlist").trim() as AvailabilityStatus;
@@ -527,7 +531,6 @@ export async function saveMemberProfile(formData: FormData) {
     .update({
       public_display_name: publicDisplayName,
       credentials,
-      headline: headline || null,
       bio,
       approach_summary: approachSummary || null,
       public_email: publicEmail || null,
@@ -535,10 +538,13 @@ export async function saveMemberProfile(formData: FormData) {
       specialties,
       neighborhoods,
       communities,
+      modalities,
+      languages,
+      gender,
+      offers_sliding_scale: offersSlidingScale,
       insurance_accepted: insuranceAccepted,
-      featured_links: featuredLinks,
-      offerings: session.membershipTier === "premium" ? offerings : [],
       availability_status: availabilityStatus,
+      availability_updated_at: new Date().toISOString(),
       offers_in_person: offersInPerson,
       offers_telehealth: offersTelehealth,
       accepting_referrals: availabilityStatus !== "full",
@@ -612,14 +618,12 @@ export async function createEndorsement(formData: FormData) {
   redirect("/member/endorsements?saved=1");
 }
 
-export async function followClinician(formData: FormData) {
+export async function followClinician(followedProfileId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
-  const followedProfileId = String(formData.get("followedProfileId") ?? "").trim();
-  const returnTo = String(formData.get("returnTo") ?? "/directory").trim();
 
   if (!followedProfileId || followedProfileId === session.userId) {
-    redirect(returnTo as never);
+    return { ok: false, error: "Invalid therapist." };
   }
 
   const { error } = await admin.from("follows").insert({
@@ -629,37 +633,41 @@ export async function followClinician(formData: FormData) {
 
   // 23505 = unique_violation: already following — treat as success
   if (error && error.code !== "23505") {
-    redirect(`${returnTo}?followError=1` as never);
+    return { ok: false, error: "Could not save. Please try again." };
   }
 
   revalidatePath("/directory");
   revalidatePath("/member");
   revalidatePath("/member/feed");
   revalidatePath("/member/following");
-  redirect(returnTo as never);
+  revalidatePath("/member/network");
+  return { ok: true };
 }
 
-export async function unfollowClinician(formData: FormData) {
+export async function unfollowClinician(followedProfileId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
-  const followedProfileId = String(formData.get("followedProfileId") ?? "").trim();
-  const returnTo = String(formData.get("returnTo") ?? "/member/following").trim();
 
   if (!followedProfileId) {
-    redirect(returnTo as never);
+    return { ok: false, error: "Invalid therapist." };
   }
 
-  await admin
+  const { error } = await admin
     .from("follows")
     .delete()
     .eq("follower_profile_id", session.userId)
     .eq("followed_profile_id", followedProfileId);
 
+  if (error) {
+    return { ok: false, error: "Could not remove. Please try again." };
+  }
+
   revalidatePath("/directory");
   revalidatePath("/member");
   revalidatePath("/member/feed");
   revalidatePath("/member/following");
-  redirect(returnTo as never);
+  revalidatePath("/member/network");
+  return { ok: true };
 }
 
 export async function saveCuratedList(formData: FormData) {
@@ -763,6 +771,286 @@ export async function updateAvatarUrl(formData: FormData) {
   revalidatePath("/member/profile");
   revalidatePath("/directory");
   return { success: true };
+}
+
+// ── Case-based referral logging ───────────────────────────────────────────────
+
+export type LogReferralContactResult =
+  | { ok: true; caseId: string; clientReference: string }
+  | { ok: false; error: string };
+
+export async function logReferralContact(input: {
+  caseId?: string;
+  clientReference?: string;
+  criteria: {
+    levelOfCare: string;
+    urgency: string;
+    clientType: string;
+    presentingIssue: string;
+    payment: string;
+    location: string;
+    insurance: string;
+  };
+  referredProfileId: string;
+  contactMethod?: "email" | "manual";
+}): Promise<LogReferralContactResult> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  let caseId = input.caseId;
+  let clientReference = "";
+
+  if (!caseId) {
+    if (input.clientReference) {
+      clientReference = input.clientReference;
+    } else {
+      const { mintReferralCode } = await import("@/lib/referral-code");
+      clientReference = mintReferralCode();
+    }
+    const { data: newCase, error: caseError } = await admin
+      .from("client_cases")
+      .insert({
+        owner_profile_id: session.userId,
+        client_reference: clientReference,
+        level_of_care: input.criteria.levelOfCare || null,
+        presenting_issue: input.criteria.presentingIssue || null,
+        client_type: input.criteria.clientType || null,
+        payment_model: input.criteria.payment || null,
+        insurance: input.criteria.insurance || null,
+        neighborhood: input.criteria.location || null,
+        urgency: input.criteria.urgency || null,
+        status: "open",
+      })
+      .select("id, client_reference")
+      .single();
+
+    if (caseError || !newCase) {
+      return { ok: false, error: caseError?.message ?? "Failed to create case" };
+    }
+    caseId = newCase.id as string;
+    clientReference = newCase.client_reference as string;
+  } else {
+    const { data: existing } = await admin
+      .from("client_cases")
+      .select("client_reference")
+      .eq("id", caseId)
+      .eq("owner_profile_id", session.userId)
+      .single();
+    clientReference = (existing?.client_reference as string | undefined) ?? "";
+  }
+
+  const { error: referralError } = await admin.from("case_referrals").insert({
+    case_id: caseId,
+    owner_profile_id: session.userId,
+    referred_profile_id: input.referredProfileId,
+    contact_method: input.contactMethod ?? "email",
+    status: "open",
+  });
+
+  if (referralError && referralError.code !== "23505") {
+    return { ok: false, error: referralError.message };
+  }
+
+  revalidatePath("/member/network");
+  return { ok: true, caseId, clientReference };
+}
+
+export type UpdateReferralResponseResult = { ok: true } | { ok: false; error: string };
+
+export async function updateReferralResponse(
+  caseReferralId: string,
+  status: "open" | "matched" | "accepted" | "declined" | "closed" | "completed"
+): Promise<UpdateReferralResponseResult> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const { data: row, error: fetchError } = await admin
+    .from("case_referrals")
+    .select("id, case_id, owner_profile_id")
+    .eq("id", caseReferralId)
+    .eq("owner_profile_id", session.userId)
+    .single();
+
+  if (fetchError || !row) {
+    return { ok: false, error: "Not found or not authorized" };
+  }
+
+  const { error: updateError } = await admin
+    .from("case_referrals")
+    .update({
+      status,
+      responded_at: status !== "open" ? new Date().toISOString() : null,
+    })
+    .eq("id", caseReferralId);
+
+  if (updateError) {
+    return { ok: false, error: updateError.message };
+  }
+
+  // When placed or accepting: move parent case to "placed" and close other open referrals.
+  if (status === "completed" || status === "accepted") {
+    await admin
+      .from("client_cases")
+      .update({ status: "placed" })
+      .eq("id", row.case_id as string)
+      .eq("owner_profile_id", session.userId);
+
+    await admin
+      .from("case_referrals")
+      .update({ status: "closed", responded_at: new Date().toISOString() })
+      .eq("case_id", row.case_id as string)
+      .eq("status", "open")
+      .neq("id", caseReferralId);
+  }
+
+  revalidatePath("/member/network");
+  return { ok: true };
+}
+
+export type LogReferralContactsResult =
+  | { ok: true; caseId: string; clientReference: string; loggedCount: number }
+  | { ok: false; error: string };
+
+export async function logReferralContacts(input: {
+  caseId?: string;
+  clientReference: string;
+  criteria: {
+    levelOfCare: string;
+    urgency: string;
+    clientType: string;
+    presentingIssue: string;
+    payment: string;
+    location: string;
+    insurance: string;
+  };
+  referredProfileIds: string[];
+  contactMethod?: "email" | "manual";
+}): Promise<LogReferralContactsResult> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  if (!input.referredProfileIds.length) {
+    return { ok: false, error: "No profiles to log" };
+  }
+
+  let caseId = input.caseId;
+  let clientReference = input.clientReference;
+
+  if (!caseId) {
+    const { data: newCase, error: caseError } = await admin
+      .from("client_cases")
+      .insert({
+        owner_profile_id: session.userId,
+        client_reference: clientReference,
+        level_of_care: input.criteria.levelOfCare || null,
+        presenting_issue: input.criteria.presentingIssue || null,
+        client_type: input.criteria.clientType || null,
+        payment_model: input.criteria.payment || null,
+        insurance: input.criteria.insurance || null,
+        neighborhood: input.criteria.location || null,
+        urgency: input.criteria.urgency || null,
+        status: "open",
+      })
+      .select("id, client_reference")
+      .single();
+
+    if (caseError || !newCase) {
+      return { ok: false, error: caseError?.message ?? "Failed to create case" };
+    }
+    caseId = newCase.id as string;
+    clientReference = newCase.client_reference as string;
+  } else {
+    const { data: existing } = await admin
+      .from("client_cases")
+      .select("client_reference")
+      .eq("id", caseId)
+      .eq("owner_profile_id", session.userId)
+      .single();
+    clientReference = (existing?.client_reference as string | undefined) ?? clientReference;
+  }
+
+  let loggedCount = 0;
+  for (const profileId of input.referredProfileIds) {
+    const { error } = await admin.from("case_referrals").insert({
+      case_id: caseId,
+      owner_profile_id: session.userId,
+      referred_profile_id: profileId,
+      contact_method: input.contactMethod ?? "email",
+      status: "open",
+    });
+    if (!error || error.code === "23505") loggedCount++;
+  }
+
+  revalidatePath("/member/network");
+  revalidatePath("/member/referrals");
+  return { ok: true, caseId: caseId as string, clientReference, loggedCount };
+}
+
+export type RespondToIncomingReferralResult = { ok: true } | { ok: false; error: string };
+
+export async function respondToIncomingReferral(
+  caseReferralId: string,
+  response: "accepted" | "declined" | "dismissed"
+): Promise<RespondToIncomingReferralResult> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const { data: row, error: fetchError } = await admin
+    .from("case_referrals")
+    .select("id, referred_profile_id")
+    .eq("id", caseReferralId)
+    .single();
+
+  if (fetchError || !row) {
+    return { ok: false, error: "Not found" };
+  }
+
+  if (String(row.referred_profile_id) !== session.userId) {
+    return { ok: false, error: "Not authorized" };
+  }
+
+  const status = response === "dismissed" ? "closed" : response;
+
+  const { error: updateError } = await admin
+    .from("case_referrals")
+    .update({ status, responded_at: new Date().toISOString() })
+    .eq("id", caseReferralId);
+
+  if (updateError) {
+    return { ok: false, error: updateError.message };
+  }
+
+  revalidatePath("/member/referrals");
+  revalidatePath("/member/network");
+  return { ok: true };
+}
+
+export async function confirmAvailability(
+  status: "accepting" | "waitlist" | "not_accepting"
+): Promise<{ ok: boolean }> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const availabilityStatus: AvailabilityStatus =
+    status === "accepting" ? "accepting" : status === "waitlist" ? "waitlist" : "full";
+
+  const { error } = await admin
+    .from("therapist_profiles")
+    .update({
+      availability_status: availabilityStatus,
+      availability_updated_at: new Date().toISOString(),
+      accepting_referrals: status === "accepting"
+    })
+    .eq("profile_id", session.userId);
+
+  if (error) {
+    return { ok: false };
+  }
+
+  revalidatePath("/directory");
+  revalidatePath("/member/profile");
+  revalidatePath("/member/referrals");
+  return { ok: true };
 }
 
 export async function respondToDirectReferral(formData: FormData) {
