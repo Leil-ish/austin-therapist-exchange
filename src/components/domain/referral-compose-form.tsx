@@ -1254,7 +1254,9 @@ export function ReferralComposeForm({
 
           {scoredTherapists.length === 0 ? (
             <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
-              No therapists match these criteria yet. Try adjusting your filters or check back as more providers join.
+              {therapists.length === 0
+                ? "No other members are in the directory yet. As more colleagues join they'll appear here for referrals."
+                : "No therapists serve this location or accept that payment type. Try clearing the location or payment filter."}
             </div>
           ) : (
             <>
@@ -1309,6 +1311,8 @@ export function ReferralComposeForm({
             </>
           )}
         </div>
+      ) : therapists.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No other members are in the directory yet. As more colleagues join they&apos;ll appear here for referrals.</p>
       ) : (
         <p className="text-sm text-muted-foreground">
           Select {missingGateCount} more to see matches
