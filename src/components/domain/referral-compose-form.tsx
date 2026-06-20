@@ -1150,6 +1150,9 @@ export function ReferralComposeForm({
                     value={additionalNotes}
                     onChange={(e) => { setAdditionalNotes(e.target.value); setSubmitted(false); }}
                   />
+                  <p className="text-xs text-amber-600">
+                    Do not include any client identifying information (name, date of birth, contact details, or other PHI) in this field.
+                  </p>
                 </div>
 
                 {/* Clear all — shown when multiple filters are active and form is open */}
