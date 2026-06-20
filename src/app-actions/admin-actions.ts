@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth/guards";
+import { notifyApplicantOfDecision } from "@/lib/email";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 async function findAuthUserIdByEmail(email: string) {
@@ -37,7 +38,7 @@ export async function reviewJoinRequest(formData: FormData) {
 
   const { data: joinRequest } = await admin
     .from("join_requests")
-    .select("id, email")
+    .select("id, email, full_name")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -81,5 +82,11 @@ export async function reviewJoinRequest(formData: FormData) {
 
   revalidatePath("/admin/join-requests");
   revalidatePath("/member");
+  await notifyApplicantOfDecision({
+    email: joinRequest.email,
+    fullName: joinRequest.full_name ?? joinRequest.email,
+    decision: decision as "approve" | "reject",
+    rejectionReason: decision === "reject" ? rejectionReason || undefined : undefined
+  });
   redirect(`/admin/join-requests?reviewed=${nextStatus}`);
 }

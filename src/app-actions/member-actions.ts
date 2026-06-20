@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireMember } from "@/lib/auth/guards";
+import { notifyAdminOfNewApplication } from "@/lib/email";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AvailabilityStatus, PaymentModel, PostType } from "@/types";
@@ -384,6 +385,7 @@ export async function submitJoinApplicationInline(
   }
 
   revalidatePath("/admin/join-requests");
+  await notifyAdminOfNewApplication({ fullName, email, credentials, note: note || undefined });
   return { status: "success" };
 }
 
