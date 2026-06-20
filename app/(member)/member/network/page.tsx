@@ -87,7 +87,12 @@ export default async function MemberNetworkPage() {
                     <div className="flex items-start gap-3">
                       <Avatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} size="sm" />
                       <div>
-                        <p className="text-base font-semibold leading-snug text-foreground">{therapist.displayName}</p>
+                        <Link
+                          href={`/directory/${therapist.slug}?returnTo=/member/network`}
+                          className="text-base font-semibold leading-snug text-foreground hover:underline underline-offset-4"
+                        >
+                          {therapist.displayName}
+                        </Link>
                         <p className="text-sm text-muted-foreground">{therapist.title}</p>
                       </div>
                     </div>

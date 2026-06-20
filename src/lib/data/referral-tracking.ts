@@ -230,6 +230,7 @@ export interface IncomingReferral {
   caseReferralId: string;
   clientReference: string;
   referringClinicianName: string;
+  referringClinicianSlug?: string;
   levelOfCare: ClientCase["levelOfCare"];
   presentingIssue: string;
   clientType: string;
@@ -279,6 +280,7 @@ export async function getIncomingReferrals(profileId: string): Promise<IncomingR
         urgency,
         owner_profile_id,
         profiles:owner_profile_id (
+          slug,
           therapist_profiles ( public_display_name )
         )
       )
@@ -292,12 +294,14 @@ export async function getIncomingReferrals(profileId: string): Promise<IncomingR
     .filter((r) => r.client_cases != null)
     .map((r) => {
       const c = r.client_cases as unknown as Record<string, unknown>;
-      const ownerProfile = c.profiles as { therapist_profiles?: { public_display_name?: string | null } | null } | null;
+      const ownerProfile = c.profiles as { slug?: string | null; therapist_profiles?: { public_display_name?: string | null } | null } | null;
       const referringClinicianName = ownerProfile?.therapist_profiles?.public_display_name ?? "A colleague";
+      const referringClinicianSlug = ownerProfile?.slug ?? undefined;
       return {
         caseReferralId: String(r.id),
         clientReference: String(c.client_reference ?? ""),
         referringClinicianName,
+        referringClinicianSlug,
         levelOfCare: ((c.level_of_care as string) ?? "outpatient") as ClientCase["levelOfCare"],
         presentingIssue: String(c.presenting_issue ?? ""),
         clientType: String(c.client_type ?? ""),
@@ -340,6 +344,7 @@ export async function getReferralTracking(profileId?: string): Promise<ClientCas
         created_at,
         referred_profile_id,
         profiles:referred_profile_id (
+          slug,
           therapist_profiles ( public_display_name )
         )
       )
@@ -351,11 +356,12 @@ export async function getReferralTracking(profileId?: string): Promise<ClientCas
 
   return cases.map((c) => {
     const referrals: CaseReferral[] = (c.case_referrals ?? []).map((r: Record<string, unknown>) => {
-      const profile = r.profiles as { therapist_profiles?: { public_display_name?: string | null } | null } | null;
+      const profile = r.profiles as { slug?: string | null; therapist_profiles?: { public_display_name?: string | null } | null } | null;
       const displayName = profile?.therapist_profiles?.public_display_name ?? "Unknown therapist";
       return {
         id: String(r.id),
         therapistName: displayName,
+        therapistSlug: profile?.slug ?? undefined,
         status: (r.status as ReferralStatus) ?? "open",
         sentAtLabel: relativeLabel(r.created_at as string | null),
         respondedAtLabel: r.responded_at ? relativeLabel(r.responded_at as string) : undefined,
