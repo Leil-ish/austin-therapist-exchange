@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireMember } from "@/lib/auth/guards";
-import { notifyAdminOfNewApplication } from "@/lib/email";
+import { sendAdminNotificationEmail } from "@/lib/email";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AvailabilityStatus, PaymentModel, PostType } from "@/types";
@@ -319,38 +319,40 @@ export async function submitJoinApplicationInline(
   const fullName = String(formData.get("fullName") ?? "").trim();
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   const credentials = String(formData.get("credentials") ?? "").trim();
-  const licenseNumber = String(formData.get("licenseNumber") ?? "").trim();
-  const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
-  const referralCode = String(formData.get("referralCode") ?? "").trim().toUpperCase();
-  const note = String(formData.get("note") ?? "").trim();
+  const website = String(formData.get("website") ?? "").trim();
+  const levelOfCare = formData.getAll("levelOfCare").map(String);
+  const specialties = formData.getAll("specialties").map(String);
+  const paymentModel = String(formData.get("paymentModel") ?? "").trim();
+  const availability = String(formData.get("availability") ?? "").trim();
+  const careFormat = String(formData.get("careFormat") ?? "").trim();
+  const sponsorProfileId = String(formData.get("sponsorProfileId") ?? "").trim();
 
-  if (!fullName || !email || !credentials) {
-    return { status: "error", code: "missing-fields", message: "Please fill in your name, email, and credentials." };
+  if (!fullName || !email) {
+    return { status: "error", code: "missing-fields", message: "Please fill in your name and email." };
   }
 
-  if (!referralCode) {
-    return { status: "error", code: "missing-code", message: "A referral code is required to apply. Ask a current member for their code." };
+  if (levelOfCare.length === 0) {
+    return { status: "error", code: "missing-fields", message: "Please select at least one level of care." };
   }
 
-  const { data: invitation } = await admin
-    .from("invitations")
-    .select("id, code, invited_by, invited_email, is_active, use_count, max_uses, expires_at")
-    .eq("code", referralCode)
-    .maybeSingle();
-
-  if (!invitation) {
-    return { status: "error", code: "invalid-code", message: "That referral code could not be found. Check the code and try again." };
+  if (!paymentModel || !availability || !careFormat) {
+    return { status: "error", code: "missing-fields", message: "Please complete all required fields in Your practice." };
   }
 
-  const isExpired =
-    typeof invitation.expires_at === "string" && new Date(invitation.expires_at).getTime() < Date.now();
-
-  if (!invitation.is_active || invitation.use_count >= invitation.max_uses || isExpired) {
-    return { status: "error", code: "expired-code", message: "That referral code is no longer active. Ask the member for a fresh one." };
-  }
-
-  if (invitation.invited_email && normalizeEmail(invitation.invited_email) !== email) {
-    return { status: "error", code: "email-mismatch", message: "This code was reserved for a different email address." };
+  // Verify sponsor is a real active member (ignore invalid sponsorProfileId silently)
+  let resolvedSponsorId: string | null = null;
+  let sponsorName: string | undefined;
+  if (sponsorProfileId) {
+    const { data: sponsorProfile } = await admin
+      .from("profiles")
+      .select("id, full_name")
+      .eq("id", sponsorProfileId)
+      .eq("membership_state", "active")
+      .maybeSingle();
+    if (sponsorProfile) {
+      resolvedSponsorId = String(sponsorProfile.id);
+      sponsorName = String(sponsorProfile.full_name ?? "");
+    }
   }
 
   const { data: existingRequest } = await admin
@@ -371,12 +373,14 @@ export async function submitJoinApplicationInline(
     city: "Austin",
     state_region: "TX",
     market_slug: "austin-tx",
-    credentials,
-    license_number: licenseNumber || null,
-    website_url: websiteUrl || null,
-    note: note || null,
-    endorsement_from_profile_id: invitation.invited_by,
-    invitation_id: invitation.id,
+    credentials: credentials || null,
+    website_url: website || null,
+    sponsor_profile_id: resolvedSponsorId,
+    level_of_care: levelOfCare,
+    specialties,
+    payment_model: paymentModel,
+    availability,
+    care_format: careFormat,
     status: "pending"
   });
 
@@ -385,7 +389,21 @@ export async function submitJoinApplicationInline(
   }
 
   revalidatePath("/admin/join-requests");
-  await notifyAdminOfNewApplication({ fullName, email, credentials, note: note || undefined });
+
+  // Fire-and-forget — don't let email failure break the user-facing success response
+  sendAdminNotificationEmail({
+    fullName,
+    email,
+    credentials: credentials || undefined,
+    website: website || undefined,
+    levelOfCare,
+    specialties,
+    paymentModel,
+    availability,
+    careFormat,
+    sponsorName,
+  }).catch((err) => console.error("[submitJoinApplicationInline] admin notification failed:", err));
+
   return { status: "success" };
 }
 

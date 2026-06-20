@@ -205,47 +205,64 @@ type ContactCriteria = {
   additionalNotes: string;
 };
 
-function buildMailtoBody(
-  therapistName: string,
-  senderName: string,
-  code: string,
-  criteria: ContactCriteria
-): string {
-  const lines: string[] = [];
-  lines.push(`Hi ${therapistName},`);
-  lines.push("");
-  lines.push(
-    "I came across your profile on Austin Therapist Exchange and think you may be a good fit for a client I'm hoping to refer. Here's what I can share:"
-  );
-  lines.push("");
-  if (criteria.levelOfCare) lines.push(`- Level of care: ${criteria.levelOfCare}`);
-  if (criteria.clientType) lines.push(`- Client type: ${criteria.clientType}`);
-  if (criteria.presentingIssue) lines.push(`- Presenting concern: ${criteria.presentingIssue}`);
-  const paymentParts: string[] = [];
-  if (criteria.payment) paymentParts.push(criteria.payment);
-  if (criteria.insurance && (criteria.payment === "Insurance" || criteria.payment === "Both")) {
-    paymentParts.push(criteria.insurance);
-  }
-  if (paymentParts.length > 0) lines.push(`- Payment: ${paymentParts.join(" – ")}`);
-  const formatParts: string[] = [];
-  if (criteria.format) formatParts.push(criteria.format);
-  if (criteria.location) formatParts.push(criteria.location);
-  if (formatParts.length > 0) lines.push(`- Format & area: ${formatParts.join(", ")}`);
-  if (criteria.urgency) lines.push(`- Timing: ${criteria.urgency}`);
-  lines.push("");
-  lines.push(
-    "Would you be able to take this client on? If you have availability, I'll share the specifics directly through a secure channel."
-  );
-  lines.push("");
-  lines.push(`Reference: ${code} — including this so we can both keep track of where this referral lands.`);
-  lines.push("");
-  lines.push(
-    "About Austin Therapist Exchange: a private, invite-only referral network for Austin-area clinicians, built to make trusted therapist-to-therapist referrals simple. More at austintherapistexchange.com."
-  );
-  lines.push("");
-  lines.push("Thanks so much,");
-  if (senderName) lines.push(senderName);
-  return lines.join("\r\n");
+type MailtoParams = {
+  therapistName: string;
+  levelOfCare: string;
+  clientType: string;
+  presentingIssue: string;
+  payment: string;
+  insurance: string;
+  format: string;
+  location: string;
+  urgency: string;
+  code: string;
+  senderName: string;
+  additionalNotes: string;
+};
+
+function buildMailtoBody({
+  therapistName,
+  levelOfCare,
+  clientType,
+  presentingIssue,
+  payment,
+  insurance,
+  format,
+  location,
+  urgency,
+  code,
+  senderName,
+  additionalNotes,
+}: MailtoParams): string {
+  const notesBlock = additionalNotes?.trim()
+    ? `\r\nA bit more context:\r\n${additionalNotes.trim()}\r\n`
+    : "";
+
+  return [
+    `Hi ${therapistName},`,
+    "",
+    "I hope you're doing well. I have a client I'd love to refer your way and wanted to reach out directly.",
+    "",
+    "Here's what I can share at this stage:",
+    "",
+    ...(levelOfCare ? [`- Level of care: ${levelOfCare}`] : []),
+    ...(clientType ? [`- Client type: ${clientType}`] : []),
+    ...(presentingIssue ? [`- Presenting concern: ${presentingIssue}`] : []),
+    ...(payment ? [`- Payment: ${payment}${insurance ? ` (${insurance})` : ""}`] : []),
+    ...(format ? [`- Format: ${format}${location ? ` — ${location}` : ""}`] : []),
+    ...(urgency ? [`- Timing: ${urgency}`] : []),
+    notesBlock,
+    "If this sounds like a fit, I'd love to connect and share more details. If your caseload isn't open right now, no worries at all — I appreciate you taking a look.",
+    "",
+    `[Referral ref: ${code}]`,
+    "",
+    "Warm regards,",
+    ...(senderName ? [senderName] : []),
+    "",
+    "--",
+    "Sent via Austin Therapist Exchange · Private referral network for Austin clinicians",
+    "New to ATE? Request an invite at austintherapistexchange.com/join",
+  ].join("\r\n");
 }
 
 function buildMailto(
@@ -255,47 +272,66 @@ function buildMailto(
   code: string,
   criteria: ContactCriteria
 ): string {
-  const subject = "Referral for You - Via Austin Therapist Exchange";
-  const body = buildMailtoBody(therapistName, senderName, code, criteria);
+  const subject = `Referral from ${senderName}`;
+  const body = buildMailtoBody({
+    therapistName,
+    levelOfCare: criteria.levelOfCare,
+    clientType: criteria.clientType,
+    presentingIssue: criteria.presentingIssue,
+    payment: criteria.payment,
+    insurance: criteria.insurance,
+    format: criteria.format,
+    location: criteria.location,
+    urgency: criteria.urgency,
+    code,
+    senderName,
+    additionalNotes: criteria.additionalNotes,
+  });
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-function buildBatchMailtoBody(senderName: string, code: string, criteria: ContactCriteria): string {
-  const lines: string[] = [];
-  lines.push("Hello,");
-  lines.push("");
-  lines.push(
-    "I came across your profile on Austin Therapist Exchange and think you may be a good fit for a client I'm hoping to refer. Here's what I can share:"
-  );
-  lines.push("");
-  if (criteria.levelOfCare) lines.push(`- Level of care: ${criteria.levelOfCare}`);
-  if (criteria.clientType) lines.push(`- Client type: ${criteria.clientType}`);
-  if (criteria.presentingIssue) lines.push(`- Presenting concern: ${criteria.presentingIssue}`);
-  const paymentParts: string[] = [];
-  if (criteria.payment) paymentParts.push(criteria.payment);
-  if (criteria.insurance && (criteria.payment === "Insurance" || criteria.payment === "Both")) {
-    paymentParts.push(criteria.insurance);
-  }
-  if (paymentParts.length > 0) lines.push(`- Payment: ${paymentParts.join(" – ")}`);
-  const formatParts: string[] = [];
-  if (criteria.format) formatParts.push(criteria.format);
-  if (criteria.location) formatParts.push(criteria.location);
-  if (formatParts.length > 0) lines.push(`- Format & area: ${formatParts.join(", ")}`);
-  if (criteria.urgency) lines.push(`- Timing: ${criteria.urgency}`);
-  lines.push("");
-  lines.push(
-    "Would you be able to take this client on? If you have availability, I'll share the specifics directly through a secure channel."
-  );
-  lines.push("");
-  lines.push(`Reference: ${code} — including this so we can both keep track of where this referral lands.`);
-  lines.push("");
-  lines.push(
-    "About Austin Therapist Exchange: a private, invite-only referral network for Austin-area clinicians, built to make trusted therapist-to-therapist referrals simple. More at austintherapistexchange.com."
-  );
-  lines.push("");
-  lines.push("Thanks so much,");
-  if (senderName) lines.push(senderName);
-  return lines.join("\r\n");
+function buildBatchMailtoBody({
+  levelOfCare,
+  clientType,
+  presentingIssue,
+  payment,
+  insurance,
+  format,
+  location,
+  urgency,
+  code,
+  senderName,
+  additionalNotes,
+}: Omit<MailtoParams, "therapistName">): string {
+  const notesBlock = additionalNotes?.trim()
+    ? `\r\nA bit more context:\r\n${additionalNotes.trim()}\r\n`
+    : "";
+
+  return [
+    "Hi there,",
+    "",
+    "I hope you're doing well. I have a client I'd love to refer your way and wanted to reach out directly.",
+    "",
+    "Here's what I can share at this stage:",
+    "",
+    ...(levelOfCare ? [`- Level of care: ${levelOfCare}`] : []),
+    ...(clientType ? [`- Client type: ${clientType}`] : []),
+    ...(presentingIssue ? [`- Presenting concern: ${presentingIssue}`] : []),
+    ...(payment ? [`- Payment: ${payment}${insurance ? ` (${insurance})` : ""}`] : []),
+    ...(format ? [`- Format: ${format}${location ? ` — ${location}` : ""}`] : []),
+    ...(urgency ? [`- Timing: ${urgency}`] : []),
+    notesBlock,
+    "If this sounds like a fit, I'd love to connect and share more details. If your caseload isn't open right now, no worries at all — I appreciate you taking a look.",
+    "",
+    `[Referral ref: ${code}]`,
+    "",
+    "Warm regards,",
+    ...(senderName ? [senderName] : []),
+    "",
+    "--",
+    "Sent via Austin Therapist Exchange · Private referral network for Austin clinicians",
+    "New to ATE? Request an invite at austintherapistexchange.com/join",
+  ].join("\r\n");
 }
 
 function buildBatchMailto(
@@ -305,8 +341,20 @@ function buildBatchMailto(
   code: string,
   criteria: ContactCriteria
 ): string {
-  const subject = "Referral for You - Via Austin Therapist Exchange";
-  const body = buildBatchMailtoBody(senderName, code, criteria);
+  const subject = `Referral from ${senderName}`;
+  const body = buildBatchMailtoBody({
+    levelOfCare: criteria.levelOfCare,
+    clientType: criteria.clientType,
+    presentingIssue: criteria.presentingIssue,
+    payment: criteria.payment,
+    insurance: criteria.insurance,
+    format: criteria.format,
+    location: criteria.location,
+    urgency: criteria.urgency,
+    code,
+    senderName,
+    additionalNotes: criteria.additionalNotes,
+  });
   const parts: string[] = [];
   if (bccEmails.length > 0) parts.push(`bcc=${encodeURIComponent(bccEmails.join(","))}`);
   parts.push(`subject=${encodeURIComponent(subject)}`);
@@ -1509,7 +1557,20 @@ function TherapistMatchCard({
 
   function handleCopyTemplate() {
     const code = logState?.ok ? logState.clientReference : activeCode;
-    navigator.clipboard.writeText(buildMailtoBody(therapist.displayName, senderName, code, criteria));
+    navigator.clipboard.writeText(buildMailtoBody({
+      therapistName: therapist.displayName,
+      levelOfCare: criteria.levelOfCare,
+      clientType: criteria.clientType,
+      presentingIssue: criteria.presentingIssue,
+      payment: criteria.payment,
+      insurance: criteria.insurance,
+      format: criteria.format,
+      location: criteria.location,
+      urgency: criteria.urgency,
+      code,
+      senderName,
+      additionalNotes: criteria.additionalNotes,
+    }));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -1581,7 +1642,7 @@ function TherapistMatchCard({
           <p className="font-medium text-green-700">
             Logged · <span className="font-mono">{logState.clientReference}</span>
           </p>
-          <p className="text-xs text-green-600">Record this code in your chart — it is not stored in the email.</p>
+          <p className="text-xs text-green-600">Record this code in your chart — it&apos;s also included in the referral email for easy tracking.</p>
           {!hasEmail && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
