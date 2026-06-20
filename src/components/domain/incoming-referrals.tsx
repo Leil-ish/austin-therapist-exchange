@@ -13,7 +13,8 @@ function statusClasses(status: ReferralStatus): string {
     case "open":
       return "bg-amber-100 text-amber-700";
     case "accepted":
-      return "bg-blue-100 text-blue-700";
+    case "matched":
+      return "bg-green-100 text-green-700";
     case "declined":
       return "bg-red-100 text-red-600";
     case "closed":
@@ -28,7 +29,8 @@ function statusClasses(status: ReferralStatus): string {
 function statusLabel(status: ReferralStatus): string {
   switch (status) {
     case "open": return "Pending your response";
-    case "accepted": return "You accepted";
+    case "accepted":
+    case "matched": return "You accepted";
     case "declined": return "Marked not a fit";
     case "closed": return "Dismissed";
     case "completed": return "Placed";
@@ -39,6 +41,13 @@ function statusLabel(status: ReferralStatus): string {
 function ReferralCard({ referral: initial }: { referral: IncomingReferral }) {
   const [referral, setReferral] = useState(initial);
   const [isPending, startTransition] = useTransition();
+  const [copiedRef, setCopiedRef] = useState(false);
+
+  function copyRef() {
+    navigator.clipboard.writeText(referral.clientReference);
+    setCopiedRef(true);
+    setTimeout(() => setCopiedRef(false), 1500);
+  }
 
   function respond(response: "accepted" | "declined" | "dismissed") {
     const optimisticStatus: ReferralStatus =
@@ -83,9 +92,19 @@ function ReferralCard({ referral: initial }: { referral: IncomingReferral }) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="font-mono text-xs text-muted-foreground border rounded px-1.5 py-0.5">
+          <button
+            type="button"
+            onClick={copyRef}
+            aria-label="Copy case reference"
+            className="flex items-center gap-1 font-mono text-xs text-muted-foreground border rounded px-1.5 py-0.5 cursor-pointer hover:bg-muted transition-colors"
+          >
             {referral.clientReference}
-          </span>
+            {copiedRef ? (
+              <i className="ti ti-check" />
+            ) : (
+              <i className="ti ti-copy" />
+            )}
+          </button>
           <span
             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusClasses(referral.status)}`}
           >

@@ -83,7 +83,7 @@ export default async function MemberReferralsPage({
           <p className="text-sm text-muted-foreground">
             {referralCases.length} sent total · {sentThisMonth} this month
             {awaitingCount > 0 && (
-              <> · <span className="text-amber-600">{awaitingCount} awaiting response</span></>
+              <> · <span className="text-muted-foreground">{awaitingCount} awaiting response</span></>
             )}
           </p>
         </div>

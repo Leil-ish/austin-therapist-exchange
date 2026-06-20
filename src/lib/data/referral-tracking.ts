@@ -1,5 +1,5 @@
 export type CaseStatus = "open" | "placed" | "closed";
-export type ReferralStatus = "open" | "accepted" | "declined" | "closed" | "completed";
+export type ReferralStatus = "open" | "matched" | "accepted" | "declined" | "closed" | "completed";
 
 export interface CaseReferral {
   id: string;
