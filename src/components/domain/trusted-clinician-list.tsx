@@ -49,7 +49,12 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <Avatar avatarUrl={clinician.avatarUrl} name={clinician.displayName} size="xs" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{clinician.displayName}</p>
+                  <Link
+                    href={`/directory/${clinician.slug}?returnTo=/member/network`}
+                    className="truncate text-sm font-medium text-foreground hover:underline underline-offset-4"
+                  >
+                    {clinician.displayName}
+                  </Link>
                   <p className="truncate text-xs text-muted-foreground">{clinician.title}</p>
                 </div>
               </div>

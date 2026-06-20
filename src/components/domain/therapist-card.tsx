@@ -64,7 +64,7 @@ function getCompactMeta(therapist: PublicTherapistSummary) {
 
 function getTrustContext(therapist: PublicTherapistSummary, isSignedIn: boolean = false) {
   if (therapist.trustedByViewer) {
-    return "You would refer here";
+    return "";
   }
 
   if (therapist.trustedBy.length === 1) {
@@ -142,7 +142,7 @@ export function TherapistCard({
             {/* Meta + trust */}
             <div className="space-y-0.5 text-xs text-muted-foreground">
               <p>{meta}</p>
-              <p>{trustContext}</p>
+              {trustContext && <p>{trustContext}</p>}
             </div>
           </div>
 

@@ -243,10 +243,9 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-0.5">
                           <p className="text-sm font-medium text-foreground">
-                            {/* TODO: add slug to case_referral query to enable profile links */}
-                            {r.therapistSlug ? (
+                              {r.therapistSlug ? (
                               <Link
-                                href={`/directory/${r.therapistSlug}`}
+                                href={`/directory/${r.therapistSlug}?returnTo=/member/referrals`}
                                 className="hover:underline underline-offset-4 text-foreground"
                               >
                                 {r.therapistName}

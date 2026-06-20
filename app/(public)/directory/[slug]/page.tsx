@@ -24,8 +24,15 @@ export default async function TherapistProfilePage({
   const { slug } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const rawReturnTo = resolvedSearchParams.returnTo ?? resolvedSearchParams.from;
-  const returnTo = rawReturnTo?.startsWith("/member/referrals") ? rawReturnTo : null;
-  const fromReferrals = Boolean(returnTo);
+  const fromNetwork = rawReturnTo?.startsWith("/member/network") ?? false;
+  const fromReferrals = rawReturnTo?.startsWith("/member/referrals") ?? false;
+  const returnTo = (fromNetwork || fromReferrals) ? rawReturnTo : null;
+  const showBackLink = fromNetwork || fromReferrals;
+  const backLabel = fromNetwork
+    ? "Back to network"
+    : rawReturnTo === "/member/referrals"
+      ? "Back to referrals"
+      : "Back to referral search";
   const session = await requireMember(`/directory/${slug}`);
   const therapist = await getPublicTherapistBySlug(slug, session.userId);
 
@@ -35,13 +42,13 @@ export default async function TherapistProfilePage({
 
   return (
     <PageShell>
-      {fromReferrals && (
+      {showBackLink && (
         <div className="mx-auto max-w-5xl px-6 pt-8">
           <Link
             href={(returnTo ?? "/member/referrals") as never}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
           >
-            <span aria-hidden>←</span> Back to referral search
+            <span aria-hidden>←</span> {backLabel}
           </Link>
         </div>
       )}

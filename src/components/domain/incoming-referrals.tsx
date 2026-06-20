@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 
 import { respondToIncomingReferral } from "@/app-actions/member-actions";
 import { Avatar } from "@/components/ui/avatar";
@@ -83,7 +84,17 @@ function ReferralCard({ referral: initial }: { referral: IncomingReferral }) {
           <Avatar name={referral.referringClinicianName} size="sm" />
           <div className="space-y-0.5 min-w-0">
             <p className="font-medium text-foreground">
-              Referral from {referral.referringClinicianName}
+              Referral from{" "}
+              {referral.referringClinicianSlug ? (
+                <Link
+                  href={`/directory/${referral.referringClinicianSlug}?returnTo=/member/referrals`}
+                  className="hover:underline underline-offset-4"
+                >
+                  {referral.referringClinicianName}
+                </Link>
+              ) : (
+                referral.referringClinicianName
+              )}
             </p>
             <p className="text-xs text-muted-foreground">
               Logged {referral.receivedAtLabel}
