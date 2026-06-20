@@ -1024,12 +1024,13 @@ export async function respondToIncomingReferral(
 }
 
 export async function confirmAvailability(
-  status: "accepting" | "not_accepting"
+  status: "accepting" | "waitlist" | "not_accepting"
 ): Promise<{ ok: boolean }> {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
 
-  const availabilityStatus: AvailabilityStatus = status === "accepting" ? "accepting" : "full";
+  const availabilityStatus: AvailabilityStatus =
+    status === "accepting" ? "accepting" : status === "waitlist" ? "waitlist" : "full";
 
   const { error } = await admin
     .from("therapist_profiles")

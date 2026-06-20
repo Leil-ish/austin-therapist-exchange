@@ -27,7 +27,7 @@ export function AvailabilityFreshnessBanner({
 
   const daysLabel = days !== null ? `${days} day${days === 1 ? "" : "s"} ago` : "not recently confirmed";
 
-  function handleConfirm(status: "accepting" | "not_accepting") {
+  function handleConfirm(status: "accepting" | "waitlist" | "not_accepting") {
     startTransition(async () => {
       await confirmAvailability(status);
     });
@@ -51,6 +51,14 @@ export function AvailabilityFreshnessBanner({
           className="rounded-full bg-green-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
         >
           Yes, accepting
+        </button>
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => handleConfirm("waitlist")}
+          className="rounded-full border border-amber-300 bg-white px-4 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+        >
+          Waitlist only
         </button>
         <button
           type="button"

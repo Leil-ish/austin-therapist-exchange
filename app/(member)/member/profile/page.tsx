@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
-import { getMemberProfileForUser } from "@/lib/data/live-data";
+import { getMemberProfileForUser, getRecentlyReportedFull } from "@/lib/data/live-data";
 import { cn } from "@/lib/utils";
 
 // ─── tiny helpers ────────────────────────────────────────────────────────────
@@ -96,7 +96,9 @@ export default async function MemberProfilePage({
 }) {
   const session = await getSession();
   const params = searchParams ? await searchParams : undefined;
-  const profile = session ? await getMemberProfileForUser(session.userId) : null;
+  const [profile, recentlyReportedFull] = session
+    ? await Promise.all([getMemberProfileForUser(session.userId), getRecentlyReportedFull(session.userId)])
+    : [null, false];
   const status = getStatusCopy(params?.error, params?.saved);
   const passwordStatusCopy = getPasswordStatusCopy(params?.passwordError, params?.passwordSaved);
   const isPremium = session?.membershipTier === "premium";
@@ -123,7 +125,7 @@ export default async function MemberProfilePage({
     { label: "Modalities", empty: modalities.length === 0 },
     { label: "Communities served", empty: communities.length === 0 },
     { label: "Specialties", empty: specialties.length === 0 },
-    { label: "Insurance accepted", empty: insuranceAccepted.length === 0 },
+    { label: "Insurance accepted", empty: profile.payment_model !== "private_pay" && insuranceAccepted.length === 0 },
     { label: "In-person or telehealth format", empty: !profile.offers_in_person && !profile.offers_telehealth },
   ];
   const missingFilterFields = filterFieldChecks.filter((f) => f.empty).map((f) => f.label);
@@ -428,6 +430,14 @@ export default async function MemberProfilePage({
 
         {/* ── LOGISTICS & AVAILABILITY ── */}
         <SectionCard title="Logistics & availability">
+          {recentlyReportedFull && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-medium">A colleague recently indicated you may be full</p>
+              <p className="mt-1 text-xs text-amber-700">
+                Update your availability below to clear this flag from your directory listing.
+              </p>
+            </div>
+          )}
           <ProfileLogisticsSection
             defaultPaymentModel={String(profile.payment_model ?? "both")}
             defaultAvailabilityStatus={String(profile.availability_status ?? "waitlist")}
