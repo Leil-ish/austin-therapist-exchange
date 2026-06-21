@@ -70,7 +70,12 @@ export async function SiteHeader() {
               </>
             )}
           </div>
-          <MobileNav isSignedIn={!!session} navItems={navItems} />
+          <MobileNav
+            isSignedIn={!!session}
+            navItems={navItems}
+            fullName={session?.fullName ?? undefined}
+            avatarUrl={session?.avatarUrl ?? undefined}
+          />
         </div>
       </div>
     </header>

@@ -7,10 +7,21 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import { signOut } from "@/app-actions/auth-actions";
+import { getInitials } from "@/components/ui/avatar";
 
 type NavItem = { href: Route; label: string };
 
-export function MobileNav({ navItems, isSignedIn }: { navItems: readonly NavItem[]; isSignedIn: boolean }) {
+export function MobileNav({
+  navItems,
+  isSignedIn,
+  fullName,
+  avatarUrl,
+}: {
+  navItems: readonly NavItem[];
+  isSignedIn: boolean;
+  fullName?: string;
+  avatarUrl?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -46,6 +57,33 @@ export function MobileNav({ navItems, isSignedIn }: { navItems: readonly NavItem
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {fullName && (
+              <div className="flex items-center gap-3 border-b border-primary/10 px-6 py-4">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt={fullName}
+                    className="h-10 w-10 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    {getInitials(fullName)}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{fullName}</p>
+                  <Link
+                    href="/member/profile"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setOpen(false)}
+                  >
+                    Edit profile
+                  </Link>
+                </div>
+              </div>
+            )}
 
             <nav className="flex flex-col gap-1 p-4">
               {navItems.map((item) => (

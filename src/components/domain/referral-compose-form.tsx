@@ -1689,11 +1689,11 @@ function TherapistMatchCard({
             <button
               type="button"
               onClick={handleCopyEmail}
-              title="Copy email address"
-              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:border-primary hover:text-primary"
+              title={therapist.publicEmail ?? ""}
+              className="flex max-w-[200px] items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:border-primary hover:text-primary"
             >
               <ClipboardCopy size={11} className="shrink-0" />
-              {copiedEmail ? "Copied!" : therapist.publicEmail}
+              <span className="min-w-0 truncate">{copiedEmail ? "Copied!" : therapist.publicEmail}</span>
             </button>
             <button
               type="button"
