@@ -45,29 +45,37 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
       <Card className="overflow-hidden bg-white/90">
         <ul className="divide-y divide-border/40">
           {visible.map((clinician) => (
-            <li key={clinician.profileId} className="flex items-center gap-0 px-5 py-3.5">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
+            <li key={clinician.profileId} className="px-5 py-3.5">
+              <div className="flex items-start gap-3">
                 <Avatar avatarUrl={clinician.avatarUrl} name={clinician.displayName} size="xs" />
-                <div className="min-w-0">
-                  <Link
-                    href={`/directory/${clinician.slug}?returnTo=/member/network`}
-                    className="truncate text-sm font-medium text-foreground hover:underline underline-offset-4"
-                  >
-                    {clinician.displayName}
-                  </Link>
-                  <p className="truncate text-xs text-muted-foreground">{clinician.title}</p>
+                <div className="min-w-0 flex-1">
+                  {/* Top line: name + availability */}
+                  <div className="flex items-center justify-between gap-2">
+                    <Link
+                      href={`/directory/${clinician.slug}?returnTo=/member/network`}
+                      className="truncate text-sm font-medium text-foreground hover:underline underline-offset-4"
+                    >
+                      {clinician.displayName}
+                    </Link>
+                    <div className="shrink-0">
+                      <AvailabilityDot status={clinician.availabilityStatus} />
+                    </div>
+                  </div>
+                  {/* Bottom line: credentials + date + view link */}
+                  <div className="mt-0.5 flex items-center justify-between gap-2">
+                    <p className="truncate text-xs text-muted-foreground">{clinician.title}</p>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="text-xs text-muted-foreground/60">Added {clinician.followedAtLabel}</span>
+                      <Link
+                        href={`/directory/${clinician.slug}?returnTo=/member/network`}
+                        className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex w-36 shrink-0 justify-center">
-                <AvailabilityDot status={clinician.availabilityStatus} />
-              </div>
-              <span className="w-32 shrink-0 text-right text-xs text-muted-foreground/60">Added {clinician.followedAtLabel}</span>
-              <Link
-                className="w-24 shrink-0 text-right text-sm font-medium text-primary transition-colors hover:text-primary/70"
-                href={`/directory/${clinician.slug}`}
-              >
-                View profile
-              </Link>
             </li>
           ))}
         </ul>

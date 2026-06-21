@@ -171,7 +171,7 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
           <Card className="bg-white/90" key={c.id}>
             {/* Collapsed row — full-width click target */}
             <div
-              className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 px-5 py-4"
+              className="flex cursor-pointer flex-col gap-1.5 px-5 py-4 md:flex-row md:flex-wrap md:items-center md:gap-x-3 md:gap-y-2"
               onClick={() => toggleExpanded(c.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") toggleExpanded(c.id);
@@ -179,41 +179,48 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
               role="button"
               tabIndex={0}
             >
-              <span className="flex items-center gap-1">
-                {isOpen ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className="font-mono text-sm font-medium">{c.clientReference}</span>
-              </span>
+              {/* Row 1 on mobile / first items on desktop: code, copy, status */}
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1">
+                  {isOpen ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className="font-mono text-sm font-medium">{c.clientReference}</span>
+                </span>
+                {/* Copy icon — stopPropagation so it doesn't toggle the accordion */}
+                <button
+                  aria-label="Copy case reference"
+                  className="-ml-1 rounded p-0.5 hover:bg-muted"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyRef(c.clientReference, c.id);
+                  }}
+                  type="button"
+                >
+                  {copiedId === c.id ? (
+                    <Check className="h-3.5 w-3.5 text-green-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </button>
+                <StatusPill label={c.status} classes={caseStatusClasses(c.status)} />
+              </div>
 
-              {/* Copy icon — stopPropagation so it doesn't toggle the accordion */}
-              <button
-                aria-label="Copy case reference"
-                className="-ml-1 rounded p-0.5 hover:bg-muted"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyRef(c.clientReference, c.id);
-                }}
-                type="button"
-              >
-                {copiedId === c.id ? (
-                  <Check className="h-3.5 w-3.5 text-green-600" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </button>
+              {/* Row 2 on mobile: name left, date right — dissolves into parent flex on desktop */}
+              <div className="flex items-center justify-between gap-2 md:contents">
+                <span className="text-sm text-muted-foreground">{recipientSummary}</span>
+                <span className="text-xs text-muted-foreground md:hidden">{c.createdAtLabel}</span>
+              </div>
 
-              <StatusPill label={c.status} classes={caseStatusClasses(c.status)} />
-
-              <span className="text-sm text-muted-foreground">{recipientSummary}</span>
-
-              <span className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs text-muted-foreground">
+              {/* Chip: own row on mobile, inline on desktop */}
+              <span className="max-w-full truncate rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs text-muted-foreground">
                 {c.levelOfCare} · {c.presentingIssue}
               </span>
 
-              <span className="ml-auto text-xs text-muted-foreground">{c.createdAtLabel}</span>
+              {/* Date — desktop only, pushed to far right */}
+              <span className="hidden text-xs text-muted-foreground md:ml-auto md:block">{c.createdAtLabel}</span>
             </div>
 
             {/* Expanded panel */}
