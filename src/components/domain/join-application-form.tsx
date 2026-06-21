@@ -225,6 +225,26 @@ export function JoinApplicationForm({
           singleSelect
         />
 
+        {state?.status === "error" && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {state.message}
+          </p>
+        )}
+
+        {(!paymentModel || !availability || !careFormat) && (
+          <p className="text-xs text-amber-600">
+            Please select an option for{" "}
+            {[
+              !paymentModel && "payment model",
+              !availability && "availability",
+              !careFormat && "care format",
+            ]
+              .filter(Boolean)
+              .join(", ")}
+            {" "}to continue.
+          </p>
+        )}
+
         <Button
           type="button"
           className="w-full"
