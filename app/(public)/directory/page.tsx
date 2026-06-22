@@ -47,6 +47,16 @@ export default async function DirectoryPage({
 
   const hasActiveFilters = query || region || availability || payment || format;
 
+  const filterParams = new URLSearchParams({
+    ...(query ? { q: query } : {}),
+    ...(region ? { region } : {}),
+    ...(availability ? { availability } : {}),
+    ...(payment ? { payment } : {}),
+    ...(format ? { format } : {}),
+    ...(page > 1 ? { page: String(page) } : {}),
+  });
+  const baseQuery = filterParams.toString();
+
   return (
     <PageShell>
       <section className="mx-auto max-w-6xl space-y-10 px-6 py-14">
@@ -71,9 +81,18 @@ export default async function DirectoryPage({
         </p>
         {pagedTherapists.length > 0 ? (
           <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-            {pagedTherapists.map((therapist) => (
-              <TherapistCard key={therapist.slug} therapist={therapist} currentProfileId={session?.userId} />
-            ))}
+            {pagedTherapists.map((therapist) => {
+              const currentUrl = `/directory${baseQuery ? `?${baseQuery}` : ""}#therapist-${therapist.slug}`;
+              return (
+                <div id={`therapist-${therapist.slug}`} key={therapist.slug}>
+                  <TherapistCard
+                    therapist={therapist}
+                    currentProfileId={session?.userId}
+                    returnTo={currentUrl}
+                  />
+                </div>
+              );
+            })}
           </div>
         ) : (
           <EmptyState

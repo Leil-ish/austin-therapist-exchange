@@ -26,13 +26,14 @@ export default async function TherapistProfilePage({
   const rawReturnTo = resolvedSearchParams.returnTo ?? resolvedSearchParams.from;
   const fromNetwork = rawReturnTo?.startsWith("/member/network") ?? false;
   const fromReferrals = rawReturnTo?.startsWith("/member/referrals") ?? false;
-  const returnTo = (fromNetwork || fromReferrals) ? rawReturnTo : null;
-  const showBackLink = fromNetwork || fromReferrals;
+  const fromDirectory = rawReturnTo?.startsWith("/directory") ?? false;
+  const returnTo = (fromNetwork || fromReferrals || fromDirectory) ? rawReturnTo : null;
+  const showBackLink = fromNetwork || fromReferrals || fromDirectory;
   const backLabel = fromNetwork
     ? "Back to network"
-    : rawReturnTo === "/member/referrals"
-      ? "Back to referrals"
-      : "Back to referral search";
+    : fromDirectory
+    ? "Back to directory"
+    : "Back to referrals";
   const session = await requireMember(`/directory/${slug}`);
   const therapist = await getPublicTherapistBySlug(slug, session.userId);
 

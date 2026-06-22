@@ -86,10 +86,12 @@ function getTrustContext(therapist: PublicTherapistSummary, isSignedIn: boolean 
 
 export function TherapistCard({
   therapist,
-  currentProfileId
+  currentProfileId,
+  returnTo
 }: {
   therapist: PublicTherapistSummary;
   currentProfileId?: string;
+  returnTo?: string;
 }) {
   const canFollow = currentProfileId && currentProfileId !== therapist.profileId;
   const trustContext = getTrustContext(therapist, !!currentProfileId);
@@ -162,7 +164,7 @@ export function TherapistCard({
       <Link
         aria-label={`View ${therapist.displayName}'s profile`}
         className="absolute inset-0 cursor-pointer rounded-[24px]"
-        href={`/directory/${therapist.slug}`}
+        href={`/directory/${therapist.slug}${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
       />
     </div>
   );
