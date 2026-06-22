@@ -128,8 +128,12 @@ export default async function MemberProfilePage({
   const bio = String(profile.bio ?? "").trim();
   const showWelcomeBanner = !bio && neighborhoods.length === 0 && isNewAccount;
 
+  const agencyLevels = ["Intensive Outpatient (IOP)", "Partial Hospitalization (PHP)", "Residential Treatment"];
+  const offeringsArray = Array.isArray(profile.offerings) ? (profile.offerings as string[]) : [];
+  const isAgencyLevelOnly = offeringsArray.length > 0 && offeringsArray.every((l: string) => agencyLevels.includes(l));
+
   const filterFieldChecks = [
-    { label: "Gender", empty: !profile.gender },
+    { label: "Gender", empty: !profile.gender && !isAgencyLevelOnly },
     { label: "Languages", empty: languages.length === 0 },
     { label: "Modalities", empty: modalities.length === 0 },
     { label: "Communities served", empty: communities.length === 0 },
@@ -222,7 +226,7 @@ export default async function MemberProfilePage({
               />
             </div>
             <div>
-              <FieldLabel htmlFor="credentials" required>Credentials / title</FieldLabel>
+              <FieldLabel htmlFor="credentials">Credentials / title</FieldLabel>
               <input
                 id="credentials"
                 className={INPUT}
