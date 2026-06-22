@@ -226,9 +226,10 @@ export function AvatarUpload({
     }
 
     const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+    const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
 
     const fd = new FormData();
-    fd.append("avatarUrl", publicUrl);
+    fd.append("avatarUrl", cacheBustedUrl);
 
     const result = await updateAvatarUrl(fd);
     setIsPending(false);
