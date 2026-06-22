@@ -191,7 +191,7 @@ export async function reviewJoinRequest(formData: FormData) {
     availability_status: therapistAvailability,
     offers_in_person: offersInPerson || (!offersInPerson && !offersTelehealth),
     offers_telehealth: offersTelehealth,
-    is_public: false,
+    is_public: true,
   };
 
   if (!existingTherapistProfile) {
