@@ -111,7 +111,7 @@ begin
     where id = new.invitation_id and use_count >= max_uses
   ) then
     raise exception 'Invitation has no uses remaining';
-  fi;
+  end if;
 
   return new;
 end;
