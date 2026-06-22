@@ -23,6 +23,13 @@ function isPlausibleEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function isSafeReturnTo(value: string | null | undefined): boolean {
+  if (!value) return false;
+  // Must start with / but not // (protocol-relative URLs)
+  // Must not contain :// (absolute URLs)
+  return value.startsWith("/") && !value.startsWith("//") && !value.includes("://");
+}
+
 function getPasswordValue(formData: FormData) {
   return String(formData.get("password") ?? "");
 }
@@ -117,7 +124,8 @@ export async function sendPasswordResetEmail(formData: FormData) {
 export async function signInWithPassword(formData: FormData) {
   const email = normalizeEmailInput(String(formData.get("email") ?? ""));
   const password = getPasswordValue(formData);
-  const returnTo = String(formData.get("returnTo") ?? "").trim() || "/member";
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  const safeReturnTo = isSafeReturnTo(returnTo) ? returnTo : "/member/referrals";
 
   if (!email) {
     redirect("/login?error=missing-email&mode=password");
@@ -141,7 +149,7 @@ export async function signInWithPassword(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}&mode=password`);
   }
 
-  redirect(returnTo as never);
+  redirect(safeReturnTo as never);
 }
 
 export async function updatePassword(formData: FormData) {
