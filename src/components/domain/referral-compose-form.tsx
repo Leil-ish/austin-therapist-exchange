@@ -299,6 +299,31 @@ function buildMailto(
   return `mailto:${email}?subject=${encodeURIComponent(subject)}`;
 }
 
+function buildOutlookWebHref(
+  email: string,
+  therapistName: string,
+  senderName: string,
+  code: string,
+  criteria: ContactCriteria
+): string {
+  const subject = `Referral from ${senderName}`;
+  const body = buildMailtoBody({
+    therapistName,
+    levelOfCare: criteria.levelOfCare,
+    clientType: criteria.clientType,
+    presentingIssue: criteria.presentingIssue,
+    payment: criteria.payment,
+    insurance: criteria.insurance,
+    format: criteria.format,
+    location: criteria.location,
+    urgency: criteria.urgency,
+    code,
+    senderName,
+    additionalNotes: criteria.additionalNotes,
+  });
+  return `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(email)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 function buildBatchMailtoBody({
   levelOfCare,
   clientType,
@@ -1517,6 +1542,10 @@ function TherapistMatchCard({
     ? buildMailto(therapist.publicEmail, therapist.displayName, senderName, activeCode, criteria)
     : undefined;
 
+  const outlookWebHref = therapist.publicEmail
+    ? buildOutlookWebHref(therapist.publicEmail, therapist.displayName, senderName, activeCode, criteria)
+    : undefined;
+
   // Badge and dots are derived from the checklist dimensions so they always agree with "N of N criteria matched".
   // confidence (from calculateMatchConfidence) is intentionally kept for grouping/scoring only — not displayed.
   const matchCount = dimensions.filter((d) => d.status === "match").length;
@@ -1733,6 +1762,17 @@ function TherapistMatchCard({
               <ClipboardCopy size={12} />
               {copied ? "Copied!" : "Copy message"}
             </button>
+            {outlookWebHref && (
+              <a
+                href={outlookWebHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-primary hover:text-primary"
+              >
+                <Globe size={12} />
+                Outlook Web
+              </a>
+            )}
           </>
         )}
 
