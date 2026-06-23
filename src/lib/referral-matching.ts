@@ -113,34 +113,25 @@ export const CLIENT_TYPES = [
 export const PRESENTING_ISSUES = [
   "Anxiety",
   "Depression",
-  "Trauma",
-  "PTSD",
+  "Trauma / PTSD",
   "OCD",
   "Substance Use",
   "Eating Disorder",
   "Infidelity",
   "Relationship Conflict",
-  "Communication Issues",
-  "Separation / Divorce",
-  "Premarital",
   "Intimacy / Sexual Issues",
   "ADHD",
   "Autism / Neurodivergence",
   "Postpartum / Perinatal",
-  "Life Transitions",
   "Parenting",
-  "Self Esteem",
+  "Life Transitions",
   "Grief / Bereavement",
-  "Burnout",
-  "Sleep",
-  "Bipolar Disorder",
   "Anger Management",
-  "Psychosis",
-  "Schizophrenia / Schizophrenia-Spectrum",
-  "Schizoaffective Disorder",
+  "Bipolar Disorder",
+  "Psychosis / Schizophrenia Spectrum",
   "Personality Disorders",
   "Dissociative Disorders",
-  "Self-Harm / Suicidality"
+  "Self-Harm / Suicidality",
 ] as const;
 
 export const PAYMENT_OPTIONS = [
@@ -401,6 +392,16 @@ export function clientTypeMatches(clientType: string, therapistPopulations: stri
   );
 }
 
+const LEGACY_SPECIALTY_MAP: Record<string, string[]> = {
+  "Trauma / PTSD": ["Trauma", "PTSD", "Trauma / PTSD"],
+  "Relationship Conflict": ["Relationship Conflict", "Relationship issues", "Couples", "Communication Issues", "Premarital", "Infidelity"],
+  "Life Transitions": ["Life Transitions", "Life transitions", "Burnout", "Self Esteem"],
+  "Autism / Neurodivergence": ["Autism / Neurodivergence", "Neurodivergence"],
+  "Psychosis / Schizophrenia Spectrum": ["Psychosis", "Schizophrenia / Schizophrenia-Spectrum", "Schizoaffective Disorder"],
+  "Infidelity": ["Infidelity"],
+  "Anger Management": ["Anger Management"],
+};
+
 export function presentingIssueMatches(presentingIssue: string, therapistSpecialties: string[]): boolean {
   if (!presentingIssue) return true;
 
@@ -408,45 +409,45 @@ export function presentingIssueMatches(presentingIssue: string, therapistSpecial
   const normalizedSpecialties = therapistSpecialties.map(normalizeForMatch);
 
   const issueMappings: Record<string, string[]> = {
-    "anxiety":                   ["anxiety", "panic", "perfectionism", "phobia", "ocd", "social anxiety", "generalized anxiety"],
-    "depression":                ["depression", "mood disorder", "mood disorders", "dysthymia", "seasonal"],
-    "trauma":                    ["trauma", "ptsd", "post-traumatic", "childhood trauma", "complex trauma",
-                                  "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
-    "ptsd":                      ["ptsd", "post-traumatic", "trauma / ptsd", "complex trauma", "childhood trauma"],
-    "ocd":                       ["ocd", "obsessive-compulsive", "obsessive"],
-    "substance use":             ["substance", "addiction", "alcohol", "drugs", "harm reduction",
-                                  "relapse", "recovery", "process addiction", "substance use", "substance use disorders"],
-    "eating disorder":           ["eating disorder", "eating disorders", "eating", "anorexia",
-                                  "bulimia", "body image", "body dysmorphia"],
-    "infidelity":                ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
-    "relationship conflict":     ["relationship conflict", "conflict", "communication", "couple", "couples",
-                                  "marital", "relationship issues", "interpersonal"],
-    "communication issues":      ["communication", "conflict", "interpersonal", "relationship", "communication issues"],
-    "separation / divorce":      ["separation", "divorce", "co-parenting", "co parenting", "separation/divorce"],
-    "premarital":                ["premarital", "pre-marital", "premarriage", "marriage preparation",
-                                  "engaged", "premarital counseling"],
-    "intimacy / sexual issues":  ["intimacy", "sexual", "sex therapy", "sexuality", "desire",
-                                  "dysfunction", "intimacy issues"],
-    "adhd":                      ["adhd", "attention deficit", "add", "executive function", "focus", "attention"],
-    "autism / neurodivergence":  ["autism", "autistic", "asd", "neurodivergent", "neurodivergence",
-                                  "spectrum", "asperger"],
-    "postpartum / perinatal":    ["postpartum", "perinatal", "postnatal", "maternal", "pregnancy",
-                                  "new mom", "new parent", "birth trauma"],
-    "life transitions":          ["life transition", "life transitions", "transition", "career",
-                                  "relocation", "retirement", "major life change"],
-    "parenting":                 ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
-    "self esteem":               ["self-esteem", "self esteem", "self worth", "confidence",
-                                  "identity", "women's development", "religious deconstruction"],
-    "grief / bereavement":       ["grief", "loss", "bereavement", "grief / loss", "grief / bereavement"],
-    "burnout":                   ["burnout", "stress", "work-life", "career discord", "perfectionism"],
-    "sleep":                     ["sleep", "insomnia"],
-    "bipolar disorder":          ["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
-    "anger management":          ["anger", "anger management", "rage", "aggression", "self-harm", "high-conflict", "bpd"]
+    "anxiety":                          ["anxiety", "panic", "perfectionism", "phobia", "ocd", "social anxiety", "generalized anxiety"],
+    "depression":                       ["depression", "mood disorder", "mood disorders", "dysthymia", "seasonal"],
+    "trauma / ptsd":                    ["trauma", "ptsd", "post-traumatic", "childhood trauma", "complex trauma",
+                                         "dissociat", "domestic violence", "abuse", "reparenting", "somatic experiencing"],
+    "ocd":                              ["ocd", "obsessive-compulsive", "obsessive"],
+    "substance use":                    ["substance", "addiction", "alcohol", "drugs", "harm reduction",
+                                         "relapse", "recovery", "process addiction", "substance use", "substance use disorders"],
+    "eating disorder":                  ["eating disorder", "eating disorders", "eating", "anorexia",
+                                         "bulimia", "body image", "body dysmorphia"],
+    "infidelity":                       ["infidelity", "affairs", "betrayal", "infidelity / affairs"],
+    "relationship conflict":            ["relationship conflict", "conflict", "communication", "couple", "couples",
+                                         "marital", "relationship issues", "interpersonal"],
+    "intimacy / sexual issues":         ["intimacy", "sexual", "sex therapy", "sexuality", "desire",
+                                         "dysfunction", "intimacy issues"],
+    "adhd":                             ["adhd", "attention deficit", "add", "executive function", "focus", "attention"],
+    "autism / neurodivergence":         ["autism", "autistic", "asd", "neurodivergent", "neurodivergence",
+                                         "spectrum", "asperger"],
+    "postpartum / perinatal":           ["postpartum", "perinatal", "postnatal", "maternal", "pregnancy",
+                                         "new mom", "new parent", "birth trauma"],
+    "parenting":                        ["parenting", "parent", "family", "maternal", "play therapy", "co-dependency", "codependency"],
+    "life transitions":                 ["life transition", "life transitions", "transition", "career",
+                                         "relocation", "retirement", "major life change"],
+    "grief / bereavement":              ["grief", "loss", "bereavement", "grief / loss", "grief / bereavement"],
+    "anger management":                 ["anger", "anger management", "rage", "aggression", "self-harm", "high-conflict", "bpd"],
+    "bipolar disorder":                 ["bipolar", "mood disorder", "mood disorders", "bpd", "borderline"],
+    "psychosis / schizophrenia spectrum": ["psychosis", "schizophrenia", "schizoaffective", "schizophrenia-spectrum"],
+    "personality disorders":            ["personality disorder", "personality disorders", "bpd", "borderline"],
+    "dissociative disorders":           ["dissociat"],
+    "self-harm / suicidality":          ["self-harm", "suicid", "self harm", "si"],
   };
 
-  const keywords = issueMappings[normalizedIssue] || [normalizedIssue];
-  return keywords.some(keyword =>
-    normalizedSpecialties.some(spec => spec.includes(keyword))
+  const keywords = issueMappings[normalizedIssue] ?? [normalizedIssue];
+  if (keywords.some((keyword) =>
+    normalizedSpecialties.some((spec) => spec.includes(keyword))
+  )) return true;
+
+  const legacyValues = LEGACY_SPECIALTY_MAP[presentingIssue] ?? [];
+  return legacyValues.some((val) =>
+    normalizedSpecialties.some((spec) => spec.includes(normalizeForMatch(val)))
   );
 }
 

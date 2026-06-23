@@ -45,6 +45,11 @@ const AGE_RANGE_OPTIONS = ["Child (0-12)", "Adolescent (13-17)", "Adult (18+)"] 
 // Format is now the source of truth for telehealth vs in-person — drop "Telehealth Only" from location
 const LOCATION_FILTER_OPTIONS = LOCATION_OPTIONS.filter((o) => o !== "Telehealth Only");
 
+const RELATIONSHIP_CLIENT_TYPES: string[] = [
+  "Couples",
+  "Families",
+];
+
 function getUrgencyColor(urgency: string) {
   if (urgency.includes("Urgent") && !urgency.includes("Moderately")) return "bg-red-100 border-red-300 text-red-900";
   if (urgency.includes("Moderately")) return "bg-yellow-100 border-yellow-300 text-yellow-900";
@@ -453,6 +458,12 @@ export function ReferralComposeForm({
   }, []);
 
   useEffect(() => {
+    if (clientType && !RELATIONSHIP_CLIENT_TYPES.includes(clientType)) {
+      setPresentingIssues((prev) => prev.filter((i) => i !== "Infidelity"));
+    }
+  }, [clientType]);
+
+  useEffect(() => {
     const p = new URLSearchParams();
     if (levelOfCare) p.set("loc", levelOfCare);
     if (urgency) p.set("urg", urgency);
@@ -476,6 +487,13 @@ export function ReferralComposeForm({
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const primaryIssue = levelOfCare === "Group Therapy" ? groupFocus : (presentingIssues[0] ?? "");
+
+  const visiblePresentingIssues = PRESENTING_ISSUES.filter((issue) => {
+    if (issue === "Infidelity") {
+      return !clientType || RELATIONSHIP_CLIENT_TYPES.includes(clientType);
+    }
+    return true;
+  });
 
   const getRequiredFields = () => {
     switch (levelOfCare) {
@@ -891,7 +909,7 @@ export function ReferralComposeForm({
                           : "Presenting Issue(s)"
                       }
                       required
-                      options={PRESENTING_ISSUES}
+                      options={visiblePresentingIssues}
                       selected={presentingIssues}
                       onToggle={(v) => toggleMulti(setPresentingIssues, v)}
                       prioritized={relevantIssues}
