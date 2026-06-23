@@ -1290,8 +1290,6 @@ export function ReferralComposeForm({
                 {batchMailtoHref ? (
                   <a
                     href={batchMailtoHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     onClick={logBatch}
                     className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
                   >
@@ -1703,7 +1701,7 @@ function TherapistMatchCard({
         {!alreadyLogged && (
           mailtoHref ? (
             <Button asChild className="min-w-[120px] flex-1">
-              <a href={mailtoHref} target="_blank" rel="noopener noreferrer" onClick={handleLog}>
+              <a href={mailtoHref} onClick={handleLog}>
                 {isPending ? "Logging…" : "Contact & log"}
               </a>
             </Button>
