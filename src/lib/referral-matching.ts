@@ -150,6 +150,7 @@ export const PAYMENT_OPTIONS = [
 ] as const;
 
 export const LOCATION_OPTIONS = [
+  "Austin (General)",
   "Central Austin",
   "North Austin",
   "South Austin",
@@ -157,6 +158,12 @@ export const LOCATION_OPTIONS = [
   "West Austin",
   "Round Rock",
   "Cedar Park",
+  "Georgetown",
+  "Pflugerville",
+  "Leander",
+  "Oak Hill",
+  "Westlake Hills",
+  "Buda / Kyle",
   "Telehealth Only"
 ] as const;
 
@@ -463,13 +470,28 @@ export function locationMatches(location: string, therapistNeighborhoods: string
     "east austin": ["east austin", "east"],
     "west austin": ["west austin", "west"],
     "round rock": ["round rock"],
-    "cedar park": ["cedar park"]
+    "cedar park": ["cedar park"],
+    "pflugerville": ["pflugerville"],
+    "georgetown": ["georgetown"],
+    "oak hill": ["oak hill"],
+    "westlake hills": ["westlake hills", "westlake"],
+    "buda / kyle": ["buda", "kyle"],
+    "leander": ["leander"],
+    "austin (general)": ["austin", "central", "north", "south", "east", "west"]
   };
 
   const keywords = locationMappings[normalizedLocation] || [normalizedLocation];
-  return keywords.some(keyword =>
+  const keywordMatch = keywords.some(keyword =>
     normalizedNeighborhoods.some(neigh => neigh.includes(keyword)) ||
     normalizedCity.includes(keyword)
+  );
+  if (keywordMatch) return true;
+
+  // Fall back to REGION_ALIASES so neighborhoods like "Arboretum" match "North Austin"
+  const canonicalRegion = AUSTIN_METRO_AREAS.find(area => normalizeForMatch(area) === normalizedLocation);
+  const selectedRegionAliases = canonicalRegion ? REGION_ALIASES[canonicalRegion] : [];
+  return normalizedNeighborhoods.some(neigh =>
+    selectedRegionAliases.some(alias => neigh.includes(normalizeForMatch(alias)))
   );
 }
 
