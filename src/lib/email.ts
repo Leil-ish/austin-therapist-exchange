@@ -1,10 +1,7 @@
 import "server-only";
 
-// TODO: configure email provider — set RESEND_API_KEY in environment variables to enable sending
-// Emails will be logged to console until RESEND_API_KEY is set.
-
-const FROM_ADDRESS = "Austin Therapist Exchange <no-reply@austintherapistexchange.com>";
-const ADMIN_EMAIL = "hello@austintherapistexchange.com";
+const FROM_ADDRESS = "Austin Therapist Exchange <noreply@mail.austintherapistexchange.com>";
+const ADMIN_EMAIL = "chasementalwellness@gmail.com";
 
 async function send({ to, subject, html }: { to: string; subject: string; html: string }) {
   const apiKey = process.env.RESEND_API_KEY;

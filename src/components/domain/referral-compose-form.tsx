@@ -270,6 +270,8 @@ function buildMailtoBody({
   ].join("\r\n");
 }
 
+const MAILTO_MAX_LENGTH = 2000;
+
 function buildMailto(
   email: string,
   therapistName: string,
@@ -292,7 +294,9 @@ function buildMailto(
     senderName,
     additionalNotes: criteria.additionalNotes,
   });
-  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const full = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (full.length <= MAILTO_MAX_LENGTH) return full;
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}`;
 }
 
 function buildBatchMailtoBody({
@@ -360,12 +364,15 @@ function buildBatchMailto(
     senderName,
     additionalNotes: criteria.additionalNotes,
   });
-  const parts: string[] = [];
-  if (bccEmails.length > 0) parts.push(`bcc=${encodeURIComponent(bccEmails.join(","))}`);
-  parts.push(`subject=${encodeURIComponent(subject)}`);
-  parts.push(`body=${encodeURIComponent(body)}`);
+  const subjectPart = `subject=${encodeURIComponent(subject)}`;
+  const bodyPart = `body=${encodeURIComponent(body)}`;
   const to = senderEmail ? encodeURIComponent(senderEmail) : "";
-  return `mailto:${to}?${parts.join("&")}`;
+  const bccPart = bccEmails.length > 0 ? `bcc=${encodeURIComponent(bccEmails.join(","))}` : "";
+  const parts = [bccPart, subjectPart, bodyPart].filter(Boolean);
+  const full = `mailto:${to}?${parts.join("&")}`;
+  if (full.length <= MAILTO_MAX_LENGTH) return full;
+  const shortParts = [bccPart, subjectPart].filter(Boolean);
+  return `mailto:${to}?${shortParts.join("&")}`;
 }
 
 export function ReferralComposeForm({
