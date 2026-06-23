@@ -330,6 +330,16 @@ export function insuranceMatches(
     return true;
   }
 
+  // If a specific carrier is requested and therapist is private pay only, exclude them
+  if (
+    insurance &&
+    normalizedInsurance !== "not sure" &&
+    normalizedInsurance !== "out of network" &&
+    therapistPaymentModel === "private_pay"
+  ) {
+    return false;
+  }
+
   // Empty list means the therapist's accepted carriers are unknown — never exclude them.
   if (!therapistInsuranceAccepted || therapistInsuranceAccepted.length === 0) {
     return true;

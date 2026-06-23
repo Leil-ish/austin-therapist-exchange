@@ -563,6 +563,11 @@ export function ReferralComposeForm({
       if (location && !locationMatches(location, therapist.neighborhoods, therapist.city, therapist.telehealth)) return false;
       // Insurance hard filter: known non-matching list → exclude; empty list → pass (unknown).
       if (insurance && !insuranceMatches(insurance, therapist.insuranceAccepted, therapist.paymentModel)) return false;
+      // Hard payment model filter
+      if (payment) {
+        const normalizedPayment = payment.toLowerCase().replace(/ /g, "_");
+        if (!paymentModelMatchesFilter(therapist.paymentModel, normalizedPayment)) return false;
+      }
       if (!passesHardFilters(extended, therapist)) return false;
       return true;
     }),
