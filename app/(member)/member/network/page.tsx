@@ -21,6 +21,7 @@ export default async function MemberNetworkPage() {
   ]);
 
   const suggestions = therapists
+    .filter((therapist) => therapist.profileId !== session?.userId)
     .filter((therapist) => !therapist.isFollowed)
     .filter((therapist) => therapist.trustedBy.length > 0)
     .sort((a, b) => b.trustedBy.length - a.trustedBy.length)
