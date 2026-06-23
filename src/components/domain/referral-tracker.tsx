@@ -1,10 +1,10 @@
 "use client";
 
-import { useTransition, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import { useTransition, useState, useEffect } from "react";
+import { Check, ChevronDown, ChevronRight, Copy, Trash2 } from "lucide-react";
 import Link from "next/link";
 
-import { updateReferralResponse } from "@/app-actions/member-actions";
+import { deleteCase, updateReferralResponse } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,8 +49,8 @@ function StatusPill({ label, classes }: { label: string; classes: string }) {
 
 const RESPONSE_OPTIONS: Array<{ value: ReferralStatus; label: string }> = [
   { value: "open", label: "Awaiting" },
-  { value: "accepted", label: "Accepting" },
-  { value: "declined", label: "Full" },
+  { value: "accepted", label: "Accepted" },
+  { value: "declined", label: "Declined" },
   { value: "completed", label: "Placed" },
   { value: "closed", label: "No reply" },
 ];
@@ -97,11 +97,20 @@ function ReferralResponseControl({
   );
 }
 
-export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }) {
+export function ReferralTracker({ cases: initialCases, pendingCase }: { cases: ClientCase[]; pendingCase?: ClientCase }) {
   const [cases, setCases] = useState<ClientCase[]>(initialCases);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingCase) return;
+    setCases((prev) => {
+      if (prev.some((c) => c.id === pendingCase.id)) return prev;
+      return [pendingCase, ...prev];
+    });
+  }, [pendingCase]);
 
   const INITIAL_VISIBLE = 5;
   const visibleCases = showAll ? cases : cases.slice(0, INITIAL_VISIBLE);
@@ -158,6 +167,20 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
     );
   }
 
+  function handleDeleteCase(caseId: string) {
+    const caseToRestore = cases.find((c) => c.id === caseId);
+    setConfirmingDeleteId(null);
+    setCases((prev) => prev.filter((c) => c.id !== caseId));
+    void deleteCase(caseId).then((result) => {
+      if (!result.ok && caseToRestore) {
+        setCases((prev) => {
+          if (prev.some((c) => c.id === caseId)) return prev;
+          return [caseToRestore, ...prev];
+        });
+      }
+    });
+  }
+
   return (
     <div className="space-y-2">
       {visibleCases.map((c) => {
@@ -166,6 +189,11 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
           c.referrals.length === 1
             ? c.referrals[0].therapistName
             : `${c.referrals.length} therapists`;
+        const mostRecentReferral = c.referrals[c.referrals.length - 1];
+        const displayStatus = mostRecentReferral?.status ?? c.status;
+        const displayClasses = mostRecentReferral
+          ? referralStatusClasses(mostRecentReferral.status)
+          : caseStatusClasses(c.status);
 
         return (
           <Card className="bg-white/90" key={c.id}>
@@ -205,7 +233,7 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
                     <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                   )}
                 </button>
-                <StatusPill label={c.status} classes={caseStatusClasses(c.status)} />
+                <StatusPill label={displayStatus} classes={displayClasses} />
               </div>
 
               {/* Row 2 on mobile: name left, date right — dissolves into parent flex on desktop */}
@@ -219,8 +247,41 @@ export function ReferralTracker({ cases: initialCases }: { cases: ClientCase[] }
                 {c.levelOfCare} · {c.presentingIssue}
               </span>
 
-              {/* Date — desktop only, pushed to far right */}
-              <span className="hidden text-xs text-muted-foreground md:ml-auto md:block">{c.createdAtLabel}</span>
+              {/* Date + delete — desktop only, pushed to far right */}
+              <div
+                className="ml-auto hidden items-center gap-1 md:flex"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-xs text-muted-foreground">{c.createdAtLabel}</span>
+                {confirmingDeleteId === c.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCase(c.id)}
+                      className="rounded px-2 py-0.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDeleteId(null)}
+                      className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    aria-label="Delete case"
+                    onClick={() => setConfirmingDeleteId(c.id)}
+                    className="flex h-7 w-7 items-center justify-center rounded-md p-0 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Expanded panel */}
