@@ -350,6 +350,7 @@ export async function getReferralTracking(profileId?: string): Promise<ClientCas
       )
     `)
     .eq("owner_profile_id", profileId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error || !cases) return [];

@@ -870,6 +870,7 @@ export async function logReferralContact(input: {
   }
 
   revalidatePath("/member/network");
+  revalidatePath("/member/referrals");
   return { ok: true, caseId, clientReference };
 }
 
@@ -1002,6 +1003,25 @@ export async function logReferralContacts(input: {
   revalidatePath("/member/network");
   revalidatePath("/member/referrals");
   return { ok: true, caseId: caseId as string, clientReference, loggedCount };
+}
+
+export async function deleteCase(caseId: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  // Note: cases are soft-deleted (deleted_at set). Hard delete after 30 days can be added later.
+  const { error } = await admin
+    .from("client_cases")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", caseId)
+    .eq("owner_profile_id", session.userId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/member/referrals");
+  return { ok: true };
 }
 
 export type RespondToIncomingReferralResult = { ok: true } | { ok: false; error: string };
