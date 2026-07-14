@@ -24,6 +24,7 @@
   "dependencies": {
     "@opennextjs/cloudflare": "^1.0.0",
     "@radix-ui/react-slot": "^1.1.2",
+    "@radix-ui/react-tabs": "^1.1.17",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.106.2",
     "class-variance-authority": "^0.7.1",
