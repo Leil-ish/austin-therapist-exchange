@@ -155,6 +155,7 @@ export interface FollowedClinicianSummary {
   availabilityStatus: AvailabilityStatus;
   followedAtLabel: string;
   avatarUrl?: string;
+  specialties?: string[];
 }
 
 export interface CuratedListSummary {

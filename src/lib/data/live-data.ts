@@ -1280,7 +1280,8 @@ export async function getFollowedClinicians(profileId: string) {
         title: buildTherapistTitle(tp),
         availabilityStatus: (tp.availability_status as AvailabilityStatus | null) ?? "waitlist",
         followedAtLabel: formatCreatedAtLabel(follow.created_at as string | null),
-        avatarUrl: avatarByProfileId.get(pid)
+        avatarUrl: avatarByProfileId.get(pid),
+        specialties: asArray(tp.specialties),
       } satisfies FollowedClinicianSummary;
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
