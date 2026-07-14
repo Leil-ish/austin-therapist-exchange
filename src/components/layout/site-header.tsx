@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { Bell } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { getIncomingReferrals } from "@/lib/data/referral-tracking";
+import { getUnreadNotificationCount } from "@/lib/data/live-data";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "./mobile-nav";
 import { UserAvatarMenu } from "./user-avatar-menu";
@@ -14,16 +16,20 @@ const publicNav = [
 const memberNav = [
   { href: "/member/referrals", label: "Referrals" },
   { href: "/member/network", label: "Network" },
-  { href: "/directory", label: "Directory" }
+  { href: "/directory", label: "Directory" },
+  { href: "/member/notifications", label: "Notifications" }
 ] as const;
 
 export async function SiteHeader() {
   const session = await getSession();
   const navItems = session ? memberNav : publicNav;
 
-  const unreadReferralCount = session
-    ? (await getIncomingReferrals(session.userId)).filter((r) => r.status === "open").length
-    : 0;
+  const [unreadReferralCount, unreadNotificationCount] = await Promise.all([
+    session
+      ? getIncomingReferrals(session.userId).then((r) => r.filter((x) => x.status === "open").length)
+      : Promise.resolve(0),
+    session ? getUnreadNotificationCount(session.userId) : Promise.resolve(0),
+  ]);
 
   return (
     <header className="sticky top-0 z-20 border-b border-primary/10 bg-[rgba(255,251,245,0.9)] backdrop-blur">
@@ -43,20 +49,33 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">
-          {navItems.map((item) => (
-            <Link className="relative text-sm text-muted-foreground hover:text-foreground" href={item.href} key={item.href}>
-              {item.label}
-              {item.href === "/member/referrals" && unreadReferralCount > 0 && (
-                <span className="absolute -top-2 -right-3 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
-                  {unreadReferralCount}
-                </span>
-              )}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            if (item.href === "/member/notifications") return null;
+            return (
+              <Link className="relative text-sm text-muted-foreground hover:text-foreground" href={item.href} key={item.href}>
+                {item.label}
+                {item.href === "/member/referrals" && unreadReferralCount > 0 && (
+                  <span className="absolute -top-2 -right-3 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                    {unreadReferralCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-3 md:flex">
+            {session && (
+              <Link href="/member/notifications" className="relative text-muted-foreground hover:text-foreground">
+                <Bell className="h-5 w-5" />
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute -top-2 -right-2 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                    {unreadNotificationCount}
+                  </span>
+                )}
+              </Link>
+            )}
             {session ? (
               <UserAvatarMenu fullName={session.fullName} email={session.email} avatarUrl={session.avatarUrl} />
             ) : (
@@ -75,6 +94,7 @@ export async function SiteHeader() {
             navItems={navItems}
             fullName={session?.fullName ?? undefined}
             avatarUrl={session?.avatarUrl ?? undefined}
+            unreadNotificationCount={unreadNotificationCount}
           />
         </div>
       </div>

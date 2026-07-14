@@ -223,3 +223,24 @@ export interface DirectReferralActivitySummary {
   incoming: DirectReferralActivityItem[];
   outgoing: DirectReferralActivityItem[];
 }
+
+export type NotificationType =
+  | "referral_received"
+  | "referral_accepted"
+  | "referral_declined"
+  | "network_added"
+  | "connection_facilitated"
+  | "availability_changed";
+
+export interface Notification {
+  id: string;
+  recipientProfileId: string;
+  type: NotificationType;
+  title: string;
+  message?: string;
+  relatedProfileId?: string;
+  relatedCaseId?: string;
+  readAt?: string;
+  createdAt: string;
+  createdAtLabel: string;
+}
