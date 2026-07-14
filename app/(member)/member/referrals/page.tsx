@@ -1,35 +1,39 @@
-import { IncomingReferrals } from "@/components/domain/incoming-referrals";
-import { ReferralComposeForm } from "@/components/domain/referral-compose-form";
-import { ReferralTracker } from "@/components/domain/referral-tracker";
-import { EmptyState } from "@/components/state/empty-state";
 import { requireMember } from "@/lib/auth/guards";
 import { getReferralCandidateTherapists } from "@/lib/data/live-data";
 import { getIncomingReferrals, getReferralTracking } from "@/lib/data/referral-tracking";
 import { getThisMonthCount } from "@/lib/referral-utils";
+import { ReferralsTabs } from "./referrals-tabs";
+
+type Tab = "incoming" | "search" | "sent";
+
+type SearchParams = {
+  tab?: string;
+  directReferralSent?: string;
+  directReferralError?: string;
+  referralResponded?: string;
+};
+
+function resolveTab(params?: SearchParams): Tab {
+  if (params?.directReferralSent === "1" || params?.directReferralError === "1") return "search";
+  if (params?.tab === "search" || params?.tab === "sent") return params.tab;
+  return "incoming";
+}
 
 function getStatusCopy(sent?: string, error?: string, responded?: string) {
-  if (sent === "1") {
-    return "Referral sent.";
-  }
-
-  if (responded === "1") {
-    return "Response recorded.";
-  }
-
-  if (error === "1") {
-    return "We couldn't send that referral. Please try again.";
-  }
-
+  if (sent === "1") return "Referral sent.";
+  if (responded === "1") return "Response recorded.";
+  if (error === "1") return "We couldn't send that referral. Please try again.";
   return null;
 }
 
 export default async function MemberReferralsPage({
-  searchParams
+  searchParams,
 }: {
-  searchParams?: Promise<{ directReferralSent?: string; directReferralError?: string; referralResponded?: string }>;
+  searchParams?: Promise<SearchParams>;
 }) {
   const session = await requireMember();
   const params = searchParams ? await searchParams : undefined;
+  const defaultTab = resolveTab(params);
   const statusCopy = getStatusCopy(params?.directReferralSent, params?.directReferralError, params?.referralResponded);
 
   const [therapists, incomingReferrals, referralCases] = await Promise.all([
@@ -38,64 +42,22 @@ export default async function MemberReferralsPage({
     getReferralTracking(session.userId),
   ]);
 
-  // Cases with status "open" have not yet been placed or closed — still awaiting a response.
   const openIncomingCount = incomingReferrals.filter((r) => r.status === "open").length;
   const awaitingCount = referralCases.filter((c) => c.status === "open").length;
   const sentThisMonth = getThisMonthCount(referralCases);
 
   return (
-    <div className="space-y-8">
-      {/* Referral compose form */}
-      <ReferralComposeForm
-        statusCopy={statusCopy}
-        therapists={therapists}
-        senderName={session.fullName ?? ""}
-        senderEmail={session.email ?? ""}
-      />
-
-      {/* Incoming referrals */}
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h3 className="font-serif text-2xl text-foreground">
-            Incoming referrals
-            {openIncomingCount > 0 && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                · {openIncomingCount} open
-              </span>
-            )}
-          </h3>
-          <p className="text-sm text-muted-foreground">{incomingReferrals.length} received total</p>
-        </div>
-        {incomingReferrals.length > 0 ? (
-          <IncomingReferrals referrals={incomingReferrals} />
-        ) : (
-          <EmptyState
-            title="No incoming referrals yet"
-            description="Referrals sent to you by colleagues will appear here."
-          />
-        )}
-      </section>
-
-      {/* Sent referrals */}
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h3 className="font-serif text-2xl text-foreground">Sent referrals</h3>
-          <p className="text-sm text-muted-foreground">
-            {referralCases.length} sent total · {sentThisMonth} this month
-            {awaitingCount > 0 && (
-              <> · <span className="text-muted-foreground">{awaitingCount} awaiting response</span></>
-            )}
-          </p>
-        </div>
-        {referralCases.length > 0 ? (
-          <ReferralTracker cases={referralCases} />
-        ) : (
-          <EmptyState
-            title="No referrals sent yet"
-            description="Your sent referrals will appear here with clear status updates."
-          />
-        )}
-      </section>
-    </div>
+    <ReferralsTabs
+      defaultTab={defaultTab}
+      openIncomingCount={openIncomingCount}
+      therapists={therapists}
+      incomingReferrals={incomingReferrals}
+      referralCases={referralCases}
+      statusCopy={statusCopy}
+      sentThisMonth={sentThisMonth}
+      awaitingCount={awaitingCount}
+      senderName={session.fullName ?? ""}
+      senderEmail={session.email ?? ""}
+    />
   );
 }
