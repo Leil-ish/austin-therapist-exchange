@@ -1,10 +1,27 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
+import type { Route } from "next";
 import { Bell, Network, GitMerge, TrendingDown } from "lucide-react";
 
 import { markNotificationsRead } from "@/app-actions/member-actions";
 import type { Notification, NotificationType } from "@/types";
+
+function notificationHref(notification: Notification): Route {
+  switch (notification.type) {
+    case "referral_received":
+      return "/member/referrals?tab=incoming" as Route;
+    case "referral_accepted":
+    case "referral_declined":
+      return "/member/referrals?tab=sent" as Route;
+    case "network_added":
+    case "connection_facilitated":
+      return "/member/network" as Route;
+    default:
+      return "/member/notifications" as Route;
+  }
+}
 
 function notificationIcon(type: NotificationType) {
   switch (type) {
@@ -63,17 +80,19 @@ export function NotificationsList({ notifications }: { notifications: Notificati
             {items.map((n) => (
               <li
                 key={n.id}
-                className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${n.readAt ? "bg-background" : "border-primary/20 bg-primary/5"}`}
+                className={`rounded-lg border transition-colors hover:bg-muted/50 ${n.readAt ? "bg-background" : "border-primary/20 bg-primary/5"}`}
               >
-                <span className="mt-0.5">{notificationIcon(n.type)}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">{n.title}</p>
-                  {n.message && <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>}
-                  <p className="mt-1 text-xs text-muted-foreground">{n.createdAtLabel}</p>
-                </div>
-                {!n.readAt && (
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />
-                )}
+                <Link href={notificationHref(n)} className="flex cursor-pointer items-start gap-3 px-4 py-3">
+                  <span className="mt-0.5">{notificationIcon(n.type)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{n.title}</p>
+                    {n.message && <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>}
+                    <p className="mt-1 text-xs text-muted-foreground">{n.createdAtLabel}</p>
+                  </div>
+                  {!n.readAt && (
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />
+                  )}
+                </Link>
               </li>
             ))}
           </ul>

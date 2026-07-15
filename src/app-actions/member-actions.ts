@@ -659,7 +659,7 @@ export async function followClinician(followedProfileId: string): Promise<{ ok: 
     createNotification({
       recipientProfileId: followedProfileId,
       type: "network_added",
-      title: "Someone added you to their trusted network",
+      title: `${session.fullName} added you to their trusted network`,
       relatedProfileId: session.userId,
     }).catch(() => undefined);
   }
@@ -880,10 +880,15 @@ export async function logReferralContact(input: {
   }
 
   if (!referralError) {
+    const levelOfCare = input.criteria.levelOfCare || null;
+    const presentingIssue = input.criteria.presentingIssue || null;
+    const payment = input.criteria.payment || null;
+    const messageParts = [levelOfCare, presentingIssue, payment].filter(Boolean);
     createNotification({
       recipientProfileId: input.referredProfileId,
       type: "referral_received",
-      title: "You received a new referral",
+      title: `New referral from ${session.fullName}`,
+      message: messageParts.length > 0 ? messageParts.join(" · ") : undefined,
       relatedProfileId: session.userId,
       relatedCaseId: caseId,
     }).catch(() => undefined);
