@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth/guards";
 import { sendApprovalEmail, sendDenialEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 function slugify(value: string) {
@@ -213,9 +214,13 @@ export async function reviewJoinRequest(formData: FormData) {
         { onConflict: "follower_profile_id,followed_profile_id", ignoreDuplicates: true }
       );
 
-    // TODO: notify sponsor when notifications system is built
-    // Insert: { recipient_profile_id: sponsorProfileId, type: "invite_accepted",
-    //           message: `${applicantName} joined your network`, created_at: now }
+    createNotification({
+      recipientProfileId: sponsorProfileId,
+      type: "network_added",
+      title: `${applicantName} accepted your invitation`,
+      message: `${applicantName} joined Austin Therapist Exchange and was added to your trusted network.`,
+      relatedProfileId: authUserId,
+    }).catch(() => undefined);
   }
 
   // 7. Send approval email (fire-and-forget)

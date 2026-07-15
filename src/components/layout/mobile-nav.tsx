@@ -16,11 +16,13 @@ export function MobileNav({
   isSignedIn,
   fullName,
   avatarUrl,
+  unreadNotificationCount,
 }: {
   navItems: readonly NavItem[];
   isSignedIn: boolean;
   fullName?: string;
   avatarUrl?: string;
+  unreadNotificationCount?: number;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -88,12 +90,17 @@ export function MobileNav({
             <nav className="flex flex-col gap-1 p-4">
               {navItems.map((item) => (
                 <Link
-                  className="rounded-lg px-4 py-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  className="relative flex items-center rounded-lg px-4 py-3 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
                   href={item.href}
                   key={item.href}
                   onClick={() => setOpen(false)}
                 >
                   {item.label}
+                  {item.href === "/member/notifications" && (unreadNotificationCount ?? 0) > 0 && (
+                    <span className="ml-2 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                      {unreadNotificationCount}
+                    </span>
+                  )}
                 </Link>
               ))}
             </nav>

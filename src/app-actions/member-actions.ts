@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireMember } from "@/lib/auth/guards";
 import { sendAdminNotificationEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AvailabilityStatus, PaymentModel, PostType } from "@/types";
@@ -654,6 +655,15 @@ export async function followClinician(followedProfileId: string): Promise<{ ok: 
     return { ok: false, error: "Could not save. Please try again." };
   }
 
+  if (!error) {
+    createNotification({
+      recipientProfileId: followedProfileId,
+      type: "network_added",
+      title: `${session.fullName} added you to their trusted network`,
+      relatedProfileId: session.userId,
+    }).catch(() => undefined);
+  }
+
   revalidatePath("/directory");
   revalidatePath("/member");
   revalidatePath("/member/feed");
@@ -869,6 +879,21 @@ export async function logReferralContact(input: {
     return { ok: false, error: referralError.message };
   }
 
+  if (!referralError) {
+    const levelOfCare = input.criteria.levelOfCare || null;
+    const presentingIssue = input.criteria.presentingIssue || null;
+    const payment = input.criteria.payment || null;
+    const messageParts = [levelOfCare, presentingIssue, payment].filter(Boolean);
+    createNotification({
+      recipientProfileId: input.referredProfileId,
+      type: "referral_received",
+      title: `New referral from ${session.fullName}`,
+      message: messageParts.length > 0 ? messageParts.join(" · ") : undefined,
+      relatedProfileId: session.userId,
+      relatedCaseId: caseId,
+    }).catch(() => undefined);
+  }
+
   revalidatePath("/member/network");
   revalidatePath("/member/referrals");
   return { ok: true, caseId, clientReference };
@@ -989,6 +1014,7 @@ export async function logReferralContacts(input: {
   }
 
   let loggedCount = 0;
+  const notifiedProfileIds: string[] = [];
   for (const profileId of input.referredProfileIds) {
     const { error } = await admin.from("case_referrals").insert({
       case_id: caseId,
@@ -998,6 +1024,17 @@ export async function logReferralContacts(input: {
       status: "open",
     });
     if (!error || error.code === "23505") loggedCount++;
+    if (!error) notifiedProfileIds.push(profileId);
+  }
+
+  for (const profileId of notifiedProfileIds) {
+    createNotification({
+      recipientProfileId: profileId,
+      type: "referral_received",
+      title: "You received a new referral",
+      relatedProfileId: session.userId,
+      relatedCaseId: caseId as string,
+    }).catch(() => undefined);
   }
 
   revalidatePath("/member/network");
@@ -1114,4 +1151,22 @@ export async function respondToDirectReferral(formData: FormData) {
 
   revalidatePath("/member/referrals");
   redirect("/member/referrals?referralResponded=1" as never);
+}
+
+export async function markNotificationsRead(ids?: string[]): Promise<void> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+
+  let query = admin
+    .from("notifications")
+    .update({ read_at: now })
+    .eq("recipient_profile_id", session.userId)
+    .is("read_at", null);
+
+  if (ids && ids.length > 0) {
+    query = query.in("id", ids);
+  }
+
+  await query;
 }

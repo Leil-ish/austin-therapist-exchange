@@ -11,6 +11,7 @@ import type {
   JoinRequestSummary,
   MembershipTier,
   ModerationReportSummary,
+  Notification,
   PaymentModel,
   PublicTherapistSummary,
   ReferralLinkSummary,
@@ -1512,4 +1513,41 @@ export async function getAdminModerationReports() {
     createdAtLabel: formatCreatedAtLabel(report.created_at as string | null),
     status: (report.status ?? "open") as ModerationReportSummary["status"]
   })) satisfies ModerationReportSummary[];
+}
+
+export async function getNotifications(profileId: string): Promise<Notification[]> {
+  const admin = createSupabaseAdminClient();
+  const { data: rows, error } = await admin
+    .from("notifications")
+    .select("id, recipient_profile_id, type, title, message, related_profile_id, related_case_id, read_at, created_at")
+    .eq("recipient_profile_id", profileId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error || !rows) return [];
+
+  return (rows as Array<Record<string, unknown>>).map((row) => ({
+    id: String(row.id),
+    recipientProfileId: String(row.recipient_profile_id),
+    type: String(row.type) as Notification["type"],
+    title: String(row.title ?? ""),
+    message: typeof row.message === "string" && row.message ? row.message : undefined,
+    relatedProfileId: typeof row.related_profile_id === "string" && row.related_profile_id ? row.related_profile_id : undefined,
+    relatedCaseId: typeof row.related_case_id === "string" && row.related_case_id ? row.related_case_id : undefined,
+    readAt: typeof row.read_at === "string" && row.read_at ? row.read_at : undefined,
+    createdAt: String(row.created_at ?? ""),
+    createdAtLabel: formatCreatedAtLabel(row.created_at as string | null),
+  })) satisfies Notification[];
+}
+
+export async function getUnreadNotificationCount(profileId: string): Promise<number> {
+  const admin = createSupabaseAdminClient();
+  const { count, error } = await admin
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("recipient_profile_id", profileId)
+    .is("read_at", null);
+
+  if (error) return 0;
+  return count ?? 0;
 }
