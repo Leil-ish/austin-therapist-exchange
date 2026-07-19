@@ -581,7 +581,7 @@ export async function getReferralCandidateTherapists(
   const { data: rawTherapistProfiles, error: tpError } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, communities, modalities, gender, languages, offers_sliding_scale"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, communities, modalities, gender, languages, offers_sliding_scale, offerings"
     )
     .in("profile_id", profileIds);
 
