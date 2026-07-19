@@ -364,7 +364,24 @@ export function levelOfCareMatches(levelOfCare: string, therapistOfferings: stri
 
   // Default to weekly therapy if no specific level mentioned
   if (normalizedLevel === "weekly therapy") {
-    return true;
+    // Pass if therapist has no offerings listed (individual private practice default)
+    if (!therapistOfferings || therapistOfferings.length === 0) return true;
+
+    // Pass if therapist explicitly offers weekly/outpatient therapy
+    const offersWeeklyTherapy = normalizedOfferings.some((o) =>
+      o.includes("weekly") ||
+      o.includes("individual") ||
+      o.includes("outpatient") ||
+      o.includes("group therapy")
+    );
+    if (offersWeeklyTherapy) return true;
+
+    // Exclude agency/IOP/PHP/Residential-only accounts
+    const agencyOnlyTerms = ["iop", "intensive outpatient", "php", "partial hospitalization", "residential"];
+    const isAgencyOnly = normalizedOfferings.every((o) =>
+      agencyOnlyTerms.some((term) => o.includes(term))
+    );
+    return !isAgencyOnly;
   }
 
   // Check offerings and bio for specific level support
