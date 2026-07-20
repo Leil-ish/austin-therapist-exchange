@@ -22,11 +22,26 @@ export function NetworkTabs({
   }
 
   return (
-    <Tabs defaultValue={defaultTab} onValueChange={handleTabChange}>
-      <TabsList>
-        <TabsTrigger value="network">My Network</TabsTrigger>
-        <TabsTrigger value="discover">Discover</TabsTrigger>
-        <TabsTrigger value="insights">Insights</TabsTrigger>
+    <Tabs defaultValue={defaultTab} onValueChange={handleTabChange} className="space-y-0">
+      <TabsList className="flex w-full justify-center gap-8 border-b border-border bg-transparent px-0 pb-0">
+        <TabsTrigger
+          value="network"
+          className="rounded-none border-b-2 border-transparent pb-3 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+        >
+          My Network
+        </TabsTrigger>
+        <TabsTrigger
+          value="discover"
+          className="rounded-none border-b-2 border-transparent pb-3 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+        >
+          Discover
+        </TabsTrigger>
+        <TabsTrigger
+          value="insights"
+          className="rounded-none border-b-2 border-transparent pb-3 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+        >
+          Insights
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="network" className="mt-6">
