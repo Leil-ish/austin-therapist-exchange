@@ -41,8 +41,17 @@ export function ReferralsTabs({
 
   return (
     <Tabs defaultValue={defaultTab} onValueChange={handleTabChange} className="space-y-0">
-      <TabsList>
-        <TabsTrigger value="incoming">
+      <TabsList className="flex w-full justify-center gap-8 border-b border-border bg-transparent px-0 pb-0">
+        <TabsTrigger
+          value="search"
+          className="rounded-none border-b-2 border-transparent pb-3 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+        >
+          Search
+        </TabsTrigger>
+        <TabsTrigger
+          value="incoming"
+          className="rounded-none border-b-2 border-transparent pb-3 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+        >
           Incoming
           {openIncomingCount > 0 && (
             <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white">
@@ -50,8 +59,12 @@ export function ReferralsTabs({
             </span>
           )}
         </TabsTrigger>
-        <TabsTrigger value="search">Search</TabsTrigger>
-        <TabsTrigger value="sent">Sent</TabsTrigger>
+        <TabsTrigger
+          value="sent"
+          className="rounded-none border-b-2 border-transparent pb-3 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+        >
+          Sent
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="incoming" className="mt-6">

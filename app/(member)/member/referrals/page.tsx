@@ -15,8 +15,8 @@ type SearchParams = {
 
 function resolveTab(params?: SearchParams): Tab {
   if (params?.directReferralSent === "1" || params?.directReferralError === "1") return "search";
-  if (params?.tab === "search" || params?.tab === "sent") return params.tab;
-  return "incoming";
+  if (params?.tab === "incoming" || params?.tab === "sent") return params.tab;
+  return "search";
 }
 
 function getStatusCopy(sent?: string, error?: string, responded?: string) {

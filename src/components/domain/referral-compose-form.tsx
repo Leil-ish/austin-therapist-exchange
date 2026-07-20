@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useTransition, useState } from "react";
-import { ChevronDown, ChevronUp, ClipboardCopy, Eye, Filter, MapPin, Pencil, RefreshCw, Users, Globe, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ClipboardCopy, Copy, Eye, Filter, Mail, MapPin, Pencil, RefreshCw, Users, Globe, X } from "lucide-react";
 
 import { logReferralContact, logReferralContacts } from "@/app-actions/member-actions";
 import type { LogReferralContactResult } from "@/app-actions/member-actions";
@@ -297,31 +297,6 @@ function buildMailto(
   const full = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   if (full.length <= MAILTO_MAX_LENGTH) return full;
   return `mailto:${email}?subject=${encodeURIComponent(subject)}`;
-}
-
-function buildOutlookWebHref(
-  email: string,
-  therapistName: string,
-  senderName: string,
-  code: string,
-  criteria: ContactCriteria
-): string {
-  const subject = `Referral from ${senderName}`;
-  const body = buildMailtoBody({
-    therapistName,
-    levelOfCare: criteria.levelOfCare,
-    clientType: criteria.clientType,
-    presentingIssue: criteria.presentingIssue,
-    payment: criteria.payment,
-    insurance: criteria.insurance,
-    format: criteria.format,
-    location: criteria.location,
-    urgency: criteria.urgency,
-    code,
-    senderName,
-    additionalNotes: criteria.additionalNotes,
-  });
-  return `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(email)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 function buildBatchMailtoBody({
@@ -1365,7 +1340,7 @@ export function ReferralComposeForm({
             <>
               {yourNetwork.length > 0 && (
                 <MatchSection
-                  icon={<Users size={16} className="text-primary" />}
+                  variant="yours"
                   title="Your network"
                   count={yourNetwork.length}
                   matches={yourNetwork}
@@ -1379,9 +1354,12 @@ export function ReferralComposeForm({
                   defaultShow={3}
                 />
               )}
+              {yourNetwork.length > 0 && (trustedByNetwork.length > 0 || broaderMatches.length > 0) && (
+                <div className="my-6 border-t border-border/50" />
+              )}
               {trustedByNetwork.length > 0 && (
                 <MatchSection
-                  icon={<Users size={16} className="text-muted-foreground" />}
+                  variant="trusted"
                   title="Trusted by your network"
                   count={trustedByNetwork.length}
                   matches={trustedByNetwork}
@@ -1395,9 +1373,12 @@ export function ReferralComposeForm({
                   defaultShow={3}
                 />
               )}
+              {trustedByNetwork.length > 0 && broaderMatches.length > 0 && (
+                <div className="my-6 border-t border-border/50" />
+              )}
               {broaderMatches.length > 0 && (
                 <MatchSection
-                  icon={<Globe size={16} className="text-muted-foreground" />}
+                  variant="broader"
                   title={yourNetwork.length === 0 && trustedByNetwork.length === 0 ? "Matches" : "Broader matches"}
                   count={broaderMatches.length}
                   matches={broaderMatches}
@@ -1425,8 +1406,54 @@ export function ReferralComposeForm({
   );
 }
 
+const MATCH_SECTION_COPY = {
+  yours: { description: "Colleagues you already trust" },
+  trusted: { description: "Vouched for by colleagues you trust" },
+  broader: { description: "Other ATE members who may be a fit" },
+} as const;
+
+function MatchSectionHeader({ variant, title, count }: { variant: "yours" | "trusted" | "broader"; title: string; count: number }) {
+  if (variant === "yours") {
+    return (
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary">
+          <Users className="h-3 w-3 text-white" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-primary">{title} · {count}</h2>
+          <p className="text-xs text-muted-foreground">{MATCH_SECTION_COPY.yours.description}</p>
+        </div>
+      </div>
+    );
+  }
+  if (variant === "trusted") {
+    return (
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-primary/40">
+          <Users className="h-3 w-3 text-primary/60" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">{title} · {count}</h2>
+          <p className="text-xs text-muted-foreground">{MATCH_SECTION_COPY.trusted.description}</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mb-4 flex items-center gap-2">
+      <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-border">
+        <Globe className="h-3 w-3 text-muted-foreground" />
+      </div>
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground">{title} · {count}</h2>
+        <p className="text-xs text-muted-foreground">{MATCH_SECTION_COPY.broader.description}</p>
+      </div>
+    </div>
+  );
+}
+
 function MatchSection({
-  icon,
+  variant,
   title,
   count,
   matches,
@@ -1439,7 +1466,7 @@ function MatchSection({
   onToggleSelect,
   defaultShow,
 }: {
-  icon: React.ReactNode;
+  variant: "yours" | "trusted" | "broader";
   title: string;
   count: number;
   matches: Array<{
@@ -1462,11 +1489,7 @@ function MatchSection({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        {icon}
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{count}</span>
-      </div>
+      <MatchSectionHeader variant={variant} title={title} count={count} />
       <div className="space-y-3">
         {visible.map(({ therapist, confidence, dimensions }) => (
           <TherapistMatchCard
@@ -1542,9 +1565,8 @@ function TherapistMatchCard({
     ? buildMailto(therapist.publicEmail, therapist.displayName, senderName, activeCode, criteria)
     : undefined;
 
-  const outlookWebHref = therapist.publicEmail
-    ? buildOutlookWebHref(therapist.publicEmail, therapist.displayName, senderName, activeCode, criteria)
-    : undefined;
+  const websiteHref = therapist.bookingUrl || therapist.featuredLinks[0];
+  const externalProfileHref = `https://austintherapistexchange.com/directory/${therapist.slug}`;
 
   // Badge and dots are derived from the checklist dimensions so they always agree with "N of N criteria matched".
   // confidence (from calculateMatchConfidence) is intentionally kept for grouping/scoring only — not displayed.
@@ -1638,7 +1660,7 @@ function TherapistMatchCard({
   const alreadyLogged = logState?.ok === true;
 
   return (
-    <div className={`rounded-2xl border bg-white p-5 transition-colors ${isSelected ? "border-primary/50 ring-1 ring-primary/20" : ""}`}>
+    <div className={`rounded-2xl border bg-white p-5 shadow-sm transition-all hover:shadow-md ${isSelected ? "border-primary/50 ring-1 ring-primary/20" : "border-border/60"}`}>
       {/* Header row */}
       <div className="flex items-start gap-3">
         <div className="shrink-0 pt-1">
@@ -1677,12 +1699,17 @@ function TherapistMatchCard({
               {availabilityChipLabel}
             </span>
           </div>
-          <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin size={12} className="shrink-0" />
-            <span>
+          <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <MapPin size={12} className="shrink-0" />
               {therapist.neighborhoods[0] ?? therapist.city}
-              {therapist.telehealth ? " · Telehealth" : ""}
             </span>
+            {(therapist.inPerson || therapist.telehealth) && (
+              <span className="text-muted-foreground/40">·</span>
+            )}
+            {therapist.inPerson && therapist.telehealth && <span>In person &amp; telehealth</span>}
+            {therapist.inPerson && !therapist.telehealth && <span>In person only</span>}
+            {!therapist.inPerson && therapist.telehealth && <span>Telehealth only</span>}
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
@@ -1728,81 +1755,92 @@ function TherapistMatchCard({
       )}
 
       {/* Action row */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex gap-2">
         {!alreadyLogged && (
           mailtoHref ? (
-            <Button asChild className="min-w-[120px] flex-1">
+            <Button asChild className="flex-1 rounded-xl">
               <a href={mailtoHref} target="_blank" rel="noopener noreferrer" onClick={handleLog}>
                 {isPending ? "Logging…" : "Contact & log"}
               </a>
             </Button>
           ) : (
-            <Button className="min-w-[120px] flex-1" disabled={isPending} onClick={handleLog}>
+            <Button className="flex-1 rounded-xl" disabled={isPending} onClick={handleLog}>
               {isPending ? "Logging…" : "Log contact"}
             </Button>
           )
         )}
-
-        {hasEmail && (
-          <>
-            <button
-              type="button"
-              onClick={handleCopyEmail}
-              title={therapist.publicEmail ?? ""}
-              className="flex max-w-[200px] items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600 transition-colors hover:border-primary hover:text-primary"
-            >
-              <ClipboardCopy size={11} className="shrink-0" />
-              <span className="min-w-0 truncate">{copiedEmail ? "Copied!" : therapist.publicEmail}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyTemplate}
-              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-primary hover:text-primary"
-            >
-              <ClipboardCopy size={12} />
-              {copied ? "Copied!" : "Copy message"}
-            </button>
-            {outlookWebHref && (
-              <a
-                href={outlookWebHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-primary hover:text-primary"
-              >
-                <Globe size={12} />
-                Outlook Web
-              </a>
-            )}
-          </>
-        )}
-
-        {!hasEmail && (
-          <button
-            type="button"
-            onClick={handleCopyTemplate}
-            className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-primary hover:text-primary"
-          >
-            <ClipboardCopy size={12} />
-            {copied ? "Copied!" : "Copy template"}
-          </button>
-        )}
-
         <Button
           variant="outline"
-          className="min-w-[120px] flex-1"
+          className="flex-1 rounded-xl"
           onClick={() => {
             window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
           }}
         >
           <Eye size={14} className="mr-1.5" />
-          View Profile
+          View profile
         </Button>
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/50 pt-2.5">
+        {/* Left: email */}
+        <button
+          type="button"
+          onClick={handleCopyEmail}
+          title={therapist.publicEmail}
+          className="flex min-w-0 max-w-[200px] items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Mail size={11} className="shrink-0" />
+          <span className="truncate">
+            {therapist.publicEmail
+              ? (copiedEmail ? "Copied!" : therapist.publicEmail)
+              : "No email listed"}
+          </span>
+        </button>
+
+        {/* Right: website + copy */}
+        <div className="flex shrink-0 items-center gap-3">
+          {websiteHref ? (
+            <a
+              href={websiteHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              title="Visit website"
+            >
+              <Globe size={11} />
+              <span>Website</span>
+            </a>
+          ) : (
+            <a
+              href={externalProfileHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              title="View directory profile"
+            >
+              <Globe size={11} />
+              <span>Profile</span>
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={handleCopyTemplate}
+            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            title="Copy referral message"
+          >
+            <Copy size={11} />
+            <span>{copied ? "Copied!" : "Copy"}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-2 flex justify-start">
         <button
           type="button"
           onClick={() => setIsWhyExpanded((v) => !v)}
-          className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1 text-xs text-muted-foreground/70 transition-colors hover:text-muted-foreground"
         >
-          {isWhyExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {isWhyExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           Why this match?
         </button>
       </div>
