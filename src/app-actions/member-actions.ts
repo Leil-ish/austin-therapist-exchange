@@ -536,7 +536,6 @@ export async function saveMemberProfile(formData: FormData) {
   const availabilityStatus = String(formData.get("availabilityStatus") ?? "waitlist").trim() as AvailabilityStatus;
   const paymentModel = String(formData.get("paymentModel") ?? "both").trim() as PaymentModel;
   const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
-  const bookingUrl = String(formData.get("bookingUrl") ?? "").trim();
   const offersInPerson = formData.get("offersInPerson") === "on";
   const offersTelehealth = formData.get("offersTelehealth") === "on";
   const isPublic = formData.get("isPublic") === "on";
@@ -572,7 +571,6 @@ export async function saveMemberProfile(formData: FormData) {
       accepting_referrals: availabilityStatus !== "full",
       payment_model: paymentModel,
       website_url: websiteUrl || null,
-      booking_url: bookingUrl || null,
       is_public: isPublic,
       individual_rate: individualRate ? parseInt(String(individualRate)) : null,
       couples_rate: couplesRate ? parseInt(String(couplesRate)) : null,
