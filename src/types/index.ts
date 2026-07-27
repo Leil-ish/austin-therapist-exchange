@@ -56,6 +56,7 @@ export interface PublicTherapistSummary {
   trustedByViewer?: boolean;
   membershipTier: MembershipTier;
   sponsorName?: string;
+  profileClaimed?: boolean;
 }
 
 export interface GroupSummary {

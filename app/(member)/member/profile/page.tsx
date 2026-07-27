@@ -5,6 +5,7 @@ import { ProfileLogisticsSection } from "@/components/domain/profile-logistics-s
 import { ProfileSpecialtiesPicker } from "@/components/domain/profile-specialties-picker";
 import { AvatarUpload } from "@/components/domain/avatar-upload";
 import { AvailabilityFreshnessBanner } from "@/components/domain/availability-freshness-banner";
+import { ClaimProfileButton } from "@/components/domain/claim-profile-button";
 import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -119,20 +120,17 @@ export default async function MemberProfilePage({
   const neighborhoods = Array.isArray(profile.neighborhoods) ? (profile.neighborhoods as string[]) : [];
   const insuranceAccepted = Array.isArray(profile.insurance_accepted) ? (profile.insurance_accepted as string[]) : [];
 
-  const profileCreatedAt =
-    typeof profile.created_at === "string" ? new Date(profile.created_at) : null;
-  const accountAgeInDays = profileCreatedAt
-    ? (Date.now() - profileCreatedAt.getTime()) / (1000 * 60 * 60 * 24)
-    : null;
-  const isNewAccount = accountAgeInDays !== null && accountAgeInDays <= 7;
   const bio = String(profile.bio ?? "").trim();
-  const showWelcomeBanner = !bio && neighborhoods.length === 0 && isNewAccount;
+  const showWelcomeBanner = !profile.profileClaimed;
 
   const agencyLevels = ["Intensive Outpatient (IOP)", "Partial Hospitalization (PHP)", "Residential Treatment"];
   const offeringsArray = Array.isArray(profile.offerings) ? (profile.offerings as string[]) : [];
   const isAgencyLevelOnly = offeringsArray.length > 0 && offeringsArray.every((l: string) => agencyLevels.includes(l));
 
   const filterFieldChecks = [
+    { label: "Profile photo", empty: !profile.avatar_url },
+    { label: "Bio", empty: !bio || bio.length < 20 },
+    { label: "Approach summary", empty: !profile.approach_summary || String(profile.approach_summary).trim().length < 20 },
     { label: "Gender", empty: !profile.gender && !isAgencyLevelOnly },
     { label: "Languages", empty: languages.length === 0 },
     { label: "Modalities", empty: modalities.length === 0 },
@@ -148,11 +146,19 @@ export default async function MemberProfilePage({
 
       {/* ── new-member welcome banner ── */}
       {showWelcomeBanner && (
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-          <p className="font-medium">Welcome to Austin Therapist Exchange — finish setting up your profile</p>
-          <p className="mt-1 text-muted-foreground text-xs">
-            Add your bio, neighborhoods you serve, and insurance carriers to appear in more referral searches.
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6">
+          <h2 className="font-serif text-xl text-primary mb-1">Welcome to Austin Therapist Exchange</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            We&apos;ve pre-built your profile based on publicly available information.
+            Please review everything below, fill in any gaps, and confirm your details are accurate before your profile goes live to colleagues.
           </p>
+          <ul className="text-sm text-muted-foreground space-y-1 mb-4">
+            <li>✓ Update your bio and approach summary so colleagues know how you work</li>
+            <li>✓ Add a profile photo</li>
+            <li>✓ Confirm your specialties, availability, and insurance are accurate</li>
+            <li>✓ Add your session rates (used for referral filtering — not shown publicly)</li>
+          </ul>
+          <ClaimProfileButton />
         </div>
       )}
 
@@ -468,6 +474,66 @@ export default async function MemberProfilePage({
             defaultOffersTelehealth={Boolean(profile.offers_telehealth)}
             defaultInsuranceAccepted={insuranceAccepted}
           />
+
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="individualRate" className="text-sm font-medium">
+                Individual session rate
+                <span className="ml-1 text-xs text-muted-foreground">(optional — used for referral filtering only, not shown publicly)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <input
+                  id="individualRate"
+                  name="individualRate"
+                  type="number"
+                  min="0"
+                  max="1000"
+                  defaultValue={typeof profile.individual_rate === "number" ? profile.individual_rate : ""}
+                  placeholder="150"
+                  className="w-full rounded-xl border bg-background pl-7 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="couplesRate" className="text-sm font-medium">
+                Couples / family rate
+                <span className="ml-1 text-xs text-muted-foreground">(optional)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <input
+                  id="couplesRate"
+                  name="couplesRate"
+                  type="number"
+                  min="0"
+                  max="1000"
+                  defaultValue={typeof profile.couples_rate === "number" ? profile.couples_rate : ""}
+                  placeholder="175"
+                  className="w-full rounded-xl border bg-background pl-7 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="slidingScaleMin" className="text-sm font-medium">
+                Sliding scale minimum
+                <span className="ml-1 text-xs text-muted-foreground">(optional)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <input
+                  id="slidingScaleMin"
+                  name="slidingScaleMin"
+                  type="number"
+                  min="0"
+                  max="1000"
+                  defaultValue={typeof profile.sliding_scale_min === "number" ? profile.sliding_scale_min : ""}
+                  placeholder="80"
+                  className="w-full rounded-xl border bg-background pl-7 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+          </div>
         </SectionCard>
 
         {/* ── ABOUT YOUR WORK ── */}

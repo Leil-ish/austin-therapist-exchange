@@ -307,7 +307,7 @@ async function getSupplementalTherapistFields(
     profileIds.length
       ? admin
           .from("profiles")
-          .select("id, avatar_url, created_at")
+          .select("id, avatar_url, created_at, profile_claimed")
           .in("id", profileIds)
       : Promise.resolve({ data: [] as unknown[], error: null })
   ]);
@@ -1199,7 +1199,7 @@ export async function getMemberProfileForUser(profileId: string) {
   const { data } = await admin
     .from("therapist_profiles")
     .select(
-      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, availability_updated_at, accepting_referrals, is_public, payment_model, gender, languages, offers_sliding_scale"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, communities, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, availability_updated_at, accepting_referrals, is_public, payment_model, gender, languages, offers_sliding_scale, individual_rate, couples_rate, sliding_scale_min"
     )
     .eq("profile_id", profileId)
     .maybeSingle();
@@ -1209,10 +1209,15 @@ export async function getMemberProfileForUser(profileId: string) {
   }
 
   const { therapistFields, profileFields } = await getSupplementalTherapistFields([String(data.id)], [profileId]);
-  return {
+  const merged = {
     ...(data as Record<string, unknown>),
     ...therapistFields.get(String(data.id)),
     ...profileFields.get(profileId)
+  } as Record<string, unknown>;
+
+  return {
+    ...merged,
+    profileClaimed: Boolean(merged.profile_claimed)
   } as Record<string, unknown>;
 }
 
