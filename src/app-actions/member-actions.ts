@@ -540,6 +540,9 @@ export async function saveMemberProfile(formData: FormData) {
   const offersInPerson = formData.get("offersInPerson") === "on";
   const offersTelehealth = formData.get("offersTelehealth") === "on";
   const isPublic = formData.get("isPublic") === "on";
+  const individualRate = formData.get("individualRate");
+  const couplesRate = formData.get("couplesRate");
+  const slidingScaleMin = formData.get("slidingScaleMin");
 
   if (!publicDisplayName || !credentials || !bio || specialties.length === 0 || (!offersInPerson && !offersTelehealth)) {
     redirect("/member/profile?error=missing-fields");
@@ -570,7 +573,10 @@ export async function saveMemberProfile(formData: FormData) {
       payment_model: paymentModel,
       website_url: websiteUrl || null,
       booking_url: bookingUrl || null,
-      is_public: isPublic
+      is_public: isPublic,
+      individual_rate: individualRate ? parseInt(String(individualRate)) : null,
+      couples_rate: couplesRate ? parseInt(String(couplesRate)) : null,
+      sliding_scale_min: slidingScaleMin ? parseInt(String(slidingScaleMin)) : null
     })
     .eq("profile_id", session.userId);
 
@@ -591,6 +597,21 @@ export async function saveMemberProfile(formData: FormData) {
   revalidatePath("/member");
   revalidatePath("/directory");
   redirect("/member/profile?saved=1");
+}
+
+export async function claimProfile(): Promise<{ ok: boolean }> {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const { error } = await admin
+    .from("profiles")
+    .update({ profile_claimed: true })
+    .eq("id", session.userId);
+
+  if (error) return { ok: false };
+
+  revalidatePath("/member/profile");
+  return { ok: true };
 }
 
 export async function createEndorsement(formData: FormData) {
