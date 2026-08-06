@@ -408,6 +408,7 @@ export async function submitJoinApplicationInline(
   return { status: "success" };
 }
 
+// DEPRECATED — use ?ref=profileId invite links instead
 export async function submitJoinApplication(formData: FormData) {
   const admin = createSupabaseAdminClient();
 
@@ -479,6 +480,7 @@ export async function submitJoinApplication(formData: FormData) {
   redirect("/join/apply?submitted=1");
 }
 
+// DEPRECATED — use ?ref=profileId invite links instead
 export async function createReferralLink(formData: FormData) {
   const session = await requireMember();
 

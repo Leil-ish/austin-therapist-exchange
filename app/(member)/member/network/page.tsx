@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrustedClinicianList } from "@/components/domain/trusted-clinician-list";
+import { InviteLinkCopier } from "@/components/domain/invite-link-copier";
 import { getSession } from "@/lib/auth/session";
 import { getAvailabilityLabel, getFollowedClinicians, getPublicTherapists } from "@/lib/data/live-data";
 import { NetworkInsights } from "@/components/domain/network-insights";
@@ -43,13 +44,27 @@ export default async function MemberNetworkPage({
     .sort((a, b) => b.trustedBy.length - a.trustedBy.length)
     .slice(0, 6);
 
-  const networkContent = following.length > 0 ? (
-    <TrustedClinicianList following={following} />
-  ) : (
-    <EmptyState
-      title="No trusted therapists saved yet"
-      description="Save therapists from the directory and they will appear here for quicker referrals."
-    />
+  const networkContent = (
+    <>
+      {session && (
+        <div className="rounded-2xl border border-primary/10 bg-primary/5 p-5 mb-6">
+          <h2 className="font-serif text-lg text-primary mb-1">Invite a colleague</h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            Share your personal invite link with colleagues you&apos;d like to bring onto the network.
+            When they apply, you&apos;ll be listed as their sponsor and automatically added to each other&apos;s trusted network.
+          </p>
+          <InviteLinkCopier profileId={session.userId} />
+        </div>
+      )}
+      {following.length > 0 ? (
+        <TrustedClinicianList following={following} />
+      ) : (
+        <EmptyState
+          title="No trusted therapists saved yet"
+          description="Save therapists from the directory and they will appear here for quicker referrals."
+        />
+      )}
+    </>
   );
 
   const discoverContent = suggestions.length > 0 ? (

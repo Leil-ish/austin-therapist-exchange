@@ -380,11 +380,13 @@ export function ReferralComposeForm({
   therapists,
   senderName = "",
   senderEmail = "",
+  currentProfileId,
 }: {
   statusCopy?: string | null;
   therapists: PublicTherapistSummary[];
   senderName?: string;
   senderEmail?: string;
+  currentProfileId: string;
 }) {
   // ── Core criteria ────────────────────────────────────────────────────────
   const [levelOfCare, setLevelOfCare] = useState("");
@@ -1331,11 +1333,32 @@ export function ReferralComposeForm({
           )}
 
           {scoredTherapists.length === 0 ? (
-            <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
-              {therapists.length === 0
-                ? "No other members are in the directory yet. As more colleagues join they'll appear here for referrals."
-                : "No therapists serve this location or accept that payment type. Try clearing the location or payment filter."}
-            </div>
+            <>
+              <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
+                {therapists.length === 0
+                  ? "No other members are in the directory yet. As more colleagues join they'll appear here for referrals."
+                  : "No therapists serve this location or accept that payment type. Try clearing the location or payment filter."}
+              </div>
+              <div className="mt-6 rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-5 text-center">
+                <p className="text-sm font-medium text-primary mb-1">
+                  Don&apos;t see who you&apos;re looking for?
+                </p>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Invite a colleague to join ATE — when they sign up, they&apos;ll be added to your trusted network automatically.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const inviteUrl = `${window.location.origin}/join/apply?ref=${currentProfileId}`;
+                    navigator.clipboard.writeText(inviteUrl);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-white px-4 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy invite link
+                </button>
+              </div>
+            </>
           ) : (
             <>
               {yourNetwork.length > 0 && (
