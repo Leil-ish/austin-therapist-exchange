@@ -25,10 +25,16 @@ export default async function JoinApplyPage({
   return (
     <PageShell>
       <section className="mx-auto max-w-3xl space-y-8 px-6 py-16">
+        {sponsorProfile && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary">
+            <span>Invited by {sponsorProfile.full_name}</span>
+          </div>
+        )}
+
         <SectionHeading
           eyebrow="Join"
-          title="Apply for membership"
-          description="Austin Therapist Exchange is a curated network of Austin-area therapists. We review applications to keep the community professional and trustworthy."
+          title="Join Austin Therapist Exchange"
+          description="A private referral network for Austin therapists. Find trusted colleagues, send warm referrals, and build your professional network — all in one place built for clinicians. We review applications to keep the community professional and trustworthy."
         />
 
         <Card className="bg-white/90">

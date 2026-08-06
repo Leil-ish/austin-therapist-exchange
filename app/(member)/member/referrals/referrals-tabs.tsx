@@ -21,6 +21,7 @@ export function ReferralsTabs({
   awaitingCount,
   senderName,
   senderEmail,
+  currentProfileId,
 }: {
   defaultTab: Tab;
   openIncomingCount: number;
@@ -32,6 +33,7 @@ export function ReferralsTabs({
   awaitingCount: number;
   senderName: string;
   senderEmail: string;
+  currentProfileId: string;
 }) {
   function handleTabChange(value: string) {
     const params = new URLSearchParams(window.location.search);
@@ -84,6 +86,7 @@ export function ReferralsTabs({
           therapists={therapists}
           senderName={senderName}
           senderEmail={senderEmail}
+          currentProfileId={currentProfileId}
         />
       </TabsContent>
 

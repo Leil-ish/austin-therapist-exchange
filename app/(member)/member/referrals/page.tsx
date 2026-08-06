@@ -58,6 +58,7 @@ export default async function MemberReferralsPage({
       awaitingCount={awaitingCount}
       senderName={session.fullName ?? ""}
       senderEmail={session.email ?? ""}
+      currentProfileId={session.userId}
     />
   );
 }

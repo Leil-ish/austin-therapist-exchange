@@ -326,6 +326,10 @@ export function JoinApplicationForm({
             onChange={(e) => setWebsite(e.target.value)}
             placeholder="https://"
           />
+          <p className="mt-1 px-1 text-xs text-muted-foreground">
+            Optional — share your Psychology Today profile or practice website.
+            This helps us pre-fill your profile before you log in for the first time.
+          </p>
         </div>
 
         <div>
