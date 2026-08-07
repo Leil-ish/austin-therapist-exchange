@@ -204,7 +204,7 @@ export function ProfileTabs({
       {/* ── STEPS 2–5 share the main profile form ── */}
       <form action={saveMemberProfile} className="space-y-6">
         {/* ── STEP 2 — Your Basics ── */}
-        <TabsContent value="basics" className="space-y-6">
+        <TabsContent value="basics" forceMount className={cn("space-y-6", activeTab !== "basics" && "hidden")}>
           <Card className="bg-white/90">
             <CardHeader>
               <CardTitle>Profile photo</CardTitle>
@@ -306,13 +306,14 @@ export function ProfileTabs({
             </fieldset>
           </SectionCard>
 
-          <Button type="button" onClick={() => setActiveTab("practice")} className="mt-4">
-            Continue →
+          <input type="hidden" name="nextTab" value="practice" />
+          <Button type="submit" className="mt-4">
+            Save &amp; continue
           </Button>
         </TabsContent>
 
         {/* ── STEP 3 — Your Practice ── */}
-        <TabsContent value="practice" className="space-y-6">
+        <TabsContent value="practice" forceMount className={cn("space-y-6", activeTab !== "practice" && "hidden")}>
           {missingFilterFields.length > 0 && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               <p className="font-medium">Help colleagues find you</p>
@@ -420,13 +421,14 @@ export function ProfileTabs({
             </div>
           </SectionCard>
 
-          <Button type="button" onClick={() => setActiveTab("filters")} className="mt-4">
-            Continue →
+          <input type="hidden" name="nextTab" value="filters" />
+          <Button type="submit" className="mt-4">
+            Save &amp; continue
           </Button>
         </TabsContent>
 
         {/* ── STEP 4 — How Colleagues Find You ── */}
-        <TabsContent value="filters" className="space-y-6">
+        <TabsContent value="filters" forceMount className={cn("space-y-6", activeTab !== "filters" && "hidden")}>
           <p className="text-sm text-muted-foreground">
             These fields power the referral search filters. The more complete they are, the more often colleagues will find you when their client&apos;s needs match your practice.
           </p>
@@ -532,13 +534,14 @@ export function ProfileTabs({
             </div>
           </SectionCard>
 
-          <Button type="button" onClick={() => setActiveTab("about")} className="mt-4">
-            Continue →
+          <input type="hidden" name="nextTab" value="about" />
+          <Button type="submit" className="mt-4">
+            Save &amp; continue
           </Button>
         </TabsContent>
 
         {/* ── STEP 5 — About Your Work & Publish ── */}
-        <TabsContent value="about" className="space-y-6">
+        <TabsContent value="about" forceMount className={cn("space-y-6", activeTab !== "about" && "hidden")}>
           <SectionCard title="About your work">
             <div className="space-y-4">
               <div>
@@ -584,21 +587,17 @@ export function ProfileTabs({
               </CardContent>
             </Card>
           )}
-        </TabsContent>
 
-        {activeTab !== "start" && (
-          <div className="sticky bottom-0 z-20 rounded-[28px] border bg-white/95 px-6 py-4 shadow-paper backdrop-blur-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className={cn(
-                "text-sm",
-                !status ? "text-muted-foreground" : status.ok ? "text-green-700" : "text-destructive"
-              )}>
-                {status ? status.text : "Fields marked * are required."}
-              </p>
-              <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className={cn(
+              "text-sm",
+              !status ? "text-muted-foreground" : status.ok ? "text-green-700" : "text-destructive"
+            )}>
+              {status ? status.text : "Fields marked * are required."}
+            </p>
+            <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
           </div>
-        )}
+        </TabsContent>
       </form>
     </Tabs>
   );

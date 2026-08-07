@@ -544,6 +544,7 @@ export async function saveMemberProfile(formData: FormData) {
   const individualRate = formData.get("individualRate");
   const couplesRate = formData.get("couplesRate");
   const slidingScaleMin = formData.get("slidingScaleMin");
+  const nextTab = String(formData.get("nextTab") ?? "").trim() || null;
 
   if (!publicDisplayName || !credentials || !bio || specialties.length === 0 || (!offersInPerson && !offersTelehealth)) {
     redirect("/member/profile?error=missing-fields");
@@ -596,7 +597,7 @@ export async function saveMemberProfile(formData: FormData) {
   revalidatePath("/member/profile");
   revalidatePath("/member");
   revalidatePath("/directory");
-  redirect("/member/profile?saved=1");
+  redirect(`/member/profile?saved=1${nextTab ? `&tab=${nextTab}` : ""}`);
 }
 
 export async function claimProfile(): Promise<{ ok: boolean }> {
