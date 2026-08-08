@@ -203,6 +203,16 @@ export function ProfileTabs({
 
       {/* ── STEPS 2–5 share the main profile form ── */}
       <form action={saveMemberProfile} className="space-y-6">
+        <input
+          type="hidden"
+          name="nextTab"
+          value={
+            activeTab === "basics" ? "practice" :
+            activeTab === "practice" ? "filters" :
+            activeTab === "filters" ? "about" :
+            ""
+          }
+        />
         {/* ── STEP 2 — Your Basics ── */}
         <TabsContent value="basics" forceMount className={cn("space-y-6", activeTab !== "basics" && "hidden")}>
           <Card className="bg-white/90">
@@ -306,7 +316,6 @@ export function ProfileTabs({
             </fieldset>
           </SectionCard>
 
-          <input type="hidden" name="nextTab" value="practice" />
           <Button type="submit" className="mt-4">
             Save &amp; continue
           </Button>
@@ -421,7 +430,6 @@ export function ProfileTabs({
             </div>
           </SectionCard>
 
-          <input type="hidden" name="nextTab" value="filters" />
           <Button type="submit" className="mt-4">
             Save &amp; continue
           </Button>
@@ -534,7 +542,6 @@ export function ProfileTabs({
             </div>
           </SectionCard>
 
-          <input type="hidden" name="nextTab" value="about" />
           <Button type="submit" className="mt-4">
             Save &amp; continue
           </Button>
