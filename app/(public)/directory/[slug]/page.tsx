@@ -1,8 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
 import { requireMember } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +22,10 @@ export default async function TherapistProfilePage({
   params: Promise<{ slug: string }>;
   searchParams?: Promise<{ from?: string; returnTo?: string }>;
 }) {
+  if (!(await getSession())) {
+    redirect("/login?returnTo=/member/referrals");
+  }
+
   const { slug } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const rawReturnTo = resolvedSearchParams.returnTo ?? resolvedSearchParams.from;

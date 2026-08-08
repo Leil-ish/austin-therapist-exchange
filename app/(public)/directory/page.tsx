@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PageShell } from "@/components/layout/page-shell";
 import { EmptyState } from "@/components/state/empty-state";
 import { DirectoryFilters } from "@/components/domain/directory-filters";
 import { TherapistCard } from "@/components/domain/therapist-card";
 import { requireMember } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
 import { getPublicTherapists } from "@/lib/data/live-data";
 import { regionMatches } from "@/lib/referral-matching";
 
@@ -19,6 +21,10 @@ export default async function DirectoryPage({
       page?: string;
   }>;
 }) {
+  if (!(await getSession())) {
+    redirect("/login?returnTo=/member/referrals");
+  }
+
   const params = searchParams ? await searchParams : undefined;
   const session = await requireMember("/directory");
 
