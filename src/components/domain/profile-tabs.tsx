@@ -101,6 +101,8 @@ export function ProfileTabs({
     return showWelcomeBanner ? "start" : "basics";
   });
 
+  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>(neighborhoods);
+
   useEffect(() => {
     const fromUrl = searchParams.get("tab");
     if (isTabKey(fromUrl) && fromUrl !== activeTab) {
@@ -298,16 +300,30 @@ export function ProfileTabs({
                 <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>
               </legend>
               <p className="mb-3 text-xs text-muted-foreground">
-                Select all areas where you see clients in person.
+                Select up to 3 areas where your office is located — not where you&apos;re willing to travel.{" "}
+                {selectedNeighborhoods.length}/3 selected.
+                {selectedNeighborhoods.length >= 3 && (
+                  <span className="text-amber-600 ml-1">Maximum reached — deselect one to choose another.</span>
+                )}
               </p>
               <div className="flex flex-wrap gap-3">
                 {LOCATION_OPTIONS.filter((l) => l !== "Telehealth Only").map((location) => (
                   <label key={location} className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
                     <input
-                      defaultChecked={neighborhoods.includes(location)}
+                      checked={selectedNeighborhoods.includes(location)}
                       name="neighborhoods"
                       type="checkbox"
                       value={location}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          if (selectedNeighborhoods.length < 3) {
+                            setSelectedNeighborhoods([...selectedNeighborhoods, location]);
+                          }
+                        } else {
+                          setSelectedNeighborhoods(selectedNeighborhoods.filter((n) => n !== location));
+                        }
+                      }}
+                      disabled={!selectedNeighborhoods.includes(location) && selectedNeighborhoods.length >= 3}
                     />
                     {location}
                   </label>
