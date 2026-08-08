@@ -540,7 +540,6 @@ export async function saveMemberProfile(formData: FormData) {
   const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
   const offersInPerson = formData.get("offersInPerson") === "on";
   const offersTelehealth = formData.get("offersTelehealth") === "on";
-  const isPublic = formData.get("isPublic") === "on";
   const individualRate = formData.get("individualRate");
   const couplesRate = formData.get("couplesRate");
   const slidingScaleMin = formData.get("slidingScaleMin");
@@ -574,7 +573,7 @@ export async function saveMemberProfile(formData: FormData) {
       accepting_referrals: availabilityStatus !== "full",
       payment_model: paymentModel,
       website_url: websiteUrl || null,
-      is_public: isPublic,
+      is_public: true,
       individual_rate: individualRate ? parseInt(String(individualRate)) : null,
       couples_rate: couplesRate ? parseInt(String(couplesRate)) : null,
       sliding_scale_min: slidingScaleMin ? parseInt(String(slidingScaleMin)) : null

@@ -590,16 +590,6 @@ export function ProfileTabs({
             </div>
           </SectionCard>
 
-          <SectionCard title="Visibility">
-            <label htmlFor="isPublic" className="flex cursor-pointer items-center gap-3 text-sm text-muted-foreground">
-              <input id="isPublic" defaultChecked={Boolean(profile.is_public)} name="isPublic" type="checkbox" />
-              <span>
-                <span className="font-medium text-foreground">Show this profile in the public directory</span>
-                <span className="ml-2 text-xs">(visible to non-members at austintherapistexchange.com)</span>
-              </span>
-            </label>
-          </SectionCard>
-
           {!profileClaimed && (
             <Card className="bg-white/90">
               <CardHeader>
