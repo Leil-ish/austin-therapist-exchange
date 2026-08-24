@@ -106,7 +106,7 @@ export async function reviewJoinRequest(formData: FormData) {
       type: "recovery",
       email: applicantEmail,
       options: {
-        redirectTo: `${appBaseUrl}/auth/callback?next=/member/profile`,
+        redirectTo: `${appBaseUrl}/auth/callback?next=/reset-password?then=/member/profile`,
       },
     });
     if (linkError) {

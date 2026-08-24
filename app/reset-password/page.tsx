@@ -25,10 +25,11 @@ function getErrorCopy(error?: string) {
 export default async function ResetPasswordPage({
   searchParams
 }: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; then?: string }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
   const errorCopy = getErrorCopy(params?.error);
+  const then = params?.then ?? "";
 
   return (
     <PageShell>
@@ -50,6 +51,7 @@ export default async function ResetPasswordPage({
               </div>
             ) : null}
             <form action={completePasswordRecovery} className="space-y-4">
+              <input type="hidden" name="then" value={then} />
               <input
                 className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
                 name="password"

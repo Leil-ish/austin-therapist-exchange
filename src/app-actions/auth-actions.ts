@@ -183,17 +183,20 @@ export async function updatePassword(formData: FormData) {
 export async function completePasswordRecovery(formData: FormData) {
   const password = getPasswordValue(formData);
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const requestedThen = String(formData.get("then") ?? "").trim();
+  const hasThen = isSafeReturnTo(requestedThen);
+  const thenSuffix = hasThen ? `&then=${encodeURIComponent(requestedThen)}` : "";
 
   if (!password || !confirmPassword) {
-    redirect("/reset-password?error=missing-password");
+    redirect(`/reset-password?error=missing-password${thenSuffix}`);
   }
 
   if (password !== confirmPassword) {
-    redirect("/reset-password?error=password-mismatch");
+    redirect(`/reset-password?error=password-mismatch${thenSuffix}`);
   }
 
   if (password.length < 10) {
-    redirect("/reset-password?error=password-too-short");
+    redirect(`/reset-password?error=password-too-short${thenSuffix}`);
   }
 
   const supabase = await createSupabaseServerClient();
@@ -208,7 +211,11 @@ export async function completePasswordRecovery(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/reset-password?error=${encodeURIComponent(error.message)}`);
+    redirect(`/reset-password?error=${encodeURIComponent(error.message)}${thenSuffix}`);
+  }
+
+  if (hasThen) {
+    redirect(requestedThen as never);
   }
 
   await supabase.auth.signOut();
