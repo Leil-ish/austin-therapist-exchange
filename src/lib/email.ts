@@ -75,7 +75,7 @@ export async function sendApprovalEmail(to: string, name: string, setPasswordLin
           Set your password →
         </a>
       </p>
-      <p>After signing in, add your bio, the neighborhoods you serve, and your insurance carriers — these help colleagues find you in referral searches.</p>
+      <p>Click the button above to set your password and access your profile. The link expires in 24 hours.</p>
       <p style="color:#6b7280;font-size:13px;margin-top:32px;">
         If you didn't apply for Austin Therapist Exchange, you can ignore this email.
       </p>
