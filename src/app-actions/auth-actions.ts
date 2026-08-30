@@ -1,8 +1,18 @@
 "use server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+const VALID_OTP_TYPES: EmailOtpType[] = [
+  "signup",
+  "invite",
+  "magiclink",
+  "recovery",
+  "email_change",
+  "email"
+];
 
 function normalizeEmailInput(value: string) {
   const normalized = value
@@ -220,6 +230,32 @@ export async function completePasswordRecovery(formData: FormData) {
 
   await supabase.auth.signOut();
   redirect("/login?recovered=1&mode=password");
+}
+
+// Deferred token verification for /auth/confirm: verifyOtp only runs here, on an explicit
+// user click, so a link-scanning email proxy that merely loads the /auth/confirm page can't
+// burn the one-time token before the real recipient clicks "Continue".
+export async function confirmRecoveryToken(formData: FormData) {
+  const tokenHash = String(formData.get("token_hash") ?? "").trim();
+  const type = String(formData.get("type") ?? "").trim();
+  const requestedNext = String(formData.get("next") ?? "").trim();
+  const next = isSafeReturnTo(requestedNext) ? requestedNext : "/reset-password";
+
+  if (!tokenHash || !VALID_OTP_TYPES.includes(type as EmailOtpType)) {
+    redirect("/login?error=missing-auth-token");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: type as EmailOtpType
+  });
+
+  if (error) {
+    redirect("/login?error=link-expired");
+  }
+
+  redirect(next as never);
 }
 
 export async function signOut() {
