@@ -101,6 +101,11 @@ export async function reviewJoinRequest(formData: FormData) {
     }
 
     // 2. Generate a password-set link for the welcome email
+    //
+    // We deliberately do NOT send GoTrue's raw `action_link` (which points straight at
+    // /verify and gets consumed by the first thing that loads it — e.g. Gmail/Outlook
+    // link-scanning proxies — before the real recipient clicks). Instead we build our own
+    // link to /auth/confirm, which only calls verifyOtp on an explicit user click.
     const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://austintherapistexchange.com";
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "recovery",
@@ -112,9 +117,13 @@ export async function reviewJoinRequest(formData: FormData) {
     if (linkError) {
       console.error("[reviewJoinRequest] generateLink failed:", linkError);
     }
-    const setPasswordLink =
-      (linkData as { properties?: { action_link?: string } } | null)?.properties?.action_link ??
-      `${appBaseUrl}/login`;
+    const hashedToken = (linkData as { properties?: { hashed_token?: string } } | null)?.properties
+      ?.hashed_token;
+    const setPasswordLink = hashedToken
+      ? `${appBaseUrl}/auth/confirm?token_hash=${encodeURIComponent(hashedToken)}&type=recovery&next=${encodeURIComponent(
+          "/reset-password?then=/member/profile"
+        )}`
+      : `${appBaseUrl}/login`;
 
     // 3. Create profiles row (skip if it already exists)
     const { data: existingProfile } = await admin

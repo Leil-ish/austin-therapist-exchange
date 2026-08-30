@@ -31,6 +31,10 @@ function getErrorCopy(error?: string, mode?: string) {
     return "A magic link was already sent to that address recently. Please wait a minute before requesting another one.";
   }
 
+  if (error === "link-expired") {
+    return "This link has already been used or expired. Request a new one below.";
+  }
+
   return error ? `Sign-in error: ${error}` : null;
 }
 
