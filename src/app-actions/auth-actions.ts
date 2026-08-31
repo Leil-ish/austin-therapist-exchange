@@ -167,15 +167,15 @@ export async function updatePassword(formData: FormData) {
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
   if (!password || !confirmPassword) {
-    redirect("/member/profile?passwordError=missing-password");
+    redirect("/member/change-password?passwordError=missing-password");
   }
 
   if (password !== confirmPassword) {
-    redirect("/member/profile?passwordError=password-mismatch");
+    redirect("/member/change-password?passwordError=password-mismatch");
   }
 
   if (password.length < 10) {
-    redirect("/member/profile?passwordError=password-too-short");
+    redirect("/member/change-password?passwordError=password-too-short");
   }
 
   const supabase = await createSupabaseServerClient();
@@ -184,7 +184,7 @@ export async function updatePassword(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/member/profile?passwordError=${encodeURIComponent(error.message)}`);
+    redirect(`/member/change-password?passwordError=${encodeURIComponent(error.message)}`);
   }
 
   redirect("/member/profile?passwordSaved=1");

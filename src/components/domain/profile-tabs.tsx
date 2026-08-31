@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle } from "lucide-react";
 import { saveMemberProfile } from "@/app-actions/member-actions";
-import { updatePassword } from "@/app-actions/auth-actions";
 import { COMMUNITIES, GENDERS, LANGUAGES, LOCATION_OPTIONS, MODALITIES } from "@/lib/referral-matching";
 import { ProfileLogisticsSection } from "@/components/domain/profile-logistics-section";
 import { ProfileSpecialtiesPicker } from "@/components/domain/profile-specialties-picker";
@@ -63,7 +62,6 @@ export type ProfileTabsProps = {
   profile: Record<string, unknown>;
   recentlyReportedFull: boolean;
   status: { text: string; ok: boolean } | null;
-  passwordStatusCopy: string | null;
   communities: string[];
   modalities: string[];
   languages: string[];
@@ -80,7 +78,6 @@ export function ProfileTabs({
   profile,
   recentlyReportedFull,
   status,
-  passwordStatusCopy,
   communities,
   modalities,
   languages,
@@ -180,23 +177,6 @@ export function ProfileTabs({
             typeof profile.availability_updated_at === "string" ? profile.availability_updated_at : null
           }
         />
-
-        <Card className="bg-white/90">
-          <CardHeader>
-            <CardTitle>Set your password</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-            <p>Set a password so you don&apos;t need a magic link every time you log in.</p>
-            {passwordStatusCopy ? (
-              <div className="rounded-[24px] border bg-background p-4">{passwordStatusCopy}</div>
-            ) : null}
-            <form action={updatePassword} className="space-y-4">
-              <input className={INPUT} name="password" placeholder="New password" type="password" />
-              <input className={INPUT} name="confirmPassword" placeholder="Confirm new password" type="password" />
-              <SubmitButton pendingLabel="Saving…" variant="outline">Save password</SubmitButton>
-            </form>
-          </CardContent>
-        </Card>
 
         <Button type="button" onClick={() => setActiveTab("basics")} className="mt-4">
           Continue to your profile →

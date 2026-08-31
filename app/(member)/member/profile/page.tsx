@@ -13,12 +13,8 @@ function getStatusCopy(error?: string, saved?: string) {
   return null;
 }
 
-function getPasswordStatusCopy(error?: string, saved?: string) {
-  if (saved) return "Password updated.";
-  if (error === "missing-password") return "Please enter and confirm your new password.";
-  if (error === "password-mismatch") return "The password fields did not match.";
-  if (error === "password-too-short") return "Use at least 10 characters for your password.";
-  return error ? `Password update error: ${error}` : null;
+function getPasswordSavedCopy(saved?: string) {
+  return saved ? "Password updated." : null;
 }
 
 // ─── page ─────────────────────────────────────────────────────────────────────
@@ -30,7 +26,6 @@ export default async function MemberProfilePage({
     saved?: string;
     error?: string;
     passwordSaved?: string;
-    passwordError?: string;
   }>;
 }) {
   const session = await getSession();
@@ -39,7 +34,7 @@ export default async function MemberProfilePage({
     ? await Promise.all([getMemberProfileForUser(session.userId), getRecentlyReportedFull(session.userId)])
     : [null, false];
   const status = getStatusCopy(params?.error, params?.saved);
-  const passwordStatusCopy = getPasswordStatusCopy(params?.passwordError, params?.passwordSaved);
+  const passwordSavedCopy = getPasswordSavedCopy(params?.passwordSaved);
 
   if (!session || !profile) {
     return (
@@ -80,13 +75,17 @@ export default async function MemberProfilePage({
 
   return (
     <div className="space-y-6">
+      {passwordSavedCopy ? (
+        <div className="rounded-[24px] border bg-white/90 p-4 text-sm text-green-700 shadow-paper">
+          {passwordSavedCopy}
+        </div>
+      ) : null}
       <Suspense>
         <ProfileTabs
           session={session}
           profile={profile}
           recentlyReportedFull={recentlyReportedFull}
           status={status}
-          passwordStatusCopy={passwordStatusCopy}
           communities={communities}
           modalities={modalities}
           languages={languages}

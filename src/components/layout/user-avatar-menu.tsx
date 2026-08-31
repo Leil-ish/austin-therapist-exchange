@@ -67,6 +67,14 @@ export function UserAvatarMenu({
           >
             Edit profile
           </Link>
+          <Link
+            className="block px-4 py-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted/50 hover:text-foreground"
+            href="/member/change-password"
+            onClick={() => setOpen(false)}
+            role="menuitem"
+          >
+            Change password
+          </Link>
           <div className="mx-3 h-px bg-border/40" />
           <form action={signOut}>
             <button
