@@ -83,6 +83,13 @@ export function MobileNav({
                   >
                     Edit profile
                   </Link>
+                  <Link
+                    href="/member/change-password"
+                    className="mt-0.5 block text-xs text-primary hover:underline"
+                    onClick={() => setOpen(false)}
+                  >
+                    Change password
+                  </Link>
                 </div>
               </div>
             )}
