@@ -185,6 +185,7 @@ export function ProfileTabs({
 
       {/* ── STEPS 2–5 share the main profile form ── */}
       <form action={saveMemberProfile} className="space-y-6">
+        <input type="hidden" name="currentTab" value={activeTab} />
         <input
           type="hidden"
           name="nextTab"
@@ -195,6 +196,18 @@ export function ProfileTabs({
             ""
           }
         />
+        {status && (
+          <div
+            className={cn(
+              "rounded-2xl border px-4 py-3 text-sm",
+              status.ok
+                ? "border-green-200 bg-green-50 text-green-700"
+                : "border-destructive/20 bg-destructive/5 text-destructive"
+            )}
+          >
+            {status.text}
+          </div>
+        )}
         {/* ── STEP 2 — Your Basics ── */}
         <TabsContent value="basics" forceMount className={cn("space-y-6", activeTab !== "basics" && "hidden")}>
           <Card className="bg-white/90">
@@ -582,12 +595,7 @@ export function ProfileTabs({
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={cn(
-              "text-sm",
-              !status ? "text-muted-foreground" : status.ok ? "text-green-700" : "text-destructive"
-            )}>
-              {status ? status.text : "Fields marked * are required."}
-            </p>
+            <p className="text-sm text-muted-foreground">Fields marked * are required.</p>
             <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
           </div>
         </TabsContent>

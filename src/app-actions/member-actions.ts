@@ -544,9 +544,16 @@ export async function saveMemberProfile(formData: FormData) {
   const couplesRate = formData.get("couplesRate");
   const slidingScaleMin = formData.get("slidingScaleMin");
   const nextTab = String(formData.get("nextTab") ?? "").trim() || null;
+  const currentTab = String(formData.get("currentTab") ?? "").trim() || "basics";
 
-  if (!publicDisplayName || !credentials || !bio || specialties.length === 0 || (!offersInPerson && !offersTelehealth)) {
-    redirect("/member/profile?error=missing-fields");
+  const missingRequiredField =
+    (currentTab === "basics" && !publicDisplayName) ||
+    (currentTab === "practice" && !offersInPerson && !offersTelehealth) ||
+    (currentTab === "filters" && specialties.length === 0) ||
+    (currentTab === "about" && !bio);
+
+  if (missingRequiredField) {
+    redirect(`/member/profile?error=missing-fields&tab=${currentTab}`);
   }
 
   const { error: therapistError } = await supabase
@@ -581,7 +588,7 @@ export async function saveMemberProfile(formData: FormData) {
     .eq("profile_id", session.userId);
 
   if (therapistError) {
-    redirect("/member/profile?error=save-failed");
+    redirect(`/member/profile?error=save-failed&tab=${currentTab}`);
   }
 
   await supabase
@@ -596,7 +603,7 @@ export async function saveMemberProfile(formData: FormData) {
   revalidatePath("/member/profile");
   revalidatePath("/member");
   revalidatePath("/directory");
-  redirect(`/member/profile?saved=1${nextTab ? `&tab=${nextTab}` : ""}`);
+  redirect(`/member/profile?saved=1&tab=${nextTab || currentTab}`);
 }
 
 export async function claimProfile(): Promise<{ ok: boolean }> {
