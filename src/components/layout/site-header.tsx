@@ -23,6 +23,7 @@ const memberNav = [
 export async function SiteHeader() {
   const session = await getSession();
   const navItems = session ? memberNav : publicNav;
+  const isAdmin = session?.role === "admin";
 
   const [unreadReferralCount, unreadNotificationCount] = await Promise.all([
     session
@@ -77,7 +78,12 @@ export async function SiteHeader() {
               </Link>
             )}
             {session ? (
-              <UserAvatarMenu fullName={session.fullName} email={session.email} avatarUrl={session.avatarUrl} />
+              <UserAvatarMenu
+                fullName={session.fullName}
+                email={session.email}
+                avatarUrl={session.avatarUrl}
+                isAdmin={isAdmin}
+              />
             ) : (
               <>
                 <Button asChild variant="ghost">
@@ -95,6 +101,7 @@ export async function SiteHeader() {
             fullName={session?.fullName ?? undefined}
             avatarUrl={session?.avatarUrl ?? undefined}
             unreadNotificationCount={unreadNotificationCount}
+            isAdmin={isAdmin}
           />
         </div>
       </div>

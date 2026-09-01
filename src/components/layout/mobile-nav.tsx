@@ -17,12 +17,14 @@ export function MobileNav({
   fullName,
   avatarUrl,
   unreadNotificationCount,
+  isAdmin,
 }: {
   navItems: readonly NavItem[];
   isSignedIn: boolean;
   fullName?: string;
   avatarUrl?: string;
   unreadNotificationCount?: number;
+  isAdmin?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -90,6 +92,15 @@ export function MobileNav({
                   >
                     Change password
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin/join-requests"
+                      className="mt-0.5 block text-xs text-primary hover:underline"
+                      onClick={() => setOpen(false)}
+                    >
+                      Admin
+                    </Link>
+                  )}
                 </div>
               </div>
             )}

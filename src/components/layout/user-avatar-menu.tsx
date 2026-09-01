@@ -10,10 +10,12 @@ export function UserAvatarMenu({
   fullName,
   email,
   avatarUrl,
+  isAdmin,
 }: {
   fullName: string | null;
   email: string;
   avatarUrl?: string;
+  isAdmin?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -75,6 +77,16 @@ export function UserAvatarMenu({
           >
             Change password
           </Link>
+          {isAdmin && (
+            <Link
+              className="block px-4 py-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted/50 hover:text-foreground"
+              href="/admin/join-requests"
+              onClick={() => setOpen(false)}
+              role="menuitem"
+            >
+              Admin
+            </Link>
+          )}
           <div className="mx-3 h-px bg-border/40" />
           <form action={signOut}>
             <button
