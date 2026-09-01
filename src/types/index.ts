@@ -111,6 +111,8 @@ export interface JoinRequestSummary {
   sponsorProfileId?: string;
   referralCode?: string;
   createdAtLabel: string;
+  reviewedAtLabel?: string;
+  rejectionReason?: string;
   status: MembershipState;
 }
 

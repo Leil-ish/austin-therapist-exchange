@@ -1060,7 +1060,7 @@ export async function getAdminJoinRequests() {
   const { data: rawRequests } = await admin
     .from("join_requests")
     .select(
-      "id, full_name, email, credentials, website_url, license_number, sponsor_profile_id, endorsement_from_profile_id, invitation_id, level_of_care, specialties, payment_model, availability, care_format, status, created_at"
+      "id, full_name, email, credentials, website_url, license_number, sponsor_profile_id, endorsement_from_profile_id, invitation_id, level_of_care, specialties, payment_model, availability, care_format, status, created_at, reviewed_at, rejection_reason"
     )
     .order("created_at", { ascending: false });
 
@@ -1148,6 +1148,14 @@ export async function getAdminJoinRequests() {
       sponsorProfileId: sponsorId ?? undefined,
       referralCode: invId ? (invitations.get(invId) ?? undefined) : undefined,
       createdAtLabel: formatCreatedAtLabel(request.created_at as string | null),
+      reviewedAtLabel:
+        typeof request.reviewed_at === "string" && request.reviewed_at
+          ? formatCreatedAtLabel(request.reviewed_at)
+          : undefined,
+      rejectionReason:
+        typeof request.rejection_reason === "string" && request.rejection_reason
+          ? request.rejection_reason
+          : undefined,
       status: String(request.status ?? "pending") as JoinRequestSummary["status"]
     } satisfies JoinRequestSummary;
   });
