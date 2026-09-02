@@ -92,6 +92,16 @@ export async function syncMembershipStateForUser(user: User) {
 
   const invitation = await getInvitationCode(joinRequest.invitation_id);
   const nextState = joinRequest.status;
+
+  // An active profile is ground truth once approved. Never let a stray/outdated
+  // join_requests row (a different application, a manual DB edit, a directly-
+  // seeded account whose email later collides with a join request) silently move
+  // an active member backward — only an explicit admin write (e.g. reviewJoinRequest's
+  // approve path) should change an active member's state.
+  if (existingProfile.membership_state === "active" && nextState !== "active") {
+    return;
+  }
+
   const nextName = joinRequest.full_name?.trim() || getDisplayName(user);
   const isStateChanging = existingProfile.membership_state !== nextState;
 
