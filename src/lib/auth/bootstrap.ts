@@ -67,6 +67,23 @@ async function getInvitationCode(invitationId?: string | null) {
 
 export async function syncMembershipStateForUser(user: User) {
   const admin = createSupabaseAdminClient();
+
+  const { data: existingProfile } = await admin
+    .from("profiles")
+    .select("id, role, membership_state, invite_code_used")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!existingProfile) {
+    return;
+  }
+
+  // Admins are bootstrapped directly (scripts/bootstrap-mvp.mjs) and are never
+  // governed by join_requests — never re-derive their state from it.
+  if (existingProfile.role === "admin") {
+    return;
+  }
+
   const joinRequest = await getLatestJoinRequestForUser(user);
 
   if (!joinRequest) {
@@ -76,16 +93,7 @@ export async function syncMembershipStateForUser(user: User) {
   const invitation = await getInvitationCode(joinRequest.invitation_id);
   const nextState = joinRequest.status;
   const nextName = joinRequest.full_name?.trim() || getDisplayName(user);
-
-  const { data: existingProfile } = await admin
-    .from("profiles")
-    .select("id, membership_state, invite_code_used")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!existingProfile) {
-    return;
-  }
+  const isStateChanging = existingProfile.membership_state !== nextState;
 
   const profilePatch: Record<string, unknown> = {
     full_name: nextName,
@@ -93,21 +101,21 @@ export async function syncMembershipStateForUser(user: User) {
     can_issue_referrals: nextState === "active" ? Boolean(joinRequest.grant_referral_access) : false
   };
 
-  if (existingProfile.membership_state !== nextState) {
+  if (isStateChanging) {
     profilePatch.membership_state = nextState;
-  }
 
-  if (nextState === "active") {
-    profilePatch.approved_at = joinRequest.reviewed_at ?? new Date().toISOString();
-    profilePatch.approved_by = joinRequest.reviewed_by ?? null;
-  }
+    if (nextState === "active") {
+      profilePatch.approved_at = joinRequest.reviewed_at ?? new Date().toISOString();
+      profilePatch.approved_by = joinRequest.reviewed_by ?? null;
+    }
 
-  if (nextState === "rejected") {
-    profilePatch.rejected_at = joinRequest.reviewed_at ?? new Date().toISOString();
-  }
+    if (nextState === "rejected") {
+      profilePatch.rejected_at = joinRequest.reviewed_at ?? new Date().toISOString();
+    }
 
-  if (nextState === "suspended") {
-    profilePatch.suspended_at = joinRequest.reviewed_at ?? new Date().toISOString();
+    if (nextState === "suspended") {
+      profilePatch.suspended_at = joinRequest.reviewed_at ?? new Date().toISOString();
+    }
   }
 
   await admin.from("profiles").update(profilePatch).eq("id", user.id);
