@@ -596,7 +596,8 @@ export async function saveMemberProfile(formData: FormData) {
     .update({
       full_name: publicDisplayName,
       city: "Austin",
-      state_region: "TX"
+      state_region: "TX",
+      ...(currentTab === "about" ? { profile_claimed: true } : {})
     })
     .eq("id", session.userId);
 
@@ -604,21 +605,6 @@ export async function saveMemberProfile(formData: FormData) {
   revalidatePath("/member");
   revalidatePath("/directory");
   redirect(`/member/profile?saved=1&tab=${nextTab || currentTab}`);
-}
-
-export async function claimProfile(): Promise<{ ok: boolean }> {
-  const session = await requireMember();
-  const admin = createSupabaseAdminClient();
-
-  const { error } = await admin
-    .from("profiles")
-    .update({ profile_claimed: true })
-    .eq("id", session.userId);
-
-  if (error) return { ok: false };
-
-  revalidatePath("/member/profile");
-  return { ok: true };
 }
 
 export async function createEndorsement(formData: FormData) {
