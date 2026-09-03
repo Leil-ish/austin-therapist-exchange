@@ -9,7 +9,6 @@ import { ProfileLogisticsSection } from "@/components/domain/profile-logistics-s
 import { ProfileSpecialtiesPicker } from "@/components/domain/profile-specialties-picker";
 import { AvatarUpload } from "@/components/domain/avatar-upload";
 import { AvailabilityFreshnessBanner } from "@/components/domain/availability-freshness-banner";
-import { ClaimProfileButton } from "@/components/domain/claim-profile-button";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -586,17 +585,21 @@ export function ProfileTabs({
           {!profileClaimed && (
             <Card className="bg-white/90">
               <CardHeader>
-                <CardTitle>My profile looks accurate — publish it</CardTitle>
+                <CardTitle>Ready to publish?</CardTitle>
               </CardHeader>
               <CardContent>
-                <ClaimProfileButton />
+                <p className="text-sm text-muted-foreground">
+                  Review your bio and details above, then save to confirm your profile is accurate and publish it to colleagues.
+                </p>
               </CardContent>
             </Card>
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">Fields marked * are required.</p>
-            <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
+            <SubmitButton pendingLabel="Saving…">
+              {activeTab === "about" && !profileClaimed ? "Save & confirm profile" : "Save profile"}
+            </SubmitButton>
           </div>
         </TabsContent>
       </form>
