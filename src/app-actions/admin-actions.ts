@@ -73,14 +73,23 @@ export async function reviewJoinRequest(formData: FormData) {
 
   // ── Rejection path ────────────────────────────────────────────────────────
   if (decision === "reject") {
-    sendDenialEmail(applicantEmail, rejectionReason || undefined).catch((err) =>
-      console.error("[reviewJoinRequest] denial email failed:", err)
-    );
+    let denialEmailFailed = false;
+    try {
+      await sendDenialEmail(applicantEmail, rejectionReason || undefined);
+    } catch (err) {
+      denialEmailFailed = true;
+      console.error("[reviewJoinRequest] denial email failed:", err);
+    }
     revalidatePath("/admin/join-requests");
-    redirect("/admin/join-requests?reviewed=rejected");
+    redirect(
+      denialEmailFailed
+        ? "/admin/join-requests?reviewed=rejected&emailWarning=denial"
+        : "/admin/join-requests?reviewed=rejected"
+    );
   }
 
   // ── Approval path ─────────────────────────────────────────────────────────
+  let approvalEmailFailed = false;
   try {
     // 1. Find or create the auth user
     let authUserId = await findAuthUserIdByEmail(applicantEmail);
@@ -248,20 +257,34 @@ export async function reviewJoinRequest(formData: FormData) {
         console.error("[reviewJoinRequest] follows upsert failed:", followError);
       }
 
-      createNotification({
-        recipientProfileId: sponsorProfileId,
-        type: "network_added",
-        title: `${applicantName} accepted your invitation`,
-        message: `${applicantName} joined Austin Therapist Exchange and was added to your trusted network.`,
-        relatedProfileId: authUserId,
-      }).catch(() => undefined);
+      // Awaited (not fire-and-forget) for the same reason as the approval email below:
+      // an un-awaited promise kicked off right before redirect() can be dropped when the
+      // Cloudflare Workers isolate tears down after the response is sent.
+      try {
+        await createNotification({
+          recipientProfileId: sponsorProfileId,
+          type: "network_added",
+          title: `${applicantName} accepted your invitation`,
+          message: `${applicantName} joined Austin Therapist Exchange and was added to your trusted network.`,
+          relatedProfileId: authUserId,
+        });
+      } catch (err) {
+        console.error("[reviewJoinRequest] sponsor notification failed:", err);
+      }
     }
 
-    // 7. Send approval email (fire-and-forget)
-    console.log("[reviewJoinRequest] sending approval email to:", applicantEmail);
-    sendApprovalEmail(applicantEmail, applicantName, setPasswordLink).catch((err) =>
-      console.error("[reviewJoinRequest] approval email failed:", err)
-    );
+    // 7. Send approval email. Must be awaited, not fire-and-forget: on Cloudflare
+    // Workers an un-awaited promise kicked off right before redirect() can be
+    // dropped when the isolate tears down after the response is sent, so the
+    // send never actually reaches the provider. A failed send here should not
+    // roll back the approval — profile/therapist_profile/follow rows above are
+    // already committed — so catch locally and surface a warning instead.
+    try {
+      await sendApprovalEmail(applicantEmail, applicantName, setPasswordLink);
+    } catch (err) {
+      approvalEmailFailed = true;
+      console.error("[reviewJoinRequest] approval email failed:", err);
+    }
 
     revalidatePath("/admin/join-requests");
     revalidatePath("/member");
@@ -271,5 +294,9 @@ export async function reviewJoinRequest(formData: FormData) {
     redirect("/admin/join-requests?error=approval-failed");
   }
 
-  redirect("/admin/join-requests?reviewed=active");
+  redirect(
+    approvalEmailFailed
+      ? "/admin/join-requests?reviewed=active&emailWarning=approval"
+      : "/admin/join-requests?reviewed=active"
+  );
 }
