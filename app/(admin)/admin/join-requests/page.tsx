@@ -33,6 +33,16 @@ function getStatusCopy(error?: string, reviewed?: string) {
   return null;
 }
 
+function getEmailWarningCopy(emailWarning?: string) {
+  if (emailWarning === "approval") {
+    return "The approval was saved, but the applicant's welcome email failed to send. They won't be able to set a password until it's resent.";
+  }
+  if (emailWarning === "denial") {
+    return "The rejection was saved, but the denial email to the applicant failed to send.";
+  }
+  return null;
+}
+
 function JoinRequestCard({
   request,
   footer,
@@ -179,11 +189,12 @@ function RequestGrid({
 export default async function AdminJoinRequestsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ reviewed?: string; error?: string }>;
+  searchParams?: Promise<{ reviewed?: string; error?: string; emailWarning?: string }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
   const requests = await getAdminJoinRequests();
   const statusCopy = getStatusCopy(params?.error, params?.reviewed);
+  const emailWarningCopy = getEmailWarningCopy(params?.emailWarning);
 
   const pending = requests.filter((r) => r.status === "pending");
   const accepted = requests.filter((r) => r.status === "active");
@@ -194,6 +205,11 @@ export default async function AdminJoinRequestsPage({
       {statusCopy ? (
         <div className="rounded-[28px] border bg-white/90 p-6 text-sm leading-7 text-muted-foreground shadow-soft">
           {statusCopy}
+        </div>
+      ) : null}
+      {emailWarningCopy ? (
+        <div className="rounded-[28px] border border-amber-300 bg-amber-50 p-6 text-sm leading-7 text-amber-900 shadow-soft">
+          {emailWarningCopy}
         </div>
       ) : null}
 
