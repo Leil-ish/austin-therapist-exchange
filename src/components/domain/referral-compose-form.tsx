@@ -1792,16 +1792,18 @@ function TherapistMatchCard({
             </Button>
           )
         )}
-        <Button
-          variant="outline"
-          className="flex-1 rounded-xl"
-          onClick={() => {
-            window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-          }}
-        >
-          <Eye size={14} className="mr-1.5" />
-          View profile
-        </Button>
+        {therapist.slug ? (
+          <Button
+            variant="outline"
+            className="flex-1 rounded-xl"
+            onClick={() => {
+              window.location.href = `/directory/${therapist.slug}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+            }}
+          >
+            <Eye size={14} className="mr-1.5" />
+            View profile
+          </Button>
+        ) : null}
       </div>
 
       <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/50 pt-2.5">
@@ -1833,7 +1835,7 @@ function TherapistMatchCard({
               <Globe size={11} />
               <span>Website</span>
             </a>
-          ) : (
+          ) : therapist.slug ? (
             <a
               href={externalProfileHref}
               target="_blank"
@@ -1844,7 +1846,7 @@ function TherapistMatchCard({
               <Globe size={11} />
               <span>Profile</span>
             </a>
-          )}
+          ) : null}
           <button
             type="button"
             onClick={handleCopyTemplate}

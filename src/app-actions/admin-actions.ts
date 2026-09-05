@@ -137,14 +137,14 @@ export async function reviewJoinRequest(formData: FormData) {
     // 3. Create profiles row (skip if it already exists)
     const { data: existingProfile } = await admin
       .from("profiles")
-      .select("id")
+      .select("id, slug")
       .eq("id", authUserId)
       .maybeSingle();
 
-    if (!existingProfile) {
-      const baseSlug = slugify(applicantName) || "therapist";
-      const uniqueSlug = `${baseSlug}-${authUserId.slice(0, 8)}`;
+    const baseSlug = slugify(applicantName) || "therapist";
+    const uniqueSlug = `${baseSlug}-${authUserId.slice(0, 8)}`;
 
+    if (!existingProfile) {
       const { error: profileError } = await admin.from("profiles").insert({
         id: authUserId,
         role: "therapist",
@@ -162,6 +162,10 @@ export async function reviewJoinRequest(formData: FormData) {
         redirect("/admin/join-requests?error=review-failed");
       }
     } else {
+      // A profile can already exist here (pre-created placeholder, prior signup,
+      // etc.) without ever having had a slug assigned — nothing else backfills
+      // it, and a NULL slug breaks every /directory/[slug] link built from this
+      // profile. Assign one now if it's still missing.
       const { error: profileError } = await admin
         .from("profiles")
         .update({
@@ -170,6 +174,7 @@ export async function reviewJoinRequest(formData: FormData) {
           can_issue_referrals: grantReferrals,
           approved_at: reviewedAt,
           approved_by: session.userId,
+          ...(existingProfile.slug ? {} : { slug: uniqueSlug }),
         })
         .eq("id", authUserId);
       if (profileError) {
