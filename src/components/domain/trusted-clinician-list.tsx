@@ -51,12 +51,16 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
                 <div className="min-w-0 flex-1">
                   {/* Top line: name + availability */}
                   <div className="flex items-center justify-between gap-2">
-                    <Link
-                      href={`/directory/${clinician.slug}?returnTo=/member/network`}
-                      className="truncate text-sm font-medium text-foreground hover:underline underline-offset-4"
-                    >
-                      {clinician.displayName}
-                    </Link>
+                    {clinician.slug ? (
+                      <Link
+                        href={`/directory/${clinician.slug}?returnTo=/member/network`}
+                        className="truncate text-sm font-medium text-foreground hover:underline underline-offset-4"
+                      >
+                        {clinician.displayName}
+                      </Link>
+                    ) : (
+                      <span className="truncate text-sm font-medium text-foreground">{clinician.displayName}</span>
+                    )}
                     <div className="shrink-0">
                       <AvailabilityDot status={clinician.availabilityStatus} />
                     </div>
@@ -66,12 +70,14 @@ export function TrustedClinicianList({ following }: { following: FollowedClinici
                     <p className="truncate text-xs text-muted-foreground">{clinician.title}</p>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className="text-xs text-muted-foreground/60">Added {clinician.followedAtLabel}</span>
-                      <Link
-                        href={`/directory/${clinician.slug}?returnTo=/member/network`}
-                        className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
-                      >
-                        View
-                      </Link>
+                      {clinician.slug ? (
+                        <Link
+                          href={`/directory/${clinician.slug}?returnTo=/member/network`}
+                          className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+                        >
+                          View
+                        </Link>
+                      ) : null}
                     </div>
                   </div>
                 </div>

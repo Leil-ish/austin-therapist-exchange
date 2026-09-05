@@ -90,9 +90,11 @@ export default async function TherapistProfilePage({
           <CardContent className="space-y-6">
             {session.userId !== therapist.profileId ? (
               <div className="flex flex-wrap gap-3">
-                <Button asChild>
-                  <Link href={`/member/referrals/to/${therapist.slug}`}>Make a referral</Link>
-                </Button>
+                {therapist.slug ? (
+                  <Button asChild>
+                    <Link href={`/member/referrals/to/${therapist.slug}`}>Make a referral</Link>
+                  </Button>
+                ) : null}
                 <TrustToggleButton
                   followedProfileId={therapist.profileId}
                   initialIsFollowed={therapist.isFollowed ?? false}

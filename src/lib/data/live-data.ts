@@ -352,7 +352,7 @@ function mapTherapistSummary(
   return {
     id: therapistProfileId,
     profileId,
-    slug: String(row.slug),
+    slug: typeof row.slug === "string" && row.slug ? row.slug : null,
     displayName: String(row.public_display_name ?? "Therapist"),
     title: buildTherapistTitle(row),
     headline: typeof row.headline === "string" ? row.headline : undefined,
@@ -1270,7 +1270,10 @@ export async function getFollowedClinicians(profileId: string) {
     ((rawTherapistProfiles ?? []) as Array<Record<string, unknown>>).map((tp) => [String(tp.profile_id), tp])
   );
   const slugByProfileId = new Map(
-    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [String(p.id), String(p.slug ?? "")])
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [
+      String(p.id),
+      typeof p.slug === "string" && p.slug ? p.slug : null
+    ])
   );
   const avatarByProfileId = new Map(
     ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((p) => [
@@ -1289,7 +1292,7 @@ export async function getFollowedClinicians(profileId: string) {
 
       return {
         profileId: pid,
-        slug: slugByProfileId.get(pid) ?? "",
+        slug: slugByProfileId.get(pid) ?? null,
         displayName: String(tp.public_display_name ?? "Therapist"),
         title: buildTherapistTitle(tp),
         availabilityStatus: (tp.availability_status as AvailabilityStatus | null) ?? "waitlist",

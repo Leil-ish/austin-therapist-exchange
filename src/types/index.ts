@@ -16,7 +16,7 @@ export interface TrustedByConnection {
 export interface PublicTherapistSummary {
   id: string;
   profileId: string;
-  slug: string;
+  slug: string | null;
   displayName: string;
   title: string;
   headline?: string;
@@ -151,7 +151,7 @@ export interface AppSession {
 
 export interface FollowedClinicianSummary {
   profileId: string;
-  slug: string;
+  slug: string | null;
   displayName: string;
   title: string;
   headline?: string;

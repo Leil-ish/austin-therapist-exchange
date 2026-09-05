@@ -88,9 +88,9 @@ export default async function DirectoryPage({
         {pagedTherapists.length > 0 ? (
           <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
             {pagedTherapists.map((therapist) => {
-              const currentUrl = `/directory${baseQuery ? `?${baseQuery}` : ""}#therapist-${therapist.slug}`;
+              const currentUrl = `/directory${baseQuery ? `?${baseQuery}` : ""}#therapist-${therapist.id}`;
               return (
-                <div id={`therapist-${therapist.slug}`} key={therapist.slug}>
+                <div id={`therapist-${therapist.id}`} key={therapist.id}>
                   <TherapistCard
                     therapist={therapist}
                     currentProfileId={session?.userId}

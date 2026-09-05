@@ -161,11 +161,13 @@ export function TherapistCard({
       </Card>
 
       {/* Stretched link — covers the full card; trust button floats above via z-10 */}
-      <Link
-        aria-label={`View ${therapist.displayName}'s profile`}
-        className="absolute inset-0 cursor-pointer rounded-[24px]"
-        href={`/directory/${therapist.slug}${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
-      />
+      {therapist.slug ? (
+        <Link
+          aria-label={`View ${therapist.displayName}'s profile`}
+          className="absolute inset-0 cursor-pointer rounded-[24px]"
+          href={`/directory/${therapist.slug}${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}
+        />
+      ) : null}
     </div>
   );
 }

@@ -86,12 +86,18 @@ export default async function MemberNetworkPage({
               <div className="flex items-start gap-3">
                 <Avatar avatarUrl={therapist.avatarUrl} name={therapist.displayName} size="sm" />
                 <div>
-                  <Link
-                    href={`/directory/${therapist.slug}?returnTo=/member/network`}
-                    className="text-base font-semibold leading-snug text-foreground hover:underline underline-offset-4"
-                  >
-                    {therapist.displayName}
-                  </Link>
+                  {therapist.slug ? (
+                    <Link
+                      href={`/directory/${therapist.slug}?returnTo=/member/network`}
+                      className="text-base font-semibold leading-snug text-foreground hover:underline underline-offset-4"
+                    >
+                      {therapist.displayName}
+                    </Link>
+                  ) : (
+                    <span className="text-base font-semibold leading-snug text-foreground">
+                      {therapist.displayName}
+                    </span>
+                  )}
                   <p className="text-sm text-muted-foreground">{therapist.title}</p>
                 </div>
               </div>
@@ -102,9 +108,11 @@ export default async function MemberNetworkPage({
                 )}
               </div>
               <p className="text-xs text-muted-foreground">{voucherCopy}</p>
-              <Link className="text-sm font-medium text-primary transition-colors hover:text-primary/70" href={`/directory/${therapist.slug}`}>
-                View profile
-              </Link>
+              {therapist.slug ? (
+                <Link className="text-sm font-medium text-primary transition-colors hover:text-primary/70" href={`/directory/${therapist.slug}`}>
+                  View profile
+                </Link>
+              ) : null}
             </CardContent>
           </Card>
         );
